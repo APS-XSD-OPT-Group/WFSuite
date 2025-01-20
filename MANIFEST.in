@@ -1,0 +1,10 @@
+include README.md
+include LICENSE.pdf
+
+recursive-include aps *.py
+recursive-exclude Zhi_code *
+recursive-exclude Antoine *
+recursive-exclude data_analysis *
+recursive-exclude Fizeau-4Sight *
+recursive-exclude original_code *
+recursive-exclude working_folder *
