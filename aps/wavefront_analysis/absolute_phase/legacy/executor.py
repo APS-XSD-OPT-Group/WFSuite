@@ -1048,7 +1048,7 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
     para_XST_simple = para_XST.copy()
     para_XST_simple['method'] = 'simple'
     para_XST_simple['down_sampling'] = 0.5
-    if para_pattern['propagated_pattern'] == 'None':
+    if para_pattern['propagated_pattern'] is None:
         prColor('MESSAGE: pattern image,  ' + para_pattern['pattern_path'],
                 'green')
         I_pattern = np.load(para_pattern['pattern_path']).astype(np.float32)
@@ -1059,7 +1059,7 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
         prColor('generating simulated pattern...', 'cyan')
         I_coh, _, _ = pattern_find.pattern_prop(I_pattern)
 
-    if para_pattern['propagated_patternDet'] == 'None':
+    if para_pattern['propagated_patternDet'] is None:
         # use central part of the raw image to generate the simulated detector reference image
         ##XSHI use cropped center and size to determine the central part of the image for pattern search.
         central_halfsize = 256
@@ -1119,8 +1119,8 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
 
 def execute_process_image(**arguments):
     arguments["img"]                   = arguments.get("img", './images/sample_00001.tif') # path to sample image
-    arguments["dark"]                  = arguments.get("dark", 'None') # file path to the dark image
-    arguments["flat"]                  = arguments.get("flat", 'None') # file path to the flat image
+    arguments["dark"]                  = arguments.get("dark", None) # file path to the dark image
+    arguments["flat"]                  = arguments.get("flat", None) # file path to the flat image
     arguments["result_folder"]         = arguments.get("result_folder", './images/results') # saving folder
     arguments["pattern_path"]          = arguments.get("pattern_path", './mask/RanMask5umB0.npy') # path to mask design pattern
     arguments["propagated_pattern"]    = arguments.get("propagated_pattern", './images/propagated_pattern.npz') # if None, will create one in the data folder
@@ -1132,6 +1132,7 @@ def execute_process_image(**arguments):
 
     arguments["det_size"]              = arguments.get("det_size", [2160, 2560]) # detector array size, need to be same with the collected image
     arguments["p_x"]                   = arguments.get("p_x", 0.65e-6) # pixel size
+    arguments["det_res"]               = arguments.get("det_res", 1.5e-6) # detector spatial resolution
     arguments["energy"]                = arguments.get("energy", 20e3) # X-ray energy
     arguments["pattern_size"]          = arguments.get("pattern_size", 4.985e-6) # mask pattern design pixel size
     arguments["pattern_thickness"]     = arguments.get("pattern_thickness", 1.5e-6) # mask pattern thickness
@@ -1141,7 +1142,6 @@ def execute_process_image(**arguments):
     arguments["d_source_h"]            = arguments.get("d_source_h", 60.0) # horizontal source distance
     arguments["source_v"]              = arguments.get("source_v", 10e-6) # vertical source size
     arguments["source_h"]              = arguments.get("source_h", 277e-6) # horizontal source size
-    arguments["det_res"]               = arguments.get("det_res", 1.5e-6) # detector spatial resolution
 
     arguments["correct_scale"]         = arguments.get("correct_scale", False) # correct mask pattern scales or not. default is False. This will remove the parabolic wavefront in the simulated pattern
     arguments["show_alignFigure"]      = arguments.get("show_alignFigure", False) # show aligned figure or not
@@ -1240,12 +1240,12 @@ def execute_process_image(**arguments):
 
     I_img_raw = load_image(file_img)
 
-    if args.dark == 'None':
+    if args.dark is None:
         dark = np.zeros(I_img_raw.shape)
     else:
         dark = load_image(args.dark)
 
-    if args.flat == 'None':
+    if args.flat is None:
         flat = snd.uniform_filter(I_img_raw, size=10 * (args.pattern_size / args.p_x))  # XSHI Feb 2024 change from 5 to 10
     else:
         flat = load_image(args.flat)
@@ -1301,7 +1301,7 @@ def execute_process_image(**arguments):
     pattern_find = pattern_search(ini_para=para_simulation)
 
     # -------------------------------- do the re-calculation of source distance -------------------------------------
-    if args.d_source_recal and para_pattern['propagated_pattern'] == 'None' and para_pattern['propagated_patternDet'] == 'None':
+    if args.d_source_recal and para_pattern['propagated_pattern'] is None and para_pattern['propagated_patternDet'] is None:
         prColor('Re-calculate the source distance according to the current value', 'cyan')
         # estimation method, simple_speckle or geometric, simple_speckle means using the slope_tracking to estimate the overall source distance; geometric means using the image scalling factor to get the overall source distance
         est_method = 'geometric'
@@ -1322,7 +1322,7 @@ def execute_process_image(**arguments):
 
     # to find the pattern from the reference image
     pattern_find = pattern_search(ini_para=para_simulation)
-    if para_pattern['propagated_pattern'] == 'None':
+    if para_pattern['propagated_pattern'] is None:
         prColor('MESSAGE: pattern image,  ' + para_pattern['pattern_path'],
                 'green')
         I_pattern = np.load(para_pattern['pattern_path']).astype(np.float32)
@@ -1336,7 +1336,7 @@ def execute_process_image(**arguments):
                               'propagated_pattern.npz'),
                  I_coh=I_coh)
     else:
-        if para_pattern['propagated_patternDet'] == 'None':
+        if para_pattern['propagated_patternDet'] is None:
             # load the pattern from the saved file
             prColor(
                 'MESSAGE: load propagated pattern,  ' +
@@ -1346,7 +1346,7 @@ def execute_process_image(**arguments):
             # I_det = data_content['I_det']
             # I_prop = data_content['I_prop']
 
-    if para_pattern['propagated_patternDet'] == 'None':
+    if para_pattern['propagated_patternDet'] is None:
         # use central part of the raw image to generate the simulated detector reference image
         ##XSHI use cropped center and size to determine the central part of the image for pattern search.
         central_halfsize = 256
@@ -1590,7 +1590,3 @@ def execute_process_image(**arguments):
         int_y = np.sum(intensity_y, axis=1)
         save_data({'int_y': int_y, 'line_phase_y': line_phase[0], 'line_displace_y': line_displace[0], 'line_curve_y': line_curve_filter[0], 'int_x': int_x, 'line_phase_x': line_phase[1], 'line_displace_x': line_displace[1], 'line_curve_x': line_curve_filter[1]}, args.result_folder, args.p_x)
 
-
-if __name__=="__main__":
-    print(execute_process_image(propagated_pattern='None',
-                                propagated_patternDet='None').img)

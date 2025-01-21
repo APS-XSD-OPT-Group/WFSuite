@@ -44,25 +44,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-from numpy import ndarray
-import abc
-from multiprocessing import cpu_count
 
-class ProcessingMode:
-    LIVE  = 0
-    BATCH = 1
+from aps.wavefront_analysis.driver.wavefront_sensor import get_default_file_name_prefix
+from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer
+from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import WavefrontAnalyzer
 
-MAX_THREADS = cpu_count() - 2
 
-class IWavefrontAnalyzer():
-    @abc.abstractmethod
-    def generate_simulated_mask(self, image_index_for_mask: int = 1, data_collection_directory: str = None, verbose: bool = False, **kwargs) -> [list, bool]: raise NotImplementedError
-    @abc.abstractmethod
-    def get_image_data(self, image_index: int, data_collection_directory: str = None, index_digits: int = 4, units="mm", **kwargs) -> [ndarray, ndarray, ndarray]: raise NotImplementedError
-    @abc.abstractmethod
-    def process_image(self, image_index: int, data_collection_directory: str = None, verbose: bool = False, **kwargs): raise NotImplementedError
-    @abc.abstractmethod
-    def process_images(self, data_collection_directory: str = None, mode=ProcessingMode.LIVE, n_threads=MAX_THREADS, verbose: bool = False, **kwargs): raise NotImplementedError
-    @abc.abstractmethod
-    def wait_image_processing_to_end(self, verbose: bool = False, **kwargs): raise NotImplementedError
-
+def create_wavefront_analyzer(data_collection_directory,
+                              file_name_prefix=get_default_file_name_prefix(),
+                              simulated_mask_directory=None,
+                              energy=20000.0) -> IWavefrontAnalyzer:
+    return WavefrontAnalyzer(data_collection_directory=data_collection_directory,
+                             file_name_prefix=file_name_prefix,
+                             simulated_mask_directory=simulated_mask_directory,
+                             energy=energy)
