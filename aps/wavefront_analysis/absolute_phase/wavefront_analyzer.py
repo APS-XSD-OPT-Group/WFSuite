@@ -77,7 +77,7 @@ PATTERN_SIZE          = ini_file.get_float_from_ini(  section="Mask", key="Patte
 PATTERN_THICKNESS     = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Thickness",    default=1.5e-6)
 PATTERN_T             = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Transmission", default=0.613)
 RAN_MASK              = ini_file.get_string_from_ini( section="Mask", key="Pattern-Image",        default='RanMask5umB0.npy')
-PROPAGATION_DISTANCE  = ini_file.get_float_from_ini(section="Mask", key="Propagation-Distance", default=500e-3)
+PROPAGATION_DISTANCE  = ini_file.get_float_from_ini(  section="Mask", key="Propagation-Distance", default=500e-3)
 
 SOURCE_V              = ini_file.get_float_from_ini(  section="Source", key="Source-Size-V",     default=6.925e-6)
 SOURCE_H              = ini_file.get_float_from_ini(  section="Source", key="Source-Size-H",     default=0.333e-6)
