@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs", "setuptools_scm"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aps-wavefront-analysis"
+description = "APS Wavefront Analysis Tools"
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [
+  { name = "Argonne National Laboratory", email = "lrebuffi@anl.gov" }
+]
+maintainers = [
+  { name = "Argonne National Laboratory", email = "lrebuffi@bnl.gov" }
+]
+requires-python = ">=3.8"
+
+dependencies = [
+    "aps_common_libraries",
+    "h5py",
+    "matplotlib",
+    "numpy<2",
+    "scipy",
+    "torch",
+]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+
+dynamic = ["version"]
+
+[project.optional-dependencies]
+
+[project.urls]
+Homepage = "https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis"
+Documentation = "https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis"
+"Bug Reports" = "https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis/issues"
+
+
+[tool.hatch.build.targets.wheel]
+only-include = ["aps"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
+
+[tool.setuptools_scm]
+version_file = "aps/_version.py"
+
+[tool.hatch]
+version.source = "vcs"
+build.hooks.vcs.version-file = "aps/_version.py"
+
+[tool.hatch.version.raw-options]
+local_scheme = "no-local-version"
+
+[tool.black]
+line-length = 125
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.idea
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | TEST_DIR
+)/
+'''
