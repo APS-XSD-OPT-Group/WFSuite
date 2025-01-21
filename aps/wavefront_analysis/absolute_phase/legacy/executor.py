@@ -53,13 +53,10 @@
 import os
 import sys
 import numpy as np
-import argparse
 import scipy.constants as sc
 import cv2
 import scipy.ndimage as snd
 import scipy.signal as ssignal
-
-import aps.ai.optics_controller
 
 from aps.wavefront_analysis.common.legacy.func import prColor, load_image, slop_tracking, write_json, auto_crop, image_align
 from aps.wavefront_analysis.common.legacy.integration import frankotchellappa
@@ -1124,10 +1121,10 @@ def execute_process_image(**arguments):
     arguments["img"]                   = arguments.get("img", './images/sample_00001.tif') # path to sample image
     arguments["dark"]                  = arguments.get("dark", 'None') # file path to the dark image
     arguments["flat"]                  = arguments.get("flat", 'None') # file path to the flat image
-    arguments["result_folder"]         = arguments.get("img", './images/results') # saving folder
+    arguments["result_folder"]         = arguments.get("result_folder", './images/results') # saving folder
     arguments["pattern_path"]          = arguments.get("pattern_path", './mask/RanMask5umB0.npy') # path to mask design pattern
     arguments["propagated_pattern"]    = arguments.get("propagated_pattern", './images/propagated_pattern.npz') # if None, will create one in the data folder
-    arguments["propagated_patternDet"] = arguments.get("img", './images/propagated_patternDet.npz') # if None, will search from the propagated pattern. Its size is determined by the det_size
+    arguments["propagated_patternDet"] = arguments.get("propagated_patternDet", './images/propagated_patternDet.npz') # if None, will search from the propagated pattern. Its size is determined by the det_size
     arguments["saving_path"]           = arguments.get("saving_path", None) # if None, will save the propagated pattern file to the data folder
     arguments["crop"]                  = arguments.get("crop", [0, -1, 0, -1]) # if is [256], central crop. if len()==4, boundary crop, if is 0, use gui crop, if is -1, use auto-crop
     arguments["img_transfer_matrix"]   = arguments.get("img_transfer_matrix", [1, 0, 0]) # the image transfer matrix to make the images match with the simulated pattern.
@@ -1595,4 +1592,5 @@ def execute_process_image(**arguments):
 
 
 if __name__=="__main__":
-    print(execute_process_image(**{}).img)
+    print(execute_process_image(propagated_pattern='None',
+                                propagated_patternDet='None').img)
