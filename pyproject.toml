@@ -4,44 +4,57 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aps-wavefront-analysis"
+version = "0.0.1"
 description = "APS Wavefront Analysis Tools"
 readme = { file = "README.md", content-type = "text/markdown" }
-authors = [
-  { name = "Argonne National Laboratory", email = "lrebuffi@anl.gov" }
-]
-maintainers = [
-  { name = "Argonne National Laboratory", email = "lrebuffi@bnl.gov" }
-]
-requires-python = ">=3.8"
-
+authors = [{ name = "Argonne National Laboratory", email = "lrebuffi@anl.gov" }]
+maintainers = [{ name = "Argonne National Laboratory", email = "lrebuffi@bnl.gov" }]
+license = {"file" = "LICENSE"}
+license-files = ['LICEN[CS]E*', 'License.pdf']
+requires-python = ">=3.10"
 dependencies = [
-    "aps_common_libraries",
+    "aps_common_libraries>=1.0.16",
     "h5py",
     "matplotlib",
     "numpy<2",
     "scipy",
     "torch",
 ]
-
 classifiers = [
   "Development Status :: 4 - Beta",
   "License :: OSI Approved :: BSD License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Topic :: Scientific/Engineering :: Physics",
 ]
 
-dynamic = ["version"]
-
 [project.optional-dependencies]
 
 [project.urls]
 Homepage = "https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis"
-Documentation = "https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis"
-"Bug Reports" = "https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis/issues"
+Repository = "https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis.git"
+Issues = "https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis/issues"
 
+[tool.setuptools]
+packages = [
+    "aps",
+    "aps.wavefront_analysis",
+    "aps.wavefront_analysis.absolute_phase",
+    "aps.wavefront_analysis.absolute_phase.legacy",
+    "aps.wavefront_analysis.cmmi",
+    "aps.wavefront_analysis.cmmi.legacy",
+    "aps.wavefront_analysis.common",
+    "aps.wavefront_analysis.common.legacy",
+    "aps.wavefront_analysis.driver",
+    "aps.wavefront_analysis.spinnet",
+    "aps.wavefront_analysis.spinnet.legacy",
+    "aps.wavefront_analysis.wxst",
+    "aps.wavefront_analysis.wxst.legacy",
+    "aps.wavefront_analysis.wavelet_sbi",
+    "aps.wavefront_analysis.wavelet_sbi.legacy",
+]
+package-data = {  }
 
 [tool.hatch.build.targets.wheel]
 only-include = ["aps"]
@@ -60,18 +73,13 @@ build.hooks.vcs.version-file = "aps/_version.py"
 local_scheme = "no-local-version"
 
 [tool.black]
-line-length = 125
+line-length = 250
 include = '\.pyi?$'
 exclude = '''
 /(
     \.git
   | \.idea
-  | \.hg
-  | \.mypy_cache
-  | \.tox
   | \.venv
-  | _build
-  | buck-out
   | build
   | dist
   | TEST_DIR
