@@ -54,7 +54,7 @@ from threading import Thread
 import numpy as np
 from PIL import Image
 
-from aps.wavefront_analysis.absolute_phase.legacy.executor import execute_process_image
+from aps.wavefront_analysis.absolute_phase.legacy.process_images_executor import execute_process_image
 from aps.wavefront_analysis.absolute_phase.legacy.back_propagation_executor import execute_back_propagation
 
 from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer, ProcessingMode, MAX_THREADS
@@ -326,7 +326,7 @@ def _get_image_data(data_collection_directory, file_name_prefix, image_index, **
         if os.path.exists(file_path): return np.array(np.array(Image.open(file_path))).astype(np.float32).T
         else:                         raise ValueError('Error: wrong data path. No data is loaded:' + file_path)
 
-    image = load_image(os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i.tif") % image_index))
+    image = load_image(os.path.join(data_collection_directory, (file_name_prefix + f"_%0{index_digits}i.tif") % image_index))
 
     factor = 1e6 if units == "um" else (1e3 if units == "mm" else (1e2 if units == "cm" else 1.0))
 
@@ -339,7 +339,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     index_digits = kwargs.get("index_digits", INDEX_DIGITS)
     verbose      = kwargs.get("verbose", False)
 
-    img            = os.path.join(data_collection_directory, file_name_prefix + "_%0" + str(index_digits) + "i.tif" % image_index)
+    img            = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     dark           = None
     flat           = None
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
@@ -401,7 +401,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
 
     dark = None
     flat = None
-    img             = os.path.join(data_collection_directory, file_name_prefix + "_%0" + str(index_digits) + "i.tif" % image_index)
+    img             = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     mask_directory  = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
     result_folder   = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])
     pattern_path    = os.path.join(os.path.abspath(os.curdir), 'mask', RAN_MASK)
@@ -458,7 +458,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
         print("Simulated mask generated in " + mask_directory)
     else:
         is_new_mask = False
-        print("Simulated mask already generated in " + mask_directory)
+        if verbose: print("Simulated mask already generated in " + mask_directory)
 
     with open(os.path.join(mask_directory, "image_transfer_matrix.npy"), 'rb') as f: image_transfer_matrix = np.load(f, allow_pickle=False)
 
@@ -466,7 +466,6 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
 
 def _backpropagate_wavefront(data_collection_directory, file_name_prefix, image_index, **kwargs) -> dict:
     index_digits = kwargs.get("index_digits", INDEX_DIGITS)
-    verbose      = kwargs.get("verbose", False)
 
     folder = os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i") % image_index)
     
@@ -490,4 +489,5 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, image_
                                     scan_best_focus   = kwargs.get("scan_best_focus", SCAN_BEST_FOCUS),
                                     best_focus_from   = kwargs.get("best_focus_from", BEST_FOCUS_FROM),
                                     scan_x_rel_range  = kwargs.get("best_focus_scan_range_h", BEST_FOCUS_SCAN_RANGE_H),
-                                    scan_y_rel_range  = kwargs.get("best_focus_scan_range_v", BEST_FOCUS_SCAN_RANGE_V))
+                                    scan_y_rel_range  = kwargs.get("best_focus_scan_range_v", BEST_FOCUS_SCAN_RANGE_V),
+                                    verbose           = kwargs.get("verbose", False))
