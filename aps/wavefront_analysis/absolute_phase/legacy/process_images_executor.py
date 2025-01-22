@@ -1117,6 +1117,8 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
 #
 ################################################################
 
+from aps.wavefront_analysis.common.arguments import Args
+
 def execute_process_image(**arguments):
     arguments["img"]                   = arguments.get("img", './images/sample_00001.tif') # path to sample image
     arguments["dark"]                  = arguments.get("dark", None) # file path to the dark image
@@ -1172,10 +1174,6 @@ def execute_process_image(**arguments):
     arguments["window_searching"] = arguments.get("window_searching", 10) # searching window of speckle tracking. Means the largest displacement can be calculated.
     arguments["nCores"]           = arguments.get("nCores", 1) # number of CPU cores used for calculation.
     arguments["nGroup"]           = arguments.get("nGroup", 1) # number of groups that parallel calculation is splitted into.
-
-    class Args():
-        def __init__(self, arguments : dict):
-            self.__dict__.update(arguments)
 
     args = Args(arguments)
 
