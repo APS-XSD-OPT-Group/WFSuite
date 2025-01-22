@@ -229,7 +229,7 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
         if mode == ProcessingMode.LIVE:
             for file in os.listdir(data_collection_directory):
                 if pathlib.Path(file).suffix == ".tif" and self.__file_name_prefix in file:
-                    self.process_image(image_index=int(file.split('.tif')[0][-5:]), verbose=verbose)
+                    self.process_image(image_index=int(file.split('.tif')[0][-5:]), verbose=kwargs.get("verbose", False))
         else:
             os.environ["CUDA_VISIBLE_DEVICES"] = "{}".format(1)
 
