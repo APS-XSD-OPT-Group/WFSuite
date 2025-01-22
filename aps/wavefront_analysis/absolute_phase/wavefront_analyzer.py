@@ -55,6 +55,8 @@ import numpy as np
 from PIL import Image
 
 from aps.wavefront_analysis.absolute_phase.legacy.executor import execute_process_image
+from aps.wavefront_analysis.absolute_phase.legacy.back_propagation_executor import execute_back_propagation
+
 from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer, ProcessingMode, MAX_THREADS
 from aps.wavefront_analysis.driver.wavefront_sensor import get_default_file_name_prefix
 
@@ -88,6 +90,7 @@ D_SOURCE_RECAL        = ini_file.get_boolean_from_ini(section="Execution", key="
 CROP                  = ini_file.get_list_from_ini(   section="Execution", key="Crop",                          default=[-1], type=int)
 ESTIMATION_METHOD     = ini_file.get_string_from_ini( section="Execution", key="Estimation-Method",             default='simple_speckle')
 PROPAGATOR            = ini_file.get_string_from_ini( section="Execution", key="Propagator",                    default='RS')
+INDEX_DIGITS          = ini_file.get_int_from_ini(    section="Execution", key="Index-Digits",                  default=5)
 
 CALIBRATION_PATH      = ini_file.get_string_from_ini( section="Reconstruction", key="Calibration-Path",  default=None)
 MODE                  = ini_file.get_string_from_ini( section="Reconstruction", key="Mode",              default='centralLine')
@@ -105,11 +108,31 @@ CROP_BOUNDARY         = ini_file.get_int_from_ini(    section="Reconstruction", 
 N_CORES               = ini_file.get_int_from_ini(    section="Reconstruction", key="N-Cores",           default=16)
 N_GROUP               = ini_file.get_int_from_ini(    section="Reconstruction", key="N-Group",           default=1)
 
+KIND                    = ini_file.get_string_from_ini( section="Back-Propagation", key="Kind",                       default="1D")
+CROP_V                  = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-V",                     default=500)
+CROP_H                  = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-H",                     default=500)
+CROP_SHIFT_V            = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-Shift-V",               default=0)
+CROP_SHIFT_H            = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-Shift-H",               default=0)
+DISTANCE                = ini_file.get_float_from_ini(  section="Back-Propagation", key="2D, Propagation-Distance", default=1.0)
+DISTANCE_V              = ini_file.get_float_from_ini(  section="Back-Propagation", key="1D, Propagation-Distance-V", default=1.0)
+DISTANCE_H              = ini_file.get_float_from_ini(  section="Back-Propagation", key="1D, Propagation-Distance-H", default=1.0)
+DELTA_F_V               = ini_file.get_float_from_ini(  section="Back-Propagation", key="Delta-F-V",                  default=0.0)
+DELTA_F_H               = ini_file.get_float_from_ini(  section="Back-Propagation", key="Delta-F-H",                  default=0.0)
+RMS_RANGE_V             = ini_file.get_list_from_ini(   section="Back-Propagation", key="RMS-Range-V",                default=[-2e-6, 2e-6], type=float)
+RMS_RANGE_H             = ini_file.get_list_from_ini(   section="Back-Propagation", key="RMS-Range-H",                default=[-2e-6, 2e-6], type=float)
+MAGNIFICATION_V         = ini_file.get_float_from_ini(  section="Back-Propagation", key="Magnification-V",            default=0.028)
+MAGNIFICATION_H         = ini_file.get_float_from_ini(  section="Back-Propagation", key="Magnification-H",            default=0.028)
+SHIFT_HALF_PIXEL        = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Shift-Half-Pixel",           default=False)
+SCAN_BEST_FOCUS         = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Scan-Best-Focus",            default=False)
+BEST_FOCUS_FROM         = ini_file.get_string_from_ini( section="Back-Propagation", key="Best-Focus-From",            default="rms")
+BEST_FOCUS_SCAN_RANGE_V = ini_file.get_list_from_ini(   section="Back-Propagation", key="Best-Focus-Scan-Range-V",    default=[-0.001, 0.001, 0.0001], type=float)
+BEST_FOCUS_SCAN_RANGE_H = ini_file.get_list_from_ini(   section="Back-Propagation", key="Best-Focus-Scan-Range-H",    default=[-0.001, 0.001, 0.0001], type=float)
+
 IMAGE_TRANSFER_MATRIX = ini_file.get_list_from_ini(   section="Output", key="Image-Transfer-Matrix", default=[0, 1, 0], type=int)
 SHOW_ALIGN_FIGURE     = ini_file.get_boolean_from_ini(section="Output", key="Show-Align-Figure",     default=False)
 CORRECT_SCALE         = ini_file.get_boolean_from_ini(section="Output", key="Correct-Scale",         default=False)
 
-ini_file.set_value_at_ini(section="Detector", key="Pixel-Size", value=PIXEL_SIZE)
+ini_file.set_value_at_ini( section="Detector", key="Pixel-Size",   value=PIXEL_SIZE)
 ini_file.set_value_at_ini( section="Detector", key="Image-Size-V", value=IMAGE_SIZE_PIXEL_V)
 ini_file.set_value_at_ini( section="Detector", key="Image-Size-H", value=IMAGE_SIZE_PIXEL_H)
 
@@ -127,6 +150,24 @@ ini_file.set_value_at_ini(section="Source", key="Source-Distance-H",    value=SO
 ini_file.set_value_at_ini(section="Execution", key="Source-Distance-Recalculation", value=D_SOURCE_RECAL)
 ini_file.set_list_at_ini( section="Execution", key="Crop",                          values_list=CROP)
 ini_file.set_value_at_ini(section="Execution", key="Estimation-Method",             value=ESTIMATION_METHOD)
+ini_file.set_value_at_ini(section="Execution", key="Index-Digits",                  value=INDEX_DIGITS)
+
+ini_file.set_value_at_ini(section="Back-Propagation", key="Kind",                       value=KIND)
+ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-H",                     value=CROP_H      )
+ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-V",                     value=CROP_V      )
+ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-Shift-H",               value=CROP_SHIFT_H)
+ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-Shift-V",               value=CROP_SHIFT_V)
+ini_file.set_value_at_ini(section="Back-Propagation", key="2D, Propagation-Distance",   value=DISTANCE)
+ini_file.set_value_at_ini(section="Back-Propagation", key="1D, Propagation-Distance-V", value=DISTANCE_V  )
+ini_file.set_value_at_ini(section="Back-Propagation", key="1D, Propagation-Distance-H", value=DISTANCE_H  )
+ini_file.set_value_at_ini(section="Back-Propagation", key="Delta-F-V",                  value=DELTA_F_V   )
+ini_file.set_value_at_ini(section="Back-Propagation", key="Delta-F-H",                  value=DELTA_F_H   )
+ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-V",                values_list=RMS_RANGE_V)
+ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-H",                values_list=RMS_RANGE_H)
+ini_file.set_value_at_ini(section="Back-Propagation", key="Scan-Best-Focus",            value=SCAN_BEST_FOCUS)
+ini_file.set_value_at_ini(section="Back-Propagation", key="Best-Focus-From",            value=BEST_FOCUS_FROM)
+ini_file.set_list_at_ini( section="Back-Propagation", key="Best-Focus-Scan-Range-V",    values_list=BEST_FOCUS_SCAN_RANGE_V)
+ini_file.set_list_at_ini( section="Back-Propagation", key="Best-Focus-Scan-Range-H",    values_list=BEST_FOCUS_SCAN_RANGE_H)
 
 ini_file.set_value_at_ini(section="Reconstruction", key="Mode",           value=MODE)
 ini_file.set_value_at_ini(section="Reconstruction", key="Line-Width",     value=LINE_WIDTH   )
@@ -159,31 +200,30 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
         self.__simulated_mask_directory  = simulated_mask_directory
         self.__energy                    = energy
 
-    def generate_simulated_mask(self, image_index_for_mask: int = 1, data_collection_directory: str = None, verbose: bool = False, **kwargs) -> [list, bool]:
+    def generate_simulated_mask(self, image_index_for_mask: int = 1, data_collection_directory: str = None, **kwargs) -> [list, bool]:
         image_transfer_matrix, is_new_mask = _generate_simulated_mask(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
                                                                       file_name_prefix=self.__file_name_prefix,
                                                                       mask_directory=self.__simulated_mask_directory,
                                                                       energy=self.__energy,
                                                                       image_index=image_index_for_mask,
-                                                                      verbose=verbose)
+                                                                      **kwargs)
         return image_transfer_matrix, is_new_mask
 
-    def get_image_data(self, image_index: int, data_collection_directory: str = None, index_digits: int = 4, units="mm", **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
+    def get_image_data(self, image_index: int, data_collection_directory: str = None, **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
         return _get_image_data(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
                                file_name_prefix=self.__file_name_prefix,
                                image_index=image_index,
-                               index_digits=index_digits,
-                               units=units)
+                               **kwargs)
 
-    def process_image(self, image_index: int, data_collection_directory: str = None, verbose: bool = False, **kwargs):
+    def process_image(self, image_index: int, data_collection_directory: str = None, **kwargs):
         _process_image(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
                        file_name_prefix=self.__file_name_prefix,
                        mask_directory=self.__simulated_mask_directory,
                        energy=self.__energy,
                        image_index=image_index,
-                       verbose=verbose)
+                       **kwargs)
 
-    def process_images(self, data_collection_directory: str = None, mode=ProcessingMode.LIVE, n_threads=MAX_THREADS, verbose: bool = False, **kwargs):
+    def process_images(self, data_collection_directory: str = None, mode=ProcessingMode.LIVE, n_threads=MAX_THREADS, **kwargs):
         data_collection_directory = self.__data_collection_directory if data_collection_directory is None else data_collection_directory
 
         if mode == ProcessingMode.LIVE:
@@ -201,10 +241,10 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
                                                             file_name_prefix=self.__file_name_prefix,
                                                             simulated_mask_directory=self.__simulated_mask_directory,
                                                             energy=self.__energy,
-                                                            verbose=verbose)
+                                                            **kwargs)
                 self.__active_threads[i].start()
 
-    def wait_image_processing_to_end(self, verbose: bool = False, **kwargs):
+    def wait_image_processing_to_end(self, **kwargs):
         active = True
         time.sleep(1)
         n_threads = len(self.__active_threads)
@@ -216,6 +256,11 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
 
             if active: time.sleep(1)
 
+    def back_propagate_wavefront(self, image_index: int, data_collection_directory: str = None, **kwargs) -> dict:
+        return _backpropagate_wavefront(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
+                                        file_name_prefix=self.__file_name_prefix,
+                                        image_index=image_index,
+                                        **kwargs)
 
 class ProcessingThread(Thread):
     def __init__(self, thread_id, 
@@ -223,14 +268,14 @@ class ProcessingThread(Thread):
                  file_name_prefix, 
                  simulated_mask_directory, 
                  energy, 
-                 verbose=False):
+                 **kwargs):
         super(ProcessingThread, self).__init__(name="Thread #" + str(thread_id))
         self.__thread_id = thread_id
         self.__data_collection_directory = data_collection_directory
         self.__file_name_prefix          = file_name_prefix
         self.__simulated_mask_directory  = simulated_mask_directory
         self.__energy                    = energy
-        self.__verbose                   = verbose
+        self.__kwargs                    = kwargs
 
     def run(self):
         def check_new_data(images_list):
@@ -267,13 +312,16 @@ class ProcessingThread(Thread):
                                                                           self.__file_name_prefix,
                                                                           self.__simulated_mask_directory,
                                                                           self.__energy,
-                                                                          image_index,
-                                                                          self.__verbose)
+                                                                          **self.__kwargs)
             time.sleep(1)
 
         print('Thread #' + str(self.__thread_id) + ' completed')
 
-def _get_image_data(data_collection_directory, file_name_prefix, image_index, index_digits=4, units="mm"):
+def _get_image_data(data_collection_directory, file_name_prefix, image_index, **kwargs):
+    index_digits = kwargs.get("index_digits", INDEX_DIGITS)
+    units        = kwargs.get("units", "mm")
+
+
     def load_image(file_path):
         if os.path.exists(file_path): return np.array(np.array(Image.open(file_path))).astype(np.float32).T
         else:                         raise ValueError('Error: wrong data path. No data is loaded:' + file_path)
@@ -287,8 +335,11 @@ def _get_image_data(data_collection_directory, file_name_prefix, image_index, in
 
     return image, h_coord, v_coord
 
-def _process_image(data_collection_directory, file_name_prefix, mask_directory, energy, image_index, verbose=False):
-    img            = os.path.join(data_collection_directory, file_name_prefix + "_%05i.tif" % image_index)
+def _process_image(data_collection_directory, file_name_prefix, mask_directory, energy, image_index, **kwargs):
+    index_digits = kwargs.get("index_digits", INDEX_DIGITS)
+    verbose      = kwargs.get("verbose", False)
+
+    img            = os.path.join(data_collection_directory, file_name_prefix + "_%0" + str(index_digits) + "i.tif" % image_index)
     dark           = None
     flat           = None
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
@@ -344,10 +395,13 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
                           nGroup=N_GROUP)
     print("Image " + file_name_prefix + "_%05i.tif" % image_index + " processed")
 
-def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_directory, energy, image_index=1, verbose=False):
+def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_directory, energy, image_index=1, **kwargs) -> [list, bool]:
+    index_digits = kwargs.get("index_digits", INDEX_DIGITS)
+    verbose      = kwargs.get("verbose", False)
+
     dark = None
     flat = None
-    img             = os.path.join(data_collection_directory, file_name_prefix + "_%05i.tif" % image_index)
+    img             = os.path.join(data_collection_directory, file_name_prefix + "_%0" + str(index_digits) + "i.tif" % image_index)
     mask_directory  = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
     result_folder   = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])
     pattern_path    = os.path.join(os.path.abspath(os.curdir), 'mask', RAN_MASK)
@@ -409,3 +463,31 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
     with open(os.path.join(mask_directory, "image_transfer_matrix.npy"), 'rb') as f: image_transfer_matrix = np.load(f, allow_pickle=False)
 
     return image_transfer_matrix.tolist(), is_new_mask
+
+def _backpropagate_wavefront(data_collection_directory, file_name_prefix, image_index, **kwargs) -> dict:
+    index_digits = kwargs.get("index_digits", INDEX_DIGITS)
+    verbose      = kwargs.get("verbose", False)
+
+    folder = os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i") % image_index)
+    
+    return execute_back_propagation(folder=folder,
+                                    distance          = kwargs.get("propagation_distance", DISTANCE),
+                                    distance_x        = kwargs.get("propagation_distance_h", DISTANCE_H),
+                                    distance_y        = kwargs.get("propagation_distance_v", DISTANCE_V),
+                                    dim_x             = kwargs.get("crop_h", CROP_H),
+                                    dim_y             = kwargs.get("crop_v", CROP_V),
+                                    shift_x           = kwargs.get("crop_shift_h", CROP_SHIFT_H),
+                                    shift_y           = kwargs.get("crop_shift_v", CROP_SHIFT_V),
+                                    delta_f_x         = kwargs.get("delta_f_h", DELTA_F_H),
+                                    delta_f_y         = kwargs.get("delta_f_v", DELTA_F_V),
+                                    x_rms_range       = kwargs.get("rms_range_h", RMS_RANGE_H),
+                                    y_rms_range       = kwargs.get("rms_range_v", RMS_RANGE_V),
+                                    magnification_x   = kwargs.get("magnification_h", MAGNIFICATION_H),
+                                    magnification_y   = kwargs.get("magnification_v", MAGNIFICATION_V),
+                                    shift_half_pixel  = kwargs.get("shift_half_pixel", SHIFT_HALF_PIXEL),
+                                    show_figure       = kwargs.get("show_figure", False),
+                                    save_result       = kwargs.get("save_result", False),
+                                    scan_best_focus   = kwargs.get("scan_best_focus", SCAN_BEST_FOCUS),
+                                    best_focus_from   = kwargs.get("best_focus_from", BEST_FOCUS_FROM),
+                                    scan_x_rel_range  = kwargs.get("best_focus_scan_range_h", BEST_FOCUS_SCAN_RANGE_H),
+                                    scan_y_rel_range  = kwargs.get("best_focus_scan_range_v", BEST_FOCUS_SCAN_RANGE_V))
