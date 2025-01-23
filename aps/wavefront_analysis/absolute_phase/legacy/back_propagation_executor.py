@@ -554,8 +554,8 @@ class PropagatedWavefront:
         out["fwhm_y_gauss"]           = self.fwhm_y_gauss
         out["focus_z_position_x"]     = self.focus_z_position_x
         out["focus_z_position_y"]     = self.focus_z_position_y
-        out["x_coordinates"]          = self.x_coordinates
-        out["y_coordinates"]          = self.y_coordinates
+        out["coordinates_x"]          = self.x_coordinates
+        out["coordinates_y"]          = self.y_coordinates
 
         if self.kind == "2D":
             out["propagation_distance"]   = self.propagation_distance

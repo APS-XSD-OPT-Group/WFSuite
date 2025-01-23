@@ -446,6 +446,7 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, image_
     folder = os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i") % image_index)
     
     return execute_back_propagation(folder=folder,
+                                    kind              = kwargs.get("kind", KIND),
                                     distance          = kwargs.get("propagation_distance", DISTANCE),
                                     distance_x        = kwargs.get("propagation_distance_h", DISTANCE_H),
                                     distance_y        = kwargs.get("propagation_distance_v", DISTANCE_V),

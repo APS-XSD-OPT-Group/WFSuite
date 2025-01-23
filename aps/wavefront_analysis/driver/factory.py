@@ -45,15 +45,17 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
 
-from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer
-from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import WavefrontAnalyzer
+from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensor, WAVEFRONT_SENSOR_STATUS_FILE
 
-
-def create_wavefront_analyzer(data_collection_directory=None,
-                              file_name_prefix=None,
-                              simulated_mask_directory=None,
-                              energy=20000.0) -> IWavefrontAnalyzer:
-    return WavefrontAnalyzer(data_collection_directory=data_collection_directory,
-                             file_name_prefix=file_name_prefix,
-                             simulated_mask_directory=simulated_mask_directory,
-                             energy=energy)
+def create_wavefront_sensor(measurement_directory: str = None,
+                            exposure_time: int = None,
+                            status_file: str = WAVEFRONT_SENSOR_STATUS_FILE,
+                            file_name_prefix: str = None,
+                            detector_delay: float = None,
+                            mocking_mode: bool = False) -> WavefrontSensor:
+    return WavefrontSensor(measurement_directory=measurement_directory,
+                           exposure_time=exposure_time,
+                           status_file=status_file,
+                           file_name_prefix=file_name_prefix,
+                           detector_delay=detector_delay,
+                           mocking_mode=mocking_mode)
