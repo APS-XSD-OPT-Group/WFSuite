@@ -1175,6 +1175,8 @@ def execute_process_image(**arguments):
     arguments["nCores"]           = arguments.get("nCores", 1) # number of CPU cores used for calculation.
     arguments["nGroup"]           = arguments.get("nGroup", 1) # number of groups that parallel calculation is splitted into.
 
+    arguments["verbose"] = arguments.get("verbose", False)
+
     args = Args(arguments)
 
     file_img    = args.img

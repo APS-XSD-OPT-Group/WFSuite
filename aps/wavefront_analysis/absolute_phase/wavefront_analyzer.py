@@ -58,7 +58,8 @@ from aps.wavefront_analysis.absolute_phase.legacy.process_images_executor import
 from aps.wavefront_analysis.absolute_phase.legacy.back_propagation_executor import execute_back_propagation
 
 from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer, ProcessingMode, MAX_THREADS
-from aps.wavefront_analysis.driver.wavefront_sensor import get_default_file_name_prefix
+from aps.wavefront_analysis.driver.wavefront_sensor import get_default_file_name_prefix, get_image_data, \
+    PIXEL_SIZE, IMAGE_SIZE_PIXEL_V, IMAGE_SIZE_PIXEL_H, DETECTOR_RESOLUTION, INDEX_DIGITS
 
 from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
 
@@ -70,10 +71,6 @@ register_ini_instance(IniMode.LOCAL_JSON_FILE,
                       verbose=False)
 ini_file = get_registered_ini_instance(APPLICATION_NAME)
 
-PIXEL_SIZE            = ini_file.get_float_from_ini(  section="Detector", key="Pixel-Size", default=0.65e-6)
-IMAGE_SIZE_PIXEL_V    = ini_file.get_float_from_ini(  section="Detector", key="Image-Size-V", default=2560)
-IMAGE_SIZE_PIXEL_H    = ini_file.get_float_from_ini(  section="Detector", key="Image-Size-H", default=2160)
-DETECTOR_RESOLUTION   = ini_file.get_float_from_ini(  section="Detector", key="Resolution", default=1.5e-6)
 
 PATTERN_SIZE          = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Size",         default=4.942e-6)
 PATTERN_THICKNESS     = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Thickness",    default=1.5e-6)
@@ -90,7 +87,6 @@ D_SOURCE_RECAL        = ini_file.get_boolean_from_ini(section="Execution", key="
 CROP                  = ini_file.get_list_from_ini(   section="Execution", key="Crop",                          default=[-1], type=int)
 ESTIMATION_METHOD     = ini_file.get_string_from_ini( section="Execution", key="Estimation-Method",             default='simple_speckle')
 PROPAGATOR            = ini_file.get_string_from_ini( section="Execution", key="Propagator",                    default='RS')
-INDEX_DIGITS          = ini_file.get_int_from_ini(    section="Execution", key="Index-Digits",                  default=5)
 
 CALIBRATION_PATH      = ini_file.get_string_from_ini( section="Reconstruction", key="Calibration-Path",  default=None)
 MODE                  = ini_file.get_string_from_ini( section="Reconstruction", key="Mode",              default='centralLine')
@@ -132,10 +128,6 @@ IMAGE_TRANSFER_MATRIX = ini_file.get_list_from_ini(   section="Output", key="Ima
 SHOW_ALIGN_FIGURE     = ini_file.get_boolean_from_ini(section="Output", key="Show-Align-Figure",     default=False)
 CORRECT_SCALE         = ini_file.get_boolean_from_ini(section="Output", key="Correct-Scale",         default=False)
 
-ini_file.set_value_at_ini( section="Detector", key="Pixel-Size",   value=PIXEL_SIZE)
-ini_file.set_value_at_ini( section="Detector", key="Image-Size-V", value=IMAGE_SIZE_PIXEL_V)
-ini_file.set_value_at_ini( section="Detector", key="Image-Size-H", value=IMAGE_SIZE_PIXEL_H)
-
 ini_file.set_value_at_ini(section="Mask", key="Pattern-Size",         value=PATTERN_SIZE)
 ini_file.set_value_at_ini(section="Mask", key="Pattern-Thickness",    value=PATTERN_THICKNESS)
 ini_file.set_value_at_ini(section="Mask", key="Pattern-Transmission", value=PATTERN_T)
@@ -150,7 +142,6 @@ ini_file.set_value_at_ini(section="Source", key="Source-Distance-H",    value=SO
 ini_file.set_value_at_ini(section="Execution", key="Source-Distance-Recalculation", value=D_SOURCE_RECAL)
 ini_file.set_list_at_ini( section="Execution", key="Crop",                          values_list=CROP)
 ini_file.set_value_at_ini(section="Execution", key="Estimation-Method",             value=ESTIMATION_METHOD)
-ini_file.set_value_at_ini(section="Execution", key="Index-Digits",                  value=INDEX_DIGITS)
 
 ini_file.set_value_at_ini(section="Back-Propagation", key="Kind",                       value=KIND)
 ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-H",                     value=CROP_H      )
@@ -209,11 +200,12 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
                                                                       **kwargs)
         return image_transfer_matrix, is_new_mask
 
-    def get_image_data(self, image_index: int, data_collection_directory: str = None, **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
-        return _get_image_data(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
-                               file_name_prefix=self.__file_name_prefix,
-                               image_index=image_index,
-                               **kwargs)
+    def get_wavefront_data(self, image_index: int, data_collection_directory: str = None, **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
+        return get_image_data(measurement_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
+                              file_name_prefix=self.__file_name_prefix,
+                              image_index=image_index,
+                              **kwargs)
+
 
     def process_image(self, image_index: int, data_collection_directory: str = None, **kwargs):
         _process_image(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
@@ -317,24 +309,6 @@ class ProcessingThread(Thread):
 
         print('Thread #' + str(self.__thread_id) + ' completed')
 
-def _get_image_data(data_collection_directory, file_name_prefix, image_index, **kwargs):
-    index_digits = kwargs.get("index_digits", INDEX_DIGITS)
-    units        = kwargs.get("units", "mm")
-
-
-    def load_image(file_path):
-        if os.path.exists(file_path): return np.array(np.array(Image.open(file_path))).astype(np.float32).T
-        else:                         raise ValueError('Error: wrong data path. No data is loaded:' + file_path)
-
-    image = load_image(os.path.join(data_collection_directory, (file_name_prefix + f"_%0{index_digits}i.tif") % image_index))
-
-    factor = 1e6 if units == "um" else (1e3 if units == "mm" else (1e2 if units == "cm" else 1.0))
-
-    h_coord = np.linspace(-IMAGE_SIZE_PIXEL_H / 2, IMAGE_SIZE_PIXEL_H / 2, IMAGE_SIZE_PIXEL_H) * PIXEL_SIZE * factor
-    v_coord = np.linspace(-IMAGE_SIZE_PIXEL_V / 2, IMAGE_SIZE_PIXEL_V / 2, IMAGE_SIZE_PIXEL_V) * PIXEL_SIZE * factor
-
-    return image, h_coord, v_coord
-
 def _process_image(data_collection_directory, file_name_prefix, mask_directory, energy, image_index, **kwargs):
     index_digits = kwargs.get("index_digits", INDEX_DIGITS)
     verbose      = kwargs.get("verbose", False)
@@ -392,7 +366,8 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
                           template_size=TEMPLATE_SIZE,
                           window_searching=WINDOW_SEARCH,
                           nCores=N_CORES,
-                          nGroup=N_GROUP)
+                          nGroup=N_GROUP,
+                          verbose=verbose)
     print("Image " + file_name_prefix + "_%05i.tif" % image_index + " processed")
 
 def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_directory, energy, image_index=1, **kwargs) -> [list, bool]:
@@ -453,7 +428,8 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
                               template_size=TEMPLATE_SIZE,
                               window_searching=WINDOW_SEARCH,
                               nCores=N_CORES,
-                              nGroup=N_GROUP)
+                              nGroup=N_GROUP,
+                              verbose=verbose)
         is_new_mask = True
         print("Simulated mask generated in " + mask_directory)
     else:
