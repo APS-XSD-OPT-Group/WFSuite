@@ -59,7 +59,7 @@ class WavefrontSensor(GenericCamera):
                  file_name_prefix: str = None,
                  detector_delay: float = None,
                  mocking_mode: bool = False):
-        super(WavefrontSensor, self).__init(
+        super(WavefrontSensor, self).__init__(
             measurement_directory,
             exposure_time,
             status_file,
