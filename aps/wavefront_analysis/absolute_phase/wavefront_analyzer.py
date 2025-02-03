@@ -183,11 +183,11 @@ ini_file.push()
 class WavefrontAnalyzer(IWavefrontAnalyzer):
     def __init__(self,
                  data_collection_directory,
-                 file_name_prefix=get_default_file_name_prefix(),
+                 file_name_prefix=None,
                  simulated_mask_directory=None,
                  energy=20000.0):
         self.__data_collection_directory = data_collection_directory
-        self.__file_name_prefix          = file_name_prefix
+        self.__file_name_prefix          = file_name_prefix if not file_name_prefix is None else get_default_file_name_prefix()
         self.__simulated_mask_directory  = simulated_mask_directory
         self.__energy                    = energy
 
@@ -312,8 +312,9 @@ class ProcessingThread(Thread):
 def _process_image(data_collection_directory, file_name_prefix, mask_directory, energy, image_index, **kwargs):
     index_digits = kwargs.get("index_digits", INDEX_DIGITS)
     verbose      = kwargs.get("verbose", False)
+    img          = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
+    image_data   = kwargs.get("image_data", None)
 
-    img            = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     dark           = None
     flat           = None
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
@@ -326,6 +327,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     saving_path           = mask_directory
 
     execute_process_image(img=img,
+                          image_data=image_data,
                           dark=dark,
                           flat=flat,
                           result_folder=result_folder,

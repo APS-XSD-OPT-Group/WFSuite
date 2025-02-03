@@ -49,7 +49,7 @@
     2022/5/11
     by Zhi Qiao
 '''
-
+import copy
 import os
 import sys
 import numpy as np
@@ -1123,6 +1123,7 @@ def execute_process_image(**arguments):
     arguments["img"]                   = arguments.get("img", './images/sample_00001.tif') # path to sample image
     arguments["dark"]                  = arguments.get("dark", None) # file path to the dark image
     arguments["flat"]                  = arguments.get("flat", None) # file path to the flat image
+    arguments["image_data"]            = arguments.get("image_data", None) # numpy array with the image data from streaming
     arguments["result_folder"]         = arguments.get("result_folder", './images/results') # saving folder
     arguments["pattern_path"]          = arguments.get("pattern_path", './mask/RanMask5umB0.npy') # path to mask design pattern
     arguments["propagated_pattern"]    = arguments.get("propagated_pattern", './images/propagated_pattern.npz') # if None, will create one in the data folder
@@ -1238,7 +1239,10 @@ def execute_process_image(**arguments):
 
     # =====================  start to find the pattern   ================================================
 
-    I_img_raw = load_image(file_img)
+    if args.image_data is None:
+        I_img_raw = load_image(file_img)
+    else:
+        I_img_raw = args.image_data
 
     if args.dark is None:
         dark = np.zeros(I_img_raw.shape)
@@ -1282,9 +1286,13 @@ def execute_process_image(**arguments):
             'red')
         sys.exit()
 
-    for key, value in args.__dict__.items():
-        prColor('{}: {}'.format(key, value), 'cyan')
-    write_json(args.result_folder, 'setting', args.__dict__)
+    for key, value in args.__dict__.items(): prColor('{}: {}'.format(key, value), 'cyan')
+
+    json_content = copy.deepcopy(args.__dict__)
+    try:    json_content.pop("image_data")
+    except: pass
+
+    write_json(args.result_folder, 'setting', json_content)
     # for the boundary, extend the cropping area by search_window+template_size
     extend_boundary = args.window_searching + args.template_size * int(1 / args.down_sampling)
     boundary_crop = lambda img: img[int(args.crop[0] - extend_boundary):int(args.crop[1] + extend_boundary),
