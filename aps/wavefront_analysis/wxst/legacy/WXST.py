@@ -903,6 +903,7 @@ class WXST:
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
+        import cv2  # here to avoid conflict with PyQt5
 
         Folder_path = '../testdata/single-shot/'
         File_ref = os.path.join(Folder_path, 'ref_001.tif')
@@ -989,7 +990,7 @@ if __name__ == "__main__":
         # img = binning2(img)
         # ref = binning2(ref)
         # print(img.shape)
-        import cv2
+
         img_data = cv2.resize(img_data, d_size)
         ref_data = cv2.resize(ref_data, d_size)
 

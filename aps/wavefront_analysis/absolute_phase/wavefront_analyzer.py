@@ -304,6 +304,7 @@ class ProcessingThread(Thread):
                                                                           self.__file_name_prefix,
                                                                           self.__simulated_mask_directory,
                                                                           self.__energy,
+                                                                          image_index
                                                                           **self.__kwargs)
             time.sleep(1)
 
@@ -379,9 +380,13 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
     dark = None
     flat = None
     img             = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
+    image_data      = kwargs.get("image_data", None)
+
+
     mask_directory  = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
     result_folder   = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])
-    pattern_path    = os.path.join(os.path.abspath(os.curdir), 'mask', RAN_MASK)
+
+    pattern_path    = os.path.join(os.path.dirname(__import__("aps.wavefront_analysis.absolute_phase.legacy", fromlist=[""]).__file__), 'mask', RAN_MASK)
     saving_path     = mask_directory
 
     if not os.path.exists(mask_directory): os.mkdir(mask_directory)
@@ -390,6 +395,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
        not os.path.exists(os.path.join(mask_directory, 'propagated_patternDet.npz')) or \
        not os.path.exists(os.path.join(mask_directory, "image_transfer_matrix.npy")):
         execute_process_image(img=img,
+                              image_data=image_data,
                               dark=dark,
                               flat=flat,
                               result_folder=result_folder,

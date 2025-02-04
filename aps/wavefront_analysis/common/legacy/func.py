@@ -8,7 +8,7 @@ import json
 from PIL import Image
 from scipy import ndimage as ndi
 from scipy import signal
-import cv2
+
 import scipy.ndimage as snd
 
 def prColor(word, color_type):
@@ -301,6 +301,8 @@ def slop_tracking(img, ref, n_window=10):
             displace:       the displacement of the pixels in the images
                             [dips_H, disp_V]
     '''
+    import cv2 # here to avoid conflict with PyQt5
+
     # the pyramid scale, make the undersampling image
     pyramid_scal = 0.5
     # the pyramid levels

@@ -54,7 +54,6 @@ import os
 import sys
 import numpy as np
 import scipy.constants as sc
-import cv2
 import scipy.ndimage as snd
 import scipy.signal as ssignal
 
@@ -224,9 +223,7 @@ class pattern_search:
             input:
                     I_pattern:          pattern distribution
         '''
-
-        # energy
-        # energy = 14e3
+        import cv2  # here to avoid conflict with PyQt5
 
         # calculate sigma kernel size for coherence
         sigma_h = self.source_h / self.source_distance_h * self.d_propagation
@@ -377,6 +374,8 @@ class pattern_search:
         return trans_list[num_trans]
 
     def pattern_search_coarse(self, I_img, I_pattern, img_transfer=[1, 0, 0]):
+        import cv2  # here to avoid conflict with PyQt5
+
         # find the matched pattern position coarsely
 
         I_pattern = self.image_transfer(I_pattern, img_transfer[0], img_transfer[1],
@@ -439,6 +438,8 @@ class pattern_search:
         return [x_center, y_center], corr_match, img_small, template
 
     def find_transfer_matrix(self, im1, im2):
+        import cv2  # here to avoid conflict with PyQt5
+
         # use opencv to find the image transformation matrix
         # Read the images to be aligned
         # Find size of image1
@@ -724,6 +725,8 @@ def cv2_clipped_zoom(img, zoom_factor=0):
         result: ndarray
            numpy ndarray of the same shape of the input img zoomed by the specified factor.
     """
+    import cv2 # here to avoid conflict with PyQt5
+
     if zoom_factor[0] == 0:
         return img
 
@@ -773,6 +776,7 @@ def image_translation(img, shift):
     return image_back
 
 def speckle_tracking(ref, img, para_XST, p_x, d_prop, wl, displace_offset):
+    import cv2 # here to avoid conflict with PyQt5
     '''
         to get displacement
     '''
