@@ -157,6 +157,8 @@ ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-V",        
 ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-H",                values_list=RMS_RANGE_H)
 ini_file.set_value_at_ini(section="Back-Propagation", key="Scan-Best-Focus",            value=SCAN_BEST_FOCUS)
 ini_file.set_value_at_ini(section="Back-Propagation", key="Best-Focus-From",            value=BEST_FOCUS_FROM)
+ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-V",            value=MAGNIFICATION_V)
+ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-H",            value=MAGNIFICATION_H)
 ini_file.set_list_at_ini( section="Back-Propagation", key="Best-Focus-Scan-Range-V",    values_list=BEST_FOCUS_SCAN_RANGE_V)
 ini_file.set_list_at_ini( section="Back-Propagation", key="Best-Focus-Scan-Range-H",    values_list=BEST_FOCUS_SCAN_RANGE_H)
 

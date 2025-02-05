@@ -1083,6 +1083,8 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
         else:
             I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh, image_transfer_matrix, center_shift)
 
+        with open(os.path.join(para_pattern['saving_path'], "image_transfer_matrix.npy"), 'wb') as f: np.save(f, np.array(image_transfer_matrix), allow_pickle=False)
+
     if method == 'geometric':
 
         d_source_v, d_source_h = pattern_find.d_source_est
@@ -1374,14 +1376,16 @@ def execute_process_image(**arguments):
         print(center_shift, I_img_central.shape, "=====================")
         if image_transfer_matrix is None:
             # find the proper image transfer for the reference image which matches the pattern distribution
-            image_transfer_matrix = pattern_find.img_transfer_search(
-                I_img_central, I_coh, result_folder)
+            image_transfer_matrix = pattern_find.img_transfer_search(I_img_central, I_coh, result_folder)
             I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh,
                                                                                              image_transfer_matrix, center_shift)
         else:
-            I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central,
-                                                                                             I_coh,
+            I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh,
                                                                                              image_transfer_matrix, center_shift)
+
+        with open(os.path.join(para_pattern['saving_path'], "image_transfer_matrix.npy"), 'wb') as f:
+            np.save(f, np.array(image_transfer_matrix), allow_pickle=False)
+
         prColor('saving the simulated pattern (det plane)...', 'cyan')
         np.savez(os.path.join(para_pattern['saving_path'],
                               'propagated_patternDet.npz'),
