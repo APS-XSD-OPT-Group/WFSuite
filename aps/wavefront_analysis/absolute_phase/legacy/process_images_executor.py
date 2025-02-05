@@ -1238,13 +1238,23 @@ def execute_process_image(**arguments):
         para_simulation['p_x']      = args.p_x
 
     if args.dark is None: dark = np.zeros(I_img_raw.shape)
-    else:                 dark = load_image(args.dark)
+    else:
+        dark = load_image(args.dark)
+        if args.rebinning > 1: _, _, dark = rebin(None, None, dark, args.rebinning)
 
     if args.flat is None: flat = snd.uniform_filter(I_img_raw, size = 10 * (args.pattern_size / args.p_x))  # XSHI Feb 2024 change from 5 to 10
-    else:                 flat = load_image(args.flat)
+    else:
+        flat = load_image(args.flat)
+        if args.rebinning > 1: _, _, flat = rebin(None, None, flat, args.rebinning)
 
     if len(args.crop) == 4:
-        pass
+        if args.rebinning > 1:
+            crop = args.crop
+            if not args.crop[0] == 0:  crop[0] = args.crop[0] // args.rebinning
+            if not args.crop[1] == -1: crop[1] = args.crop[1] // args.rebinning
+            if not args.crop[2] == 0:  crop[2] = args.crop[2] // args.rebinning
+            if not args.crop[3] == -1: crop[3] = args.crop[3] // args.rebinning
+            args.crop = crop
     elif len(args.crop) == 1:
         if args.crop[0] == 0:
             print("before crop------------------------------------------------")
@@ -1262,6 +1272,7 @@ def execute_process_image(**arguments):
             args.crop = auto_crop(flat, shrink=0.85)
         else:
             # central crop
+            if args.rebinning > 1: args.crop[0] = args.crop[0] // args.rebinning
             corner = [int(I_img_raw.shape[0] // 2 - args.crop[0] // 2),
                       int(I_img_raw.shape[0] // 2 + args.crop[0] // 2),
                       int(I_img_raw.shape[1] // 2 - args.crop[0] // 2),
