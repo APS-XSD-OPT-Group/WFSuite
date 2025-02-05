@@ -409,7 +409,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
                               img_transfer_matrix=kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
                               find_transferMatrix=True,
                               det_size=kwargs.get("detector_size", [IMAGE_SIZE_PIXEL_V, IMAGE_SIZE_PIXEL_H]),
-                              p_x=kwargs.get("pizel_size", PIXEL_SIZE),
+                              p_x=kwargs.get("pixel_size", PIXEL_SIZE),
                               det_res=kwargs.get("detector_resolution", DETECTOR_RESOLUTION),
                               energy=energy,
                               pattern_size=kwargs.get("pattern_size", PATTERN_SIZE),
