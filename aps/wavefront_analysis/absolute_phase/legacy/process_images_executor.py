@@ -1232,7 +1232,7 @@ def execute_process_image(**arguments):
         if args.det_size[1] % args.rebinning != 0: raise ValueError(f"Incompatible shape: det_size[1] {args.det_size[1]} is not divisible by the rebinning factor {args.rebinning}")
 
         args.det_size = [int(args.det_size[0] / args.rebinning), int(args.det_size[1] / args.rebinning)]
-        args.p_x     *= args.rebinnin
+        args.p_x     *= args.rebinning
 
         para_simulation['det_size'] = args.det_size
         para_simulation['p_x']      = args.p_x
