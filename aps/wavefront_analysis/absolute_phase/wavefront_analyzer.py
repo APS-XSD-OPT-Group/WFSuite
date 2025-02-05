@@ -91,6 +91,7 @@ PROPAGATOR            = ini_file.get_string_from_ini( section="Execution", key="
 CALIBRATION_PATH      = ini_file.get_string_from_ini( section="Reconstruction", key="Calibration-Path",  default=None)
 MODE                  = ini_file.get_string_from_ini( section="Reconstruction", key="Mode",              default='centralLine')
 LINE_WIDTH            = ini_file.get_int_from_ini(    section="Reconstruction", key="Line-Width",        default=10)
+REBINNING             = ini_file.get_int_from_ini(    section="Reconstruction", key="Rebinning",         default=1)
 DOWN_SAMPLING         = ini_file.get_float_from_ini(  section="Reconstruction", key="Down-Sampling",     default=1.0)
 METHOD                = ini_file.get_string_from_ini( section="Reconstruction", key="Method",            default='WXST')
 USE_GPU               = ini_file.get_boolean_from_ini(section="Reconstruction", key="Use-Gpu",           default=False)
@@ -164,6 +165,7 @@ ini_file.set_list_at_ini( section="Back-Propagation", key="Best-Focus-Scan-Range
 
 ini_file.set_value_at_ini(section="Reconstruction", key="Mode",           value=MODE)
 ini_file.set_value_at_ini(section="Reconstruction", key="Line-Width",     value=LINE_WIDTH   )
+ini_file.set_value_at_ini(section="Reconstruction", key="Rebinning",      value=REBINNING)
 ini_file.set_value_at_ini(section="Reconstruction", key="Down-Sampling",  value=DOWN_SAMPLING)
 ini_file.set_value_at_ini(section="Reconstruction", key="Method",         value=METHOD       )
 ini_file.set_value_at_ini(section="Reconstruction", key="Use-Gpu",        value=USE_GPU      )
@@ -360,6 +362,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
                           cali_path=kwargs.get("calibration_path", CALIBRATION_PATH),
                           mode=kwargs.get("mode", MODE),
                           lineWidth=kwargs.get("line_width", LINE_WIDTH),
+                          rebinning=kwargs.get("rebinning", REBINNING),
                           down_sampling=kwargs.get("down_sampling", DOWN_SAMPLING),
                           crop_boundary=kwargs.get("crop_boundary", CROP_BOUNDARY),
                           method=kwargs.get("method", METHOD),
@@ -427,6 +430,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
                               cali_path=kwargs.get("calibration_path", CALIBRATION_PATH),
                               mode=kwargs.get("mode", MODE),
                               lineWidth=kwargs.get("line_width", LINE_WIDTH),
+                              rebinning=kwargs.get("rebinning", REBINNING),
                               down_sampling=kwargs.get("down_sampling", DOWN_SAMPLING),
                               crop_boundary=kwargs.get("crop_boundary", CROP_BOUNDARY),
                               method=kwargs.get("method", METHOD),
