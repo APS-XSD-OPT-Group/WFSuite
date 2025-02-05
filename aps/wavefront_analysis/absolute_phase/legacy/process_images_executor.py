@@ -1490,8 +1490,8 @@ def execute_process_image(**arguments):
         plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
         plt.close()
 
-        write_json(args.result_folder, 'result', {'avg_curvature_x': 1 / np.mean(line_curve[1]),
-                                                  'avg_curvature_y': 1 / np.mean(line_curve[0])})
+        write_json(args.result_folder, 'result', {'avg_source_d_x': 1 / np.mean(line_curve[1]),
+                                                  'avg_source_d_y': 1 / np.mean(line_curve[0])})
         # To do: saving data and figures. Get 1D line profile and curvature profile.
         save_figure(image_pair=[['displace_x', displace_x, '[px]'],
                                 ['displace_y', displace_y, '[px]'],
