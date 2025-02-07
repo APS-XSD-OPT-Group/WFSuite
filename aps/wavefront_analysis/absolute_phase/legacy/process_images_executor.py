@@ -52,6 +52,7 @@
 import copy
 import os
 import sys
+import shutil
 import numpy as np
 import scipy.constants as sc
 import scipy.ndimage as snd
@@ -275,17 +276,11 @@ class pattern_search:
 
         N_pad = 128
         if N_pad == 0:
-            # A_prop, L_out = diffraction_prop(A_pattern, p_x_prop,
-            #                                  self.d_propagation, self.c_w,
-            #                                  self.prop_mode)
             A_prop, L_out = prop_TF_2d(A_pattern, p_x_prop, self.c_w, d_approx)
         else:
             A_pattern_pad = np.pad(A_pattern, (N_pad, N_pad),
                                    mode='constant',
                                    constant_values=(0, 0))
-            # A_prop, L_out = diffraction_prop(A_pattern_pad, p_x_prop,
-            #                                  self.d_propagation, self.c_w,
-            #                                  self.prop_mode)
             A_prop, L_out = prop_TF_2d(A_pattern_pad, p_x_prop, self.c_w, d_approx)
 
             A_prop = A_prop[N_pad:-N_pad, N_pad:-N_pad]
@@ -295,34 +290,9 @@ class pattern_search:
         I_prop = cv2.resize(I_prop, (int(size_origin[1] * M_factor[0]), int(size_origin[0] * M_factor[1])))
         prColor('origin size after propagation: {}'.format(I_prop.shape), 'green')
 
-        # sys.exit()
-        # # now the real pixel size is p_x_prop, need to scale it to the detector pixel size
-        # scale_res = p_x_prop / self.p_x
-        # # scale_res = 1
-
-        # I_prop = snd.zoom(I_prop, scale_res, order=1)
-        # print('residual scale: {}, to shape: {}'.format(
-        #     scale_res, I_prop.shape))
-
-        # crop the boundary artifact from the diffraction propagation
-        # n_crop = 256
-        # I_prop = I_prop[n_crop:-n_crop, n_crop:-n_crop]
-
         # the detector PSF influence
         I_det = self.PSF_detector(self.det_res, self.p_x, I_prop)
-
         I_coh = self.PSF_coherence(sigma_h, sigma_v, self.p_x, I_det)
-
-        # plt.figure()
-        # plt.imshow(I_prop)
-        # plt.title('prop')
-        # plt.figure()
-        # plt.imshow(I_det)
-        # plt.title('det')
-        # plt.figure()
-        # plt.imshow(I_coh)
-        # plt.title('coh')
-        # plt.show()
 
         return I_coh.astype(np.float32), I_det.astype(
             np.float32), I_prop.astype(np.float32)
@@ -1011,15 +981,13 @@ def get_local_curvature(displace_y, displace_x, d_prop):
 
 def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transfer_matrix, boundary_crop, crop_edge, para_XST, para_simulation, result_folder, method='simple_speckle'):
     ##XSHI added crop_edge into the parameters
-    c_w = pattern_find.c_w
     para_XST_simple = para_XST.copy()
-    para_XST_simple['method'] = 'simple'
+    para_XST_simple['method']        = 'simple'
     para_XST_simple['down_sampling'] = 0.5
+
     if para_pattern['propagated_pattern'] is None:
-        prColor('MESSAGE: pattern image,  ' + para_pattern['pattern_path'],
-                'green')
+        prColor('MESSAGE: pattern image,  ' + para_pattern['pattern_path'], 'green')
         I_pattern = np.load(para_pattern['pattern_path']).astype(np.float32)
-        # I_pattern = I_pattern
         I_pattern = (1 - I_pattern)
 
         # propagate the pattern to the detector
@@ -1039,17 +1007,11 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
                                   ]
         I_img_central = center_crop(I_img_raw)
 
-        if image_transfer_matrix is None:
-            # find the proper image transfer for the reference image which matches the pattern distribution
-            image_transfer_matrix = pattern_find.img_transfer_search(I_img_central, I_coh, result_folder)
-            I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh, image_transfer_matrix, center_shift)
-        else:
-            I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh, image_transfer_matrix, center_shift)
+        if image_transfer_matrix is None: image_transfer_matrix = pattern_find.img_transfer_search(I_img_central, I_coh, result_folder)
 
-        with open(os.path.join(para_pattern['saving_path'], "image_transfer_matrix.npy"), 'wb') as f: np.save(f, np.array(image_transfer_matrix), allow_pickle=False)
+        I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh, image_transfer_matrix, center_shift)
 
     if method == 'geometric':
-
         d_source_v, d_source_h = pattern_find.d_source_est
         prColor('re-calculated source distance: {}y    {}x'.format(d_source_v, d_source_h), 'cyan')
 
@@ -1274,6 +1236,8 @@ def execute_process_image(**arguments):
             'red')
         sys.exit()
 
+    generate_simulated_mask = para_pattern['propagated_pattern'] is None or para_pattern['propagated_patternDet'] is None
+
     for key, value in args.__dict__.items(): prColor('{}: {}'.format(key, value), 'cyan')
 
     json_content = copy.deepcopy(args.__dict__)
@@ -1281,17 +1245,22 @@ def execute_process_image(**arguments):
     except: pass
 
     write_json(args.result_folder, 'setting', json_content)
+    if generate_simulated_mask:  shutil.copy(os.path.join(args.result_folder, 'setting.json'),
+                                             os.path.join(para_pattern['saving_path'], 'setting.json'))
+
     # for the boundary, extend the cropping area by search_window+template_size
     extend_boundary = args.window_searching + args.template_size * int(1 / args.down_sampling)
     boundary_crop = lambda img: img[int(args.crop[0] - extend_boundary):int(args.crop[1] + extend_boundary),
                                 int(args.crop[2] - extend_boundary):int(args.crop[3] + extend_boundary)]
 
-    I_img = boundary_crop(I_img_raw)
+    I_img     = boundary_crop(I_img_raw)
     I_img_raw = (I_img_raw - dark) / (flat - dark)
+    flat      = boundary_crop(flat)
+    dark      = boundary_crop(dark)
+    I_img     = (I_img - dark) / (flat - dark)
 
-    flat = boundary_crop(flat)
-    dark = boundary_crop(dark)
-    I_img = (I_img - dark) / (flat - dark)
+    crop_edge    = args.crop
+    center_shift = [(crop_edge[0] + crop_edge[1]) // 2 - I_img_raw.shape[0] // 2, (crop_edge[2] + crop_edge[3]) // 2 - I_img_raw.shape[1] // 2]
 
     # to find the pattern from the reference image
     pattern_find = pattern_search(ini_para=para_simulation)
@@ -1318,6 +1287,7 @@ def execute_process_image(**arguments):
 
     # to find the pattern from the reference image
     pattern_find = pattern_search(ini_para=para_simulation)
+
     if para_pattern['propagated_pattern'] is None:
         prColor('MESSAGE: pattern image,  ' + para_pattern['pattern_path'],
                 'green')
@@ -1328,26 +1298,16 @@ def execute_process_image(**arguments):
         prColor('generating simulated pattern...', 'cyan')
         I_coh, I_det, I_prop = pattern_find.pattern_prop(I_pattern)
 
-        np.savez(os.path.join(para_pattern['saving_path'],
-                              'propagated_pattern.npz'),
-                 I_coh=I_coh)
-    else:
-        if para_pattern['propagated_patternDet'] is None:
-            # load the pattern from the saved file
-            prColor(
-                'MESSAGE: load propagated pattern,  ' +
-                para_pattern['propagated_pattern'], 'green')
+        np.savez(os.path.join(para_pattern['saving_path'], 'propagated_pattern.npz'), I_coh=I_coh)
+    elif para_pattern['propagated_patternDet'] is None:
+            prColor('MESSAGE: load propagated pattern,  ' + para_pattern['propagated_pattern'], 'green')
             data_content = np.load(para_pattern['propagated_pattern'])
             I_coh = data_content['I_coh']
-            # I_det = data_content['I_det']
-            # I_prop = data_content['I_prop']
 
     if para_pattern['propagated_patternDet'] is None:
         # use central part of the raw image to generate the simulated detector reference image
         ##XSHI use cropped center and size to determine the central part of the image for pattern search.
         central_halfsize = 256
-        crop_edge = args.crop
-        center_shift = [(crop_edge[0] + crop_edge[1]) // 2 - I_img_raw.shape[0] // 2, (crop_edge[2] + crop_edge[3]) // 2 - I_img_raw.shape[1] // 2]
         center_crop = lambda img: img[
                                   max(0, min(img.shape[0], crop_edge[0] if (crop_edge[1] - crop_edge[0]) <= 2 * central_halfsize else int((crop_edge[0] + crop_edge[1]) / 2 - central_halfsize))):
                                   max(0, min(img.shape[0], crop_edge[1] if (crop_edge[1] - crop_edge[0]) <= 2 * central_halfsize else int((crop_edge[0] + crop_edge[1]) / 2 + central_halfsize))),
@@ -1355,36 +1315,28 @@ def execute_process_image(**arguments):
                                   max(0, min(img.shape[1], crop_edge[3] if (crop_edge[3] - crop_edge[2]) <= 2 * central_halfsize else int((crop_edge[2] + crop_edge[3]) / 2 + central_halfsize)))
                                   ]
         I_img_central = center_crop(I_img_raw)
-        print(center_shift, I_img_central.shape, "=====================")
-        if image_transfer_matrix is None:
-            # find the proper image transfer for the reference image which matches the pattern distribution
-            image_transfer_matrix = pattern_find.img_transfer_search(I_img_central, I_coh, result_folder)
-            I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh,
-                                                                                             image_transfer_matrix, center_shift)
-        else:
-            I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh,
-                                                                                             image_transfer_matrix, center_shift)
 
-        with open(os.path.join(para_pattern['saving_path'], "image_transfer_matrix.npy"), 'wb') as f:
-            np.save(f, np.array(image_transfer_matrix), allow_pickle=False)
+        print(center_shift, I_img_central.shape, "=====================")
+
+        if image_transfer_matrix is None: image_transfer_matrix = pattern_find.img_transfer_search(I_img_central, I_coh, result_folder)
+
+        I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh, image_transfer_matrix, center_shift)
 
         prColor('saving the simulated pattern (det plane)...', 'cyan')
-        np.savez(os.path.join(para_pattern['saving_path'],
-                              'propagated_patternDet.npz'),
+        np.savez(os.path.join(para_pattern['saving_path'], 'propagated_patternDet.npz'),
                  I_simu_whole=I_simu_whole,
                  displace_x_offset=displace_x_offset,
                  displace_y_offset=displace_y_offset)
     else:
         # load the simulatd pattern from the saved file
-        prColor(
-            'MESSAGE: load propagated pattern at detector plane,  ' +
-            para_pattern['propagated_patternDet'], 'green')
+        prColor('MESSAGE: load propagated pattern at detector plane,  ' + para_pattern['propagated_patternDet'], 'green')
+
         data_content = np.load(para_pattern['propagated_patternDet'])
-        I_simu_whole = data_content['I_simu_whole']
+        I_simu_whole      = data_content['I_simu_whole']
         displace_x_offset = data_content['displace_x_offset']
         displace_y_offset = data_content['displace_y_offset']
 
-    I_simu = boundary_crop(I_simu_whole)
+    I_simu            = boundary_crop(I_simu_whole)
     displace_y_offset = boundary_crop(displace_y_offset)
     displace_x_offset = boundary_crop(displace_x_offset)
     displace_y_offset = displace_y_offset - np.mean(displace_y_offset)
@@ -1414,11 +1366,22 @@ def execute_process_image(**arguments):
     I_simu = normalize(I_simu) * 255
 
     # -------------------------------- do alignment ----------------------------------------------
+
     pos_shift, I_simu = image_align(I_img, I_simu)
-    #max_shift = int(np.amax(np.abs(pos_shift)) + 1)
+
+    # ----------------------------------------------------------------------------------------
+    # Saving all the reference points
+    write_json(result_path=args.result_folder,
+               file_name='reference',
+               data_dict={'image_transfer_matrix': image_transfer_matrix,
+                          'image_centroid': center_shift,
+                          'speckle_shift': pos_shift.tolist()})
+    if generate_simulated_mask:  shutil.copy(os.path.join(args.result_folder, 'reference.json'),
+                                             os.path.join(para_pattern['saving_path'], 'reference.json'))
 
     # choose the proper speckle tracking mode, either area or centralLine
     c_w = pattern_find.c_w
+
     if args.mode == 'area':
         prColor('speckle tracking mode: area. Will use the whole cropping area for calculation.', 'cyan')
         # XSHI removed DPC and phase from speckle_tracking
@@ -1442,15 +1405,14 @@ def execute_process_image(**arguments):
         # XSHI move the phase to the detector plane! Oct 2024
         x_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[1]))
         y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
+
         line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
                       np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
-        DPC_y        = (displace_y) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
-        DPC_x        = (displace_x) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
-        tilt_y       = (displace_y_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
-        tilt_x       = (displace_x_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
-        align_tilt_y = (pos_shift[0]) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling
-        align_tilt_x = (pos_shift[1]) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling
+        DPC_y      = (displace_y) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
+        DPC_x      = (displace_x) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
 
+        avg_source_d_x =  1 / np.mean(line_curve[1])
+        avg_source_d_y =  1 / np.mean(line_curve[0])
 
         phase = frankotchellappa(DPC_x, DPC_y) * para_simulation['p_x'] * 2 * np.pi / c_w
         line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
@@ -1459,7 +1421,16 @@ def execute_process_image(**arguments):
                       np.cumsum(line_dpc[1]) * para_simulation['p_x'] * 2 * np.pi / c_w]
 
         curve_y, curve_x = get_local_curvature(displace_y * y_scaling, displace_x * x_scaling, para_simulation['d_prop'])
-        prColor('mean curvature: {}y    {}x'.format(1 / np.mean(curve_y), 1 / np.mean(curve_x)), 'cyan')
+
+        avg_radius_y = 1 / np.mean(curve_y)
+        avg_radius_x = 1 / np.mean(curve_x)
+
+        prColor('mean radius of curvature: {}y    {}x'.format(avg_radius_y, avg_radius_x), 'cyan')
+
+        ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
+        intensity = flat[(flat.shape[0] - phase.shape[0]) // 2: (flat.shape[0] + phase.shape[0]) // 2, (flat.shape[1] - phase.shape[1]) // 2: (flat.shape[1] + phase.shape[1]) // 2]
+
+        line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
 
         plt.figure(figsize=(10, 8))
         plt.subplot(221)
@@ -1481,7 +1452,6 @@ def execute_process_image(**arguments):
         plt.savefig(os.path.join(args.result_folder, 'displace_fine.png'), dpi=150)
         plt.close()
 
-        line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
         plt.figure(figsize=(10, 4))
         plt.subplot(121)
         plt.plot(line_curve[0], 'k')
@@ -1500,14 +1470,14 @@ def execute_process_image(**arguments):
         plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
         plt.close()
 
-        write_json(args.result_folder, 'result', {'avg_source_d_x': 1 / np.mean(line_curve[1]),
-                                                  'avg_source_d_y': 1 / np.mean(line_curve[0]),
-                                                  'avg_tilt_x': tilt_x,
-                                                  'avg_tilt_y': tilt_y,
-                                                  'align_tilt_x': align_tilt_x,
-                                                  'align_tilt_y': align_tilt_y,
-                                                  })
-        # To do: saving data and figures. Get 1D line profile and curvature profile.
+        write_json(result_path=args.result_folder,
+                   file_name='result',
+                   data_dict={'avg_source_d_x': avg_source_d_x,
+                              'avg_source_d_y': avg_source_d_y,
+                              'avg_radius_x':   avg_radius_x,
+                              'avg_radius_y':   avg_radius_y})
+        if generate_simulated_mask: shutil.copy(os.path.join(args.result_folder,          'result.json'),
+                                                os.path.join(para_pattern['saving_path'], 'result.json'))
         save_figure(image_pair=[['displace_x', displace_x, '[px]'],
                                 ['displace_y', displace_y, '[px]'],
                                 ['curve_y', curve_y, '[1/m]'],
@@ -1515,22 +1485,28 @@ def execute_process_image(**arguments):
                                 ['phase', phase, '[rad]'],
                                 ['flat', flat, 'intensity'],
                                 ['displace_x_fine', displace_fine[1], '[px]'],
-                                ['displace_y_fine', displace_fine[0], '[px]']], path=args.result_folder, p_x=para_simulation['p_x'], extention='.png')
-
+                                ['displace_y_fine', displace_fine[0], '[px]']],
+                    path=args.result_folder,
+                    p_x=para_simulation['p_x'],
+                    extention='.png')
         save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
                                    ['line_phase_x', line_phase[1], '[rad]'],
                                    ['line_displace_y', line_displace[0], '[px]'],
                                    ['line_phase_y', line_phase[0], '[rad]'],
                                    ['line_curve_y', line_curve_filter[0], '[1/m]'],
-                                   ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
-        ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
-        # x_scaling = 1/(1 + para_simulation['d_prop'] *np.mean(line_curve[1]))
-        # y_scaling = 1/(1 + para_simulation['d_prop'] *np.mean(line_curve[0]))
-        # flat = snd.zoom(flat, (y_scaling, x_scaling), order=3, mode='nearest', prefilter=True)
-        # intensity = crop_or_pad_to_shape(flat, phase.shape)
-        intensity = flat[(flat.shape[0] - phase.shape[0]) // 2: (flat.shape[0] + phase.shape[0]) // 2, (flat.shape[1] - phase.shape[1]) // 2: (flat.shape[1] + phase.shape[1]) // 2]
-        save_data({'intensity': intensity, 'displace_x': displace_x, 'displace_y': displace_y, 'phase': phase,
-                   'line_phase_y': line_phase[0], 'line_displace_y': line_displace[0], 'line_curve_y': line_curve_filter[0], 'line_phase_x': line_phase[1], 'line_displace_x': line_displace[1], 'line_curve_x': line_curve_filter[1]}, args.result_folder, para_simulation['p_x'])
+                                   ['line_curve_x', line_curve_filter[1], '[1/m]']],
+                       path=args.result_folder, p_x=para_simulation['p_x'])
+        save_data(data={'intensity': intensity,
+                        'displace_x': displace_x,
+                        'displace_y': displace_y,
+                        'phase': phase,
+                        'line_phase_y': line_phase[0],
+                        'line_displace_y': line_displace[0],
+                        'line_curve_y': line_curve_filter[0],
+                        'line_phase_x': line_phase[1],
+                        'line_displace_x': line_displace[1],
+                        'line_curve_x': line_curve_filter[1]},
+                  path_folder=args.result_folder)
     elif args.mode == 'centralLine':
         prColor('speckle tracking mode: centralLine. Will use the central linewidth of {}um for calculation.'.format(args.lineWidth * args.pattern_size * 1e6), 'cyan')
         # crop the vertical and horizontal block for calculation
@@ -1563,10 +1539,8 @@ def execute_process_image(**arguments):
         y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
         line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
                       np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
-        tilt_y       = (displace_y_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
-        tilt_x       = (displace_x_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
-        align_tilt_y = (pos_shift[0]) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling
-        align_tilt_x = (pos_shift[1]) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling
+        avg_source_d_x = 1 / np.mean(line_curve[1])
+        avg_source_d_y = 1 / np.mean(line_curve[0])
 
         # get phase and curveature for central line profile
         line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
@@ -1577,7 +1551,15 @@ def execute_process_image(**arguments):
         # filter the line curve
         line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
 
-        prColor('mean source distance: {}y    {}x'.format(1 / np.mean(line_curve[0]), 1 / np.mean(line_curve[1])), 'cyan')
+        ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
+        linewidth_tosum = int(args.lineWidth * args.pattern_size / args.p_x)
+
+        intensity_x = flat[(flat.shape[0] - linewidth_tosum) // 2: (flat.shape[0] + linewidth_tosum) // 2, (flat.shape[1] - line_phase[1].shape[0]) // 2: (flat.shape[1] + line_phase[1].shape[0]) // 2]
+        intensity_y = flat[(flat.shape[0] - line_phase[0].shape[0]) // 2: (flat.shape[0] + line_phase[0].shape[0]) // 2, (flat.shape[1] - linewidth_tosum) // 2: (flat.shape[1] + linewidth_tosum) // 2]
+        int_x = np.sum(intensity_x, axis=0)
+        int_y = np.sum(intensity_y, axis=1)
+
+        prColor('mean source distance: {}y    {}x'.format(avg_source_d_y, avg_source_d_x), 'cyan')
 
         save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
                                    ['line_phase_x', line_phase[1], '[rad]'],
@@ -1585,27 +1567,20 @@ def execute_process_image(**arguments):
                                    ['line_phase_y', line_phase[0], '[rad]'],
                                    ['line_curve_y', line_curve_filter[0], '[1/m]'],
                                    ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
-
-
-
-        write_json(args.result_folder, 'result', {'avg_source_d_x': 1 / np.mean(line_curve[1]),
-                                                  'avg_source_d_y': 1 / np.mean(line_curve[0]),
-                                                  'avg_tilt_x': tilt_x,
-                                                  'avg_tilt_y': tilt_y,
-                                                  'align_tilt_x': align_tilt_x,
-                                                  'align_tilt_y': align_tilt_y,
-                                                  })
-
-        ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
-        # x_scaling = 1/(1 + para_simulation['d_prop'] *np.mean(line_curve[1]))
-        # y_scaling = 1/(1 + para_simulation['d_prop'] *np.mean(line_curve[0]))
-        linewidth_tosum = int(args.lineWidth * args.pattern_size / args.p_x)
-        # flat = snd.zoom(flat, (y_scaling, x_scaling), order=3, mode='nearest', prefilter=True)
-        # intensity_x = crop_or_pad_to_shape(flat, (round(linewidth_tosum*y_scaling),line_phase[1].shape[0]))
-        # intensity_y = crop_or_pad_to_shape(flat, (line_phase[0].shape[0],round(linewidth_tosum*x_scaling)))
-        intensity_x = flat[(flat.shape[0] - linewidth_tosum) // 2: (flat.shape[0] + linewidth_tosum) // 2, (flat.shape[1] - line_phase[1].shape[0]) // 2: (flat.shape[1] + line_phase[1].shape[0]) // 2]
-        intensity_y = flat[(flat.shape[0] - line_phase[0].shape[0]) // 2: (flat.shape[0] + line_phase[0].shape[0]) // 2, (flat.shape[1] - linewidth_tosum) // 2: (flat.shape[1] + linewidth_tosum) // 2]
-        int_x = np.sum(intensity_x, axis=0)
-        int_y = np.sum(intensity_y, axis=1)
-        save_data({'int_y': int_y, 'line_phase_y': line_phase[0], 'line_displace_y': line_displace[0], 'line_curve_y': line_curve_filter[0], 'int_x': int_x, 'line_phase_x': line_phase[1], 'line_displace_x': line_displace[1], 'line_curve_x': line_curve_filter[1]}, args.result_folder, para_simulation['p_x'])
+        write_json(result_path=args.result_folder,
+                   file_name='result',
+                   data_dict={'avg_source_d_x': avg_source_d_x,
+                              'avg_source_d_y': avg_source_d_y,
+                              })
+        if generate_simulated_mask: shutil.copy(os.path.join(args.result_folder,          'result.json'),
+                                                os.path.join(para_pattern['saving_path'], 'result.json'))
+        save_data(data={'int_y': int_y,
+                        'line_phase_y': line_phase[0],
+                        'line_displace_y': line_displace[0],
+                        'line_curve_y': line_curve_filter[0],
+                        'int_x': int_x,
+                        'line_phase_x': line_phase[1],
+                        'line_displace_x': line_displace[1],
+                        'line_curve_x': line_curve_filter[1]},
+                  path_folder=args.result_folder)
 

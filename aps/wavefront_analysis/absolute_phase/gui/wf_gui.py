@@ -9,6 +9,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FuncFormatter
 from matplotlib.figure import Figure
 from cmasher import cm as cmm
+from openpyxl.styles.builtins import output
 
 from aps.wavefront_analysis.absolute_phase.factory import create_wavefront_analyzer
 from aps.wavefront_analysis.driver.factory import create_wavefront_sensor
@@ -198,19 +199,22 @@ class WavefrontAnalysisForm(QWidget):
 
     def take_shot_and_generate_mask(self):
         try:
+            self.output_data.clear()
+
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
 
                 image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
 
-                self.__wavefront_analyzer.generate_simulated_mask(image_data=image,
-                                                                  image_ops=self.image_ops.split(sep=","),
-                                                                  mode=self.mode,
-                                                                  line_width=int(self.line_width),
-                                                                  rebinning=int(self.rebinning),
-                                                                  down_sampling=float(self.down_sampling),
-                                                                  window_search=int(self.window_search),
-                                                                  n_cores=int(self.n_cores))
+                image_transfer_matrix, _ = self.__wavefront_analyzer.generate_simulated_mask(image_data=image,
+                                                                                            image_ops=self.image_ops.split(sep=","),
+                                                                                            mode=self.mode,
+                                                                                            line_width=int(self.line_width),
+                                                                                            rebinning=int(self.rebinning),
+                                                                                            down_sampling=float(self.down_sampling),
+                                                                                            window_search=int(self.window_search),
+                                                                                            n_cores=int(self.n_cores))
+                self.output_data.setText("I.T.F.: " + str(image_transfer_matrix))
 
                 h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
                 self.plot_image(image, h_coord, v_coord)
@@ -285,10 +289,11 @@ class WavefrontAnalysisForm(QWidget):
 
                 wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
                                                                                     kind=self.kind,
+                                                                                    image_rebinning=float(self.rebinning),
                                                                                     propagation_distance=float(self.propagation_distance_h),
                                                                                     propagation_distance_h=float(self.propagation_distance_h),
                                                                                     propagation_distance_v=float(self.propagation_distance_v),
-                                                                                    rebinning=int(self.rebinning_bp),
+                                                                                    rebinning=float(self.rebinning_bp),
                                                                                     smooth_intensity=True if int(self.sigma_intensity) > 0 else False,
                                                                                     smooth_phase=True if int(self.sigma_phase) > 0 else False,
                                                                                     sigma_intensity = int(self.sigma_intensity),
@@ -302,7 +307,18 @@ class WavefrontAnalysisForm(QWidget):
                                                                                     show_figure=True,
                                                                                     save_result=True,
                                                                                     verbose=True)
-                self.output_data.setText(str(wavefront_data))
+
+                output_text = ""
+                for key in wavefront_data.keys():
+                    if key not in ["coordinates_x",
+                                   "coordinates_y",
+                                   "intensity",
+                                   "integrated_intensity_x",
+                                   "integrated_intensity_y",
+                                   "intensity_x",
+                                   "intensity_y"]:
+                        output_text += f"{key} : {wavefront_data[key]}\n"
+                self.output_data.setText(output_text)
 
                 h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
                 self.plot_image(image, h_coord, v_coord)
@@ -324,13 +340,17 @@ class WavefrontAnalysisForm(QWidget):
 
     def generate_mask(self):
         try:
-            self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1,
-                                                              mode=self.mode,
-                                                              line_width=int(self.line_width),
-                                                              rebinning=int(self.rebinning),
-                                                              down_sampling=float(self.down_sampling),
-                                                              window_search=int(self.window_search),
-                                                              n_cores=int(self.n_cores))
+            self.output_data.clear()
+
+            image_transfer_matrix, _ = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1,
+                                                                                         mode=self.mode,
+                                                                                         line_width=int(self.line_width),
+                                                                                         rebinning=float(self.rebinning),
+                                                                                         down_sampling=float(self.down_sampling),
+                                                                                         window_search=int(self.window_search),
+                                                                                         n_cores=int(self.n_cores))
+
+            self.output_data.setText("I.T.F.: " + str(image_transfer_matrix))
         except Exception as e:
             QMessageBox.information(self, "Error", traceback.format_exc())
 
@@ -339,7 +359,7 @@ class WavefrontAnalysisForm(QWidget):
             self.__wavefront_analyzer.process_image(image_index=1,
                                                     mode=self.mode,
                                                     line_width=int(self.line_width),
-                                                    rebinning=int(self.rebinning),
+                                                    rebinning=float(self.rebinning),
                                                     down_sampling=float(self.down_sampling),
                                                     window_search=int(self.window_search),
                                                     n_cores=int(self.n_cores))
@@ -352,10 +372,11 @@ class WavefrontAnalysisForm(QWidget):
 
             wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
                                                                                 kind=self.kind,
+                                                                                image_rebinning=float(self.rebinning),
                                                                                 propagation_distance=float(self.propagation_distance_h),
                                                                                 propagation_distance_h=float(self.propagation_distance_h),
                                                                                 propagation_distance_v=float(self.propagation_distance_v),
-                                                                                rebinning=int(self.rebinning_bp),
+                                                                                rebinning=float(self.rebinning_bp),
                                                                                 smooth_intensity=True if int(self.sigma_intensity) > 0 else False,
                                                                                 smooth_phase=True if int(self.sigma_phase) > 0 else False,
                                                                                 sigma_intensity=int(self.sigma_intensity),
@@ -370,7 +391,17 @@ class WavefrontAnalysisForm(QWidget):
                                                                                 save_result=True,
                                                                                 verbose=True)
 
-            self.output_data.setText(str(wavefront_data))
+            output_text = ""
+            for key in wavefront_data.keys():
+                if key not in ["coordinates_x",
+                               "coordinates_y",
+                               "intensity",
+                               "integrated_intensity_x",
+                               "integrated_intensity_y",
+                               "intensity_x",
+                               "intensity_y"]:
+                    output_text += f"{key} : {wavefront_data[key]}\n"
+            self.output_data.setText(output_text)
         except Exception as e:
             QMessageBox.information(self, "Error", traceback.format_exc())
 

@@ -52,7 +52,7 @@ import pathlib
 from threading import Thread
 
 import numpy as np
-from PIL import Image
+import json
 
 from aps.wavefront_analysis.absolute_phase.legacy.process_images_executor import execute_process_image
 from aps.wavefront_analysis.absolute_phase.legacy.back_propagation_executor import execute_back_propagation
@@ -270,6 +270,7 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
     def back_propagate_wavefront(self, image_index: int, data_collection_directory: str = None, **kwargs) -> dict:
         return _backpropagate_wavefront(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
                                         file_name_prefix=self.__file_name_prefix,
+                                        mask_directory=self.__simulated_mask_directory,
                                         image_index=image_index,
                                         **kwargs)
 
@@ -415,7 +416,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
 
     if not os.path.exists(os.path.join(mask_directory, 'propagated_pattern.npz')) or \
        not os.path.exists(os.path.join(mask_directory, 'propagated_patternDet.npz')) or \
-       not os.path.exists(os.path.join(mask_directory, "image_transfer_matrix.npy")):
+       not os.path.exists(os.path.join(mask_directory, "reference.json")):
         execute_process_image(img=img,
                               image_data=image_data,
                               image_ops=image_ops,
@@ -427,7 +428,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
                               propagated_patternDet=None,
                               saving_path=saving_path,
                               crop=kwargs.get("crop", CROP),
-                              img_transfer_matrix=kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
+                              img_transfer_matrix=None,
                               find_transferMatrix=True,
                               det_size=kwargs.get("detector_size", [IMAGE_SIZE_PIXEL_V, IMAGE_SIZE_PIXEL_H]),
                               p_x=kwargs.get("pixel_size", PIXEL_SIZE),
@@ -468,41 +469,46 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
         is_new_mask = False
         if verbose: print("Simulated mask already generated in " + mask_directory)
 
-    with open(os.path.join(mask_directory, "image_transfer_matrix.npy"), 'rb') as f: image_transfer_matrix = np.load(f, allow_pickle=False)
+    with open(os.path.join(mask_directory, "reference.json"), 'r') as file: parameters = json.load(file)
 
-    return image_transfer_matrix.tolist(), is_new_mask
+    return parameters["image_transfer_matrix"], is_new_mask
 
-def _backpropagate_wavefront(data_collection_directory, file_name_prefix, image_index, **kwargs) -> dict:
+def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_directory, image_index, **kwargs) -> dict:
     index_digits = kwargs.get("index_digits", INDEX_DIGITS)
 
     folder = os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i") % image_index)
-    
+    mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
+
     return execute_back_propagation(folder=folder,
-                                    kind              = kwargs.get("kind", KIND),
-                                    distance          = kwargs.get("propagation_distance", DISTANCE),
-                                    distance_x        = kwargs.get("propagation_distance_h", DISTANCE_H),
-                                    distance_y        = kwargs.get("propagation_distance_v", DISTANCE_V),
-                                    rebinning         = kwargs.get("rebinning", REBINNING_BP),
-                                    smooth_intensity  = kwargs.get("smooth_intensity", SMOOTH_INTENSITY),
-                                    smooth_phase      = kwargs.get("smooth_phase", SMOOTH_PHASE),
-                                    sigma_intensity   = kwargs.get("sigma_intensity", SIGMA_INTENSITY),
-                                    sigma_phase       = kwargs.get("sigma_phase", SIGMA_PHASE),
-                                    dim_x             = kwargs.get("crop_h", CROP_H),
-                                    dim_y             = kwargs.get("crop_v", CROP_V),
-                                    shift_x           = kwargs.get("crop_shift_h", CROP_SHIFT_H),
-                                    shift_y           = kwargs.get("crop_shift_v", CROP_SHIFT_V),
-                                    delta_f_x         = kwargs.get("delta_f_h", DELTA_F_H),
-                                    delta_f_y         = kwargs.get("delta_f_v", DELTA_F_V),
-                                    x_rms_range       = kwargs.get("rms_range_h", RMS_RANGE_H),
-                                    y_rms_range       = kwargs.get("rms_range_v", RMS_RANGE_V),
-                                    magnification_x   = kwargs.get("magnification_h", MAGNIFICATION_H),
-                                    magnification_y   = kwargs.get("magnification_v", MAGNIFICATION_V),
-                                    shift_half_pixel  = kwargs.get("shift_half_pixel", SHIFT_HALF_PIXEL),
-                                    show_figure       = kwargs.get("show_figure", False),
-                                    save_result       = kwargs.get("save_result", False),
-                                    scan_best_focus   = kwargs.get("scan_best_focus", SCAN_BEST_FOCUS),
-                                    best_focus_from   = kwargs.get("best_focus_from", BEST_FOCUS_FROM),
-                                    scan_rel_range    = kwargs.get("best_focus_scan_range", BEST_FOCUS_SCAN_RANGE),
-                                    scan_x_rel_range  = kwargs.get("best_focus_scan_range_h", BEST_FOCUS_SCAN_RANGE_H),
-                                    scan_y_rel_range  = kwargs.get("best_focus_scan_range_v", BEST_FOCUS_SCAN_RANGE_V),
-                                    verbose           = kwargs.get("verbose", False))
+                                    reference_folder=mask_directory,
+                                    kind                   = kwargs.get("kind", KIND),
+                                    mask_detector_distance = kwargs.get("mask_detector_distance", PROPAGATION_DISTANCE),
+                                    pixel_size             = kwargs.get("pixel_size", PIXEL_SIZE),
+                                    image_rebinning        = kwargs.get("image_rebinning", REBINNING),
+                                    distance               = kwargs.get("propagation_distance", DISTANCE),
+                                    distance_x             = kwargs.get("propagation_distance_h", DISTANCE_H),
+                                    distance_y             = kwargs.get("propagation_distance_v", DISTANCE_V),
+                                    rebinning              = kwargs.get("rebinning", REBINNING_BP),
+                                    smooth_intensity       = kwargs.get("smooth_intensity", SMOOTH_INTENSITY),
+                                    smooth_phase           = kwargs.get("smooth_phase", SMOOTH_PHASE),
+                                    sigma_intensity        = kwargs.get("sigma_intensity", SIGMA_INTENSITY),
+                                    sigma_phase            = kwargs.get("sigma_phase", SIGMA_PHASE),
+                                    dim_x                  = kwargs.get("crop_h", CROP_H),
+                                    dim_y                  = kwargs.get("crop_v", CROP_V),
+                                    shift_x                = kwargs.get("crop_shift_h", CROP_SHIFT_H),
+                                    shift_y                = kwargs.get("crop_shift_v", CROP_SHIFT_V),
+                                    delta_f_x              = kwargs.get("delta_f_h", DELTA_F_H),
+                                    delta_f_y              = kwargs.get("delta_f_v", DELTA_F_V),
+                                    x_rms_range            = kwargs.get("rms_range_h", RMS_RANGE_H),
+                                    y_rms_range            = kwargs.get("rms_range_v", RMS_RANGE_V),
+                                    magnification_x        = kwargs.get("magnification_h", MAGNIFICATION_H),
+                                    magnification_y        = kwargs.get("magnification_v", MAGNIFICATION_V),
+                                    shift_half_pixel       = kwargs.get("shift_half_pixel", SHIFT_HALF_PIXEL),
+                                    show_figure            = kwargs.get("show_figure", False),
+                                    save_result            = kwargs.get("save_result", False),
+                                    scan_best_focus        = kwargs.get("scan_best_focus", SCAN_BEST_FOCUS),
+                                    best_focus_from        = kwargs.get("best_focus_from", BEST_FOCUS_FROM),
+                                    scan_rel_range         = kwargs.get("best_focus_scan_range", BEST_FOCUS_SCAN_RANGE),
+                                    scan_x_rel_range       = kwargs.get("best_focus_scan_range_h", BEST_FOCUS_SCAN_RANGE_H),
+                                    scan_y_rel_range       = kwargs.get("best_focus_scan_range_v", BEST_FOCUS_SCAN_RANGE_V),
+                                    verbose                = kwargs.get("verbose", False))
