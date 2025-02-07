@@ -1414,10 +1414,8 @@ def execute_process_image(**arguments):
     I_simu = normalize(I_simu) * 255
 
     # -------------------------------- do alignment ----------------------------------------------
-    if True:
-        # do image alignment
-        pos_shift, I_simu = image_align(I_img, I_simu)
-        max_shift = int(np.amax(np.abs(pos_shift)) + 1)
+    pos_shift, I_simu = image_align(I_img, I_simu)
+    #max_shift = int(np.amax(np.abs(pos_shift)) + 1)
 
     # choose the proper speckle tracking mode, either area or centralLine
     c_w = pattern_find.c_w
@@ -1446,10 +1444,13 @@ def execute_process_image(**arguments):
         y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
         line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
                       np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
-        DPC_y = (displace_y) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
-        DPC_x = (displace_x) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
-        tilt_y = (displace_y_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
-        tilt_x = (displace_x_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
+        DPC_y        = (displace_y) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
+        DPC_x        = (displace_x) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
+        tilt_y       = (displace_y_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
+        tilt_x       = (displace_x_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
+        align_tilt_y = (pos_shift[0]) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling
+        align_tilt_x = (pos_shift[1]) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling
+
 
         phase = frankotchellappa(DPC_x, DPC_y) * para_simulation['p_x'] * 2 * np.pi / c_w
         line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
@@ -1501,8 +1502,11 @@ def execute_process_image(**arguments):
 
         write_json(args.result_folder, 'result', {'avg_source_d_x': 1 / np.mean(line_curve[1]),
                                                   'avg_source_d_y': 1 / np.mean(line_curve[0]),
-                                                  'avg_tilt_x': tilt_x ,
-                                                  'avg_tilt_y': tilt_y})
+                                                  'avg_tilt_x': tilt_x,
+                                                  'avg_tilt_y': tilt_y,
+                                                  'align_tilt_x': align_tilt_x,
+                                                  'align_tilt_y': align_tilt_y,
+                                                  })
         # To do: saving data and figures. Get 1D line profile and curvature profile.
         save_figure(image_pair=[['displace_x', displace_x, '[px]'],
                                 ['displace_y', displace_y, '[px]'],
@@ -1559,8 +1563,10 @@ def execute_process_image(**arguments):
         y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
         line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
                       np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
-        tilt_y = (displace_y_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
-        tilt_x = (displace_x_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
+        tilt_y       = (displace_y_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
+        tilt_x       = (displace_x_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
+        align_tilt_y = (pos_shift[0]) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling
+        align_tilt_x = (pos_shift[1]) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling
 
         # get phase and curveature for central line profile
         line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
@@ -1584,8 +1590,11 @@ def execute_process_image(**arguments):
 
         write_json(args.result_folder, 'result', {'avg_source_d_x': 1 / np.mean(line_curve[1]),
                                                   'avg_source_d_y': 1 / np.mean(line_curve[0]),
-                                                  'avg_tilt_x': tilt_x ,
-                                                  'avg_tilt_y': tilt_y})
+                                                  'avg_tilt_x': tilt_x,
+                                                  'avg_tilt_y': tilt_y,
+                                                  'align_tilt_x': align_tilt_x,
+                                                  'align_tilt_y': align_tilt_y,
+                                                  })
 
         ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
         # x_scaling = 1/(1 + para_simulation['d_prop'] *np.mean(line_curve[1]))

@@ -116,7 +116,7 @@ CROP_V                  = ini_file.get_int_from_ini(    section="Back-Propagatio
 CROP_H                  = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-H",                     default=500)
 CROP_SHIFT_V            = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-Shift-V",               default=0)
 CROP_SHIFT_H            = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-Shift-H",               default=0)
-DISTANCE                = ini_file.get_float_from_ini(  section="Back-Propagation", key="2D, Propagation-Distance", default=1.0)
+DISTANCE                = ini_file.get_float_from_ini(  section="Back-Propagation", key="2D, Propagation-Distance",   default=1.0)
 DISTANCE_V              = ini_file.get_float_from_ini(  section="Back-Propagation", key="1D, Propagation-Distance-V", default=1.0)
 DISTANCE_H              = ini_file.get_float_from_ini(  section="Back-Propagation", key="1D, Propagation-Distance-H", default=1.0)
 DELTA_F_V               = ini_file.get_float_from_ini(  section="Back-Propagation", key="Delta-F-V",                  default=0.0)
@@ -128,8 +128,9 @@ MAGNIFICATION_H         = ini_file.get_float_from_ini(  section="Back-Propagatio
 SHIFT_HALF_PIXEL        = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Shift-Half-Pixel",           default=False)
 SCAN_BEST_FOCUS         = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Scan-Best-Focus",            default=False)
 BEST_FOCUS_FROM         = ini_file.get_string_from_ini( section="Back-Propagation", key="Best-Focus-From",            default="rms")
-BEST_FOCUS_SCAN_RANGE_V = ini_file.get_list_from_ini(   section="Back-Propagation", key="Best-Focus-Scan-Range-V",    default=[-0.001, 0.001, 0.0001], type=float)
-BEST_FOCUS_SCAN_RANGE_H = ini_file.get_list_from_ini(   section="Back-Propagation", key="Best-Focus-Scan-Range-H",    default=[-0.001, 0.001, 0.0001], type=float)
+BEST_FOCUS_SCAN_RANGE   = ini_file.get_list_from_ini(   section="Back-Propagation", key="2D, Best-Focus-Scan-Range",   default=[-0.001, 0.001, 0.0001], type=float)
+BEST_FOCUS_SCAN_RANGE_V = ini_file.get_list_from_ini(   section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V", default=[-0.001, 0.001, 0.0001], type=float)
+BEST_FOCUS_SCAN_RANGE_H = ini_file.get_list_from_ini(   section="Back-Propagation", key="1D, Best-Focus-Scan-Range-H", default=[-0.001, 0.001, 0.0001], type=float)
 
 IMAGE_TRANSFER_MATRIX = ini_file.get_list_from_ini(   section="Output", key="Image-Transfer-Matrix", default=[0, 1, 0], type=int)
 SHOW_ALIGN_FIGURE     = ini_file.get_boolean_from_ini(section="Output", key="Show-Align-Figure",     default=False)
@@ -173,8 +174,9 @@ ini_file.set_value_at_ini(section="Back-Propagation", key="Scan-Best-Focus",    
 ini_file.set_value_at_ini(section="Back-Propagation", key="Best-Focus-From",            value=BEST_FOCUS_FROM)
 ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-V",            value=MAGNIFICATION_V)
 ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-H",            value=MAGNIFICATION_H)
-ini_file.set_list_at_ini( section="Back-Propagation", key="Best-Focus-Scan-Range-V",    values_list=BEST_FOCUS_SCAN_RANGE_V)
-ini_file.set_list_at_ini( section="Back-Propagation", key="Best-Focus-Scan-Range-H",    values_list=BEST_FOCUS_SCAN_RANGE_H)
+ini_file.set_list_at_ini( section="Back-Propagation", key="2D, Best-Focus-Scan-Range",      values_list=BEST_FOCUS_SCAN_RANGE)
+ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V",    values_list=BEST_FOCUS_SCAN_RANGE_V)
+ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-H",    values_list=BEST_FOCUS_SCAN_RANGE_H)
 
 ini_file.set_value_at_ini(section="Reconstruction", key="Mode",           value=MODE)
 ini_file.set_value_at_ini(section="Reconstruction", key="Line-Width",     value=LINE_WIDTH   )
@@ -500,6 +502,7 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, image_
                                     save_result       = kwargs.get("save_result", False),
                                     scan_best_focus   = kwargs.get("scan_best_focus", SCAN_BEST_FOCUS),
                                     best_focus_from   = kwargs.get("best_focus_from", BEST_FOCUS_FROM),
+                                    scan_rel_range    = kwargs.get("best_focus_scan_range", BEST_FOCUS_SCAN_RANGE),
                                     scan_x_rel_range  = kwargs.get("best_focus_scan_range_h", BEST_FOCUS_SCAN_RANGE_H),
                                     scan_y_rel_range  = kwargs.get("best_focus_scan_range_v", BEST_FOCUS_SCAN_RANGE_V),
                                     verbose           = kwargs.get("verbose", False))

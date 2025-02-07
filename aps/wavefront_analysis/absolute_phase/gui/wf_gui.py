@@ -15,11 +15,9 @@ from aps.wavefront_analysis.driver.factory import create_wavefront_sensor
 
 try:
     from epics import ca
-
     ca.finalize_libca()
 except:
     pass
-
 
 def initialize(working_directory, energy):
     measurement_directory = os.path.abspath(os.path.join(working_directory, "wf_images"))
@@ -27,10 +25,8 @@ def initialize(working_directory, energy):
     wavefront_sensor = create_wavefront_sensor(measurement_directory=measurement_directory)
     wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=measurement_directory, energy=energy)
 
-    try:
-        wavefront_sensor.restore_status()
-    except:
-        pass
+    try:    wavefront_sensor.restore_status()
+    except: pass
 
     return wavefront_sensor, wavefront_analyzer
 
@@ -43,7 +39,7 @@ from aps.common.plot.image import apply_transformations
 
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import IMAGE_OPS
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
-                                                                      REBINNING_BP, SIGMA_INTENSITY, SIGMA_PHASE, SMOOTH_INTENSITY, SMOOTH_PHASE)
+                                                                      REBINNING_BP, SIGMA_INTENSITY, SIGMA_PHASE, SMOOTH_INTENSITY, SMOOTH_PHASE, SCAN_BEST_FOCUS, BEST_FOCUS_FROM)
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import MODE, LINE_WIDTH, DOWN_SAMPLING, N_CORES, WINDOW_SEARCH, REBINNING
 
 WIDTH = 500
@@ -67,11 +63,12 @@ class WavefrontAnalysisForm(QWidget):
     crop_v                 = CROP_V
     magnification_h        = MAGNIFICATION_H
     magnification_v        = MAGNIFICATION_V
+    scan_best_focus        = 1 if SCAN_BEST_FOCUS else 0
+    best_focus_from        = BEST_FOCUS_FROM
 
     def __init__(self,
                  working_directory=os.path.abspath(os.curdir),
-                 energy=12398.0,
-                 is_detector_rotated=False):
+                 energy=12398.0):
         super().__init__()
 
         self.setFixedWidth(2 * WIDTH + 10)
@@ -109,6 +106,8 @@ class WavefrontAnalysisForm(QWidget):
         self.le_crop_v                 = gui.lineEdit(text_field_box_2, self, "crop_v", label="Crop V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
         self.le_magnification_h        = gui.lineEdit(text_field_box_2, self, "magnification_h", label="Mag H", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
         self.le_magnification_v        = gui.lineEdit(text_field_box_2, self, "magnification_v", label="Mag V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.cb_scan_best_focus        = gui.comboBox(text_field_box_2, self, "scan_best_focus", label="Scan Best F", labelWidth=250, orientation='horizontal', items=["no", "yes"])
+        self.le_best_focus_from        = gui.lineEdit(text_field_box_2, self, "best_focus_from", label="Best F From", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
 
         # -------------------------------------
 
@@ -170,7 +169,6 @@ class WavefrontAnalysisForm(QWidget):
         self.__working_directory = working_directory
         self.__energy = energy
         self.__wavefront_sensor, self.__wavefront_analyzer = initialize(working_directory, energy)
-        self.__is_detector_rotated = is_detector_rotated
 
     def take_shot(self):
         try:
@@ -187,7 +185,6 @@ class WavefrontAnalysisForm(QWidget):
                 except: pass
                 try:    self.__wavefront_sensor.end_collection()
                 except: pass
-
             except Exception:
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -300,7 +297,8 @@ class WavefrontAnalysisForm(QWidget):
                                                                                     crop_v=int(self.crop_v),
                                                                                     magnification_h=float(self.magnification_h),
                                                                                     magnification_v=float(self.magnification_v),
-                                                                                    scan_best_focus=False,
+                                                                                    scan_best_focus=self.scan_best_focus==1,
+                                                                                    best_focus_from=self.best_focus_from,
                                                                                     show_figure=True,
                                                                                     save_result=True,
                                                                                     verbose=True)
@@ -366,7 +364,8 @@ class WavefrontAnalysisForm(QWidget):
                                                                                 crop_v=int(self.crop_v),
                                                                                 magnification_h=float(self.magnification_h),
                                                                                 magnification_v=float(self.magnification_v),
-                                                                                scan_best_focus=False,
+                                                                                scan_best_focus=self.scan_best_focus == 1,
+                                                                                best_focus_from=self.best_focus_from,
                                                                                 show_figure=True,
                                                                                 save_result=True,
                                                                                 verbose=True)
@@ -376,7 +375,7 @@ class WavefrontAnalysisForm(QWidget):
             QMessageBox.information(self, "Error", traceback.format_exc())
 
     def plot_image(self, image, hh, vv):
-        data_2D = image.T
+        data_2D = image
         fig = self._result_figure
 
         xrange = [np.min(hh), np.max(hh)]
