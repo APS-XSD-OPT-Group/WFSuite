@@ -44,12 +44,34 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-
-from aps.common.driver.beamline.generic_camera import GenericCamera, \
-    get_default_file_name_prefix, get_image_data, \
-    PIXEL_SIZE, IMAGE_SIZE_PIXEL_V, IMAGE_SIZE_PIXEL_H, DETECTOR_RESOLUTION, INDEX_DIGITS
+import numpy as np
+from aps.common.driver.beamline.generic_camera import GenericCamera, CameraInitializationFile, get_default_file_name_prefix as __gdfnp, get_image_data as __gid
 
 WAVEFRONT_SENSOR_STATUS_FILE = "wavefront_sensor_status.pkl"
+
+class WavefrontSensorInitializationFile(CameraInitializationFile):
+    @classmethod
+    def initialize(cls):
+        super().initialize(application_name="WAVEFRONT-SENSOR",
+                           ini_file_name=".wavefront_sensor.json")
+
+WavefrontSensorInitializationFile.initialize()
+WavefrontSensorInitializationFile.store()
+
+PIXEL_SIZE          = WavefrontSensorInitializationFile.PIXEL_SIZE
+IMAGE_SIZE_PIXEL_V  = WavefrontSensorInitializationFile.IMAGE_SIZE_PIXEL_V
+IMAGE_SIZE_PIXEL_H  = WavefrontSensorInitializationFile.IMAGE_SIZE_PIXEL_H
+DETECTOR_RESOLUTION = WavefrontSensorInitializationFile.DETECTOR_RESOLUTION
+INDEX_DIGITS        = WavefrontSensorInitializationFile.INDEX_DIGITS
+
+def get_default_file_name_prefix(exposure_time=None):
+    return __gdfnp(exposure_time=(exposure_time if not exposure_time is None else WavefrontSensorInitializationFile.EXPOSURE_TIME))
+
+def get_image_data(measurement_directory, file_name_prefix, image_index: int, **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
+    return __gid(measurement_directory=measurement_directory,
+                 file_name_prefix=file_name_prefix,
+                 image_index=image_index,
+                 configuration_file=WavefrontSensorInitializationFile, **kwargs)
 
 class WavefrontSensor(GenericCamera):
     def __init__(self,
@@ -65,5 +87,6 @@ class WavefrontSensor(GenericCamera):
             status_file,
             file_name_prefix,
             detector_delay,
-            mocking_mode
+            mocking_mode,
+            configuration_file=WavefrontSensorInitializationFile
         )
