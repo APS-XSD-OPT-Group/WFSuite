@@ -74,7 +74,7 @@ ini_file = get_registered_ini_instance(APPLICATION_NAME)
 
 PATTERN_SIZE          = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Size",         default=4.942e-6)
 PATTERN_THICKNESS     = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Thickness",    default=1.5e-6)
-PATTERN_TRANSMISSION             = ini_file.get_float_from_ini(section="Mask", key="Pattern-Transmission", default=0.613)
+PATTERN_TRANSMISSION  = ini_file.get_float_from_ini(section="Mask", key="Pattern-Transmission", default=0.613)
 RAN_MASK              = ini_file.get_string_from_ini( section="Mask", key="Pattern-Image",        default='RanMask5umB0.npy')
 PROPAGATION_DISTANCE  = ini_file.get_float_from_ini(  section="Mask", key="Propagation-Distance", default=500e-3)
 
@@ -87,11 +87,12 @@ D_SOURCE_RECAL        = ini_file.get_boolean_from_ini(section="Execution", key="
 CROP                  = ini_file.get_list_from_ini(   section="Execution", key="Crop",                          default=[-1], type=int)
 ESTIMATION_METHOD     = ini_file.get_string_from_ini( section="Execution", key="Estimation-Method",             default='simple_speckle')
 PROPAGATOR            = ini_file.get_string_from_ini( section="Execution", key="Propagator",                    default='RS')
+IMAGE_OPS             = ini_file.get_list_from_ini(   section="Execution", key="Image-Ops",                     default=["T", "FH", "FV"], type=str)
 
 CALIBRATION_PATH      = ini_file.get_string_from_ini( section="Reconstruction", key="Calibration-Path",  default=None)
 MODE                  = ini_file.get_string_from_ini( section="Reconstruction", key="Mode",              default='centralLine')
 LINE_WIDTH            = ini_file.get_int_from_ini(    section="Reconstruction", key="Line-Width",        default=10)
-REBINNING             = ini_file.get_int_from_ini(    section="Reconstruction", key="Rebinning",         default=1)
+REBINNING             = ini_file.get_float_from_ini(  section="Reconstruction", key="Rebinning",         default=1.0)
 DOWN_SAMPLING         = ini_file.get_float_from_ini(  section="Reconstruction", key="Down-Sampling",     default=1.0)
 METHOD                = ini_file.get_string_from_ini( section="Reconstruction", key="Method",            default='WXST')
 USE_GPU               = ini_file.get_boolean_from_ini(section="Reconstruction", key="Use-Gpu",           default=False)
@@ -106,6 +107,11 @@ N_CORES               = ini_file.get_int_from_ini(    section="Reconstruction", 
 N_GROUP               = ini_file.get_int_from_ini(    section="Reconstruction", key="N-Group",           default=1)
 
 KIND                    = ini_file.get_string_from_ini( section="Back-Propagation", key="Kind",                       default="1D")
+REBINNING_BP            = ini_file.get_float_from_ini(  section="Back-Propagation", key="Rebinning",                  default=1.0)
+SMOOTH_INTENSITY        = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Smooth-Intensity",           default=False)
+SIGMA_INTENSITY         = ini_file.get_int_from_ini(    section="Back-Propagation", key="Sigma-Intensity",            default=21)
+SMOOTH_PHASE            = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Smooth-Phase",               default=False)
+SIGMA_PHASE             = ini_file.get_int_from_ini(    section="Back-Propagation", key="Sigma-Phase",                default=21)
 CROP_V                  = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-V",                     default=500)
 CROP_H                  = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-H",                     default=500)
 CROP_SHIFT_V            = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-Shift-V",               default=0)
@@ -143,8 +149,15 @@ ini_file.set_value_at_ini(section="Source", key="Source-Distance-H",    value=SO
 ini_file.set_value_at_ini(section="Execution", key="Source-Distance-Recalculation", value=D_SOURCE_RECAL)
 ini_file.set_list_at_ini( section="Execution", key="Crop",                          values_list=CROP)
 ini_file.set_value_at_ini(section="Execution", key="Estimation-Method",             value=ESTIMATION_METHOD)
+ini_file.set_value_at_ini(section="Execution", key="Propagator",                    value=PROPAGATOR)
+ini_file.set_list_at_ini( section="Execution", key="Image-Ops",                     values_list=IMAGE_OPS)
 
 ini_file.set_value_at_ini(section="Back-Propagation", key="Kind",                       value=KIND)
+ini_file.set_value_at_ini(section="Back-Propagation", key="Rebinning",                  value=REBINNING_BP    )
+ini_file.set_value_at_ini(section="Back-Propagation", key="Smooth-Intensity",           value=SMOOTH_INTENSITY)
+ini_file.set_value_at_ini(section="Back-Propagation", key="Sigma-Intensity",            value=SIGMA_INTENSITY )
+ini_file.set_value_at_ini(section="Back-Propagation", key="Smooth-Phase",               value=SMOOTH_PHASE    )
+ini_file.set_value_at_ini(section="Back-Propagation", key="Sigma-Phase",                value=SIGMA_PHASE     )
 ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-H",                     value=CROP_H      )
 ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-V",                     value=CROP_V      )
 ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-Shift-H",               value=CROP_SHIFT_H)
@@ -319,6 +332,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     verbose      = kwargs.get("verbose", False)
     img          = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     image_data   = kwargs.get("image_data", None)
+    image_ops    = kwargs.get("image_ops", [])
 
     dark           = None
     flat           = None
@@ -333,6 +347,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
 
     execute_process_image(img=img,
                           image_data=image_data,
+                          image_ops=image_ops,
                           dark=dark,
                           flat=flat,
                           result_folder=result_folder,
@@ -384,9 +399,9 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
 
     dark = None
     flat = None
-    img             = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
-    image_data      = kwargs.get("image_data", None)
-
+    img         = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
+    image_data  = kwargs.get("image_data", None)
+    image_ops   = kwargs.get("image_ops", [])
 
     mask_directory  = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
     result_folder   = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])
@@ -401,6 +416,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
        not os.path.exists(os.path.join(mask_directory, "image_transfer_matrix.npy")):
         execute_process_image(img=img,
                               image_data=image_data,
+                              image_ops=image_ops,
                               dark=dark,
                               flat=flat,
                               result_folder=result_folder,
@@ -464,6 +480,11 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, image_
                                     distance          = kwargs.get("propagation_distance", DISTANCE),
                                     distance_x        = kwargs.get("propagation_distance_h", DISTANCE_H),
                                     distance_y        = kwargs.get("propagation_distance_v", DISTANCE_V),
+                                    rebinning         = kwargs.get("rebinning", REBINNING_BP),
+                                    smooth_intensity  = kwargs.get("smooth_intensity", SMOOTH_INTENSITY),
+                                    smooth_phase      = kwargs.get("smooth_phase", SMOOTH_PHASE),
+                                    sigma_intensity   = kwargs.get("sigma_intensity", SIGMA_INTENSITY),
+                                    sigma_phase       = kwargs.get("sigma_phase", SIGMA_PHASE),
                                     dim_x             = kwargs.get("crop_h", CROP_H),
                                     dim_y             = kwargs.get("crop_v", CROP_V),
                                     shift_x           = kwargs.get("crop_shift_h", CROP_SHIFT_H),

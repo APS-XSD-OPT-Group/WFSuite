@@ -64,6 +64,8 @@ from wofryimpl.propagator.propagators1D.fresnel_zoom import FresnelZoom1D
 
 
 from aps.wavefront_analysis.common.arguments import Args
+from aps.common.plot.image import rebin_1D, rebin_2D
+from scipy.ndimage import gaussian_filter
 
 def gaussian(x, A, x0, sigma):
     return A * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
@@ -485,6 +487,8 @@ class PropagatedWavefront:
                  propagation_distance_y,
                  focus_z_position_x,
                  focus_z_position_y,
+                 wf_position_x,
+                 wf_position_y,
                  x_coordinates,
                  y_coordinates,
                  intensity,
@@ -504,6 +508,8 @@ class PropagatedWavefront:
             self.propagation_distance_y  = propagation_distance_y
             self.focus_z_position_x      = focus_z_position_x
             self.focus_z_position_y      = focus_z_position_y
+            self.wf_position_x           = wf_position_x
+            self.wf_position_y           = wf_position_y
             self.x_coordinates           = x_coordinates
             self.y_coordinates           = y_coordinates
             self.intensity               = intensity
@@ -525,6 +531,8 @@ class PropagatedWavefront:
             wf.attrs["fwhm_y_gauss"]         = self.fwhm_y_gauss
             wf.attrs["focus_z_position_x"]   = self.focus_z_position_x
             wf.attrs["focus_z_position_y"]   = self.focus_z_position_y
+            wf.attrs["wf_position_x"]        = self.wf_position_x
+            wf.attrs["wf_position_y"]        = self.wf_position_y
 
             wf.create_dataset('x_coordinates', data=self.x_coordinates)
             wf.create_dataset('y_coordinates', data=self.y_coordinates)
@@ -554,6 +562,8 @@ class PropagatedWavefront:
         out["fwhm_y_gauss"]           = self.fwhm_y_gauss
         out["focus_z_position_x"]     = self.focus_z_position_x
         out["focus_z_position_y"]     = self.focus_z_position_y
+        out["wf_position_x"]          = self.wf_position_x
+        out["wf_position_y"]          = self.wf_position_y
         out["coordinates_x"]          = self.x_coordinates
         out["coordinates_y"]          = self.y_coordinates
 
@@ -595,6 +605,12 @@ def execute_back_propagation(**arguments) -> dict:
     arguments["scan_y_rel_range"]  = arguments.get("scan_y_rel_range", [-0.001, 0.001, 0.0001])
     arguments["verbose"]           = arguments.get("verbose", True)
 
+    arguments["rebinning"]         = arguments.get("rebinning", 1)
+    arguments["smooth_intensity"]  = arguments.get("smooth_intensity", False)
+    arguments["smooth_phase"]      = arguments.get("smooth_phase", False)
+    arguments["sigma_intensity"]   = arguments.get("sigma_intensity", 21)
+    arguments["sigma_phase"]       = arguments.get("sigma_phase", 21)
+
     args = Args(arguments)
 
     dim_x            = args.dim_x
@@ -629,8 +645,12 @@ def execute_back_propagation(**arguments) -> dict:
     # Load results
     results = load_parameters(json_result_path)
 
-    R_x = results['avg_source_d_x']
-    R_y = results['avg_source_d_y']
+    R_x    = results['avg_source_d_x']
+    R_y    = results['avg_source_d_y']
+    tilt_x = results['avg_tilt_x']
+    tilt_y = results['avg_tilt_y']
+
+    rebin_factor  = args.rebinning
 
     if args.kind.upper() == "2D":
         # Load the datasets
@@ -640,9 +660,19 @@ def execute_back_propagation(**arguments) -> dict:
         intensity = intensity[:, ::-1]
         phase = phase.T
         phase = phase[:, ::-1]
+
         x_array = np.linspace(-pixel_size * intensity.shape[0] / 2, pixel_size * intensity.shape[0] / 2, intensity.shape[0])
         y_array = np.linspace(-pixel_size * intensity.shape[1] / 2, pixel_size * intensity.shape[1] / 2, intensity.shape[1])
-    
+
+        if rebin_factor > 1:
+            x_array, y_array, intensity = rebin_2D(x_array, y_array, intensity, rebin_factor, exact=False)
+            _, _,                 phase = rebin_2D(None, None, phase, rebin_factor, exact=False)
+            dim_x          = dim_x // rebin_factor
+            dim_y          = dim_y // rebin_factor
+
+        if args.smooth_intensity: intensity = gaussian_filter(intensity, args.sigma_intensity)
+        if args.smooth_phase: phase = gaussian_filter(phase, args.sigma_phase)
+
         # crop wavefront before propagate
         start_x = max((phase.shape[0] - dim_x) // 2 + shift_x, 0)
         end_x   = min(start_x + dim_x, phase.shape[0])
@@ -661,6 +691,8 @@ def execute_back_propagation(**arguments) -> dict:
         wavefront = amplitude * np.exp(1j * phase)
 
         propagation_distance = args.distance if not args.distance is None else -(R_x + R_y) / 2  # propagation distance in meters
+        wf_position_x = propagation_distance * tilt_x
+        wf_position_y = propagation_distance * tilt_y
 
         # Assuming original wavefront has some curvature:
         # Apply the phase corrections
@@ -676,11 +708,6 @@ def execute_back_propagation(**arguments) -> dict:
                                                                                 z_array=wavefront,
                                                                                 wavelength=wavelength)
 
-        # New pixel sizes after magnification
-        new_pixel_size_x = pixel_size * magnification_x
-        new_pixel_size_y = pixel_size * magnification_y
-        x_coordinates = np.linspace(-new_pixel_size_x * intensity.shape[0] / 2, new_pixel_size_x * intensity.shape[0] / 2, intensity.shape[0])
-        y_coordinates = np.linspace(-new_pixel_size_y * intensity.shape[1] / 2, new_pixel_size_y * intensity.shape[1] / 2, intensity.shape[1])
         # Instantiate the propagator
         fresnel_propagator = FresnelZoomXY2D()
 
@@ -698,15 +725,15 @@ def execute_back_propagation(**arguments) -> dict:
         fwhm_y_gauss, \
         intensity_wofry, \
         integrated_intensity_x, \
-        integrated_intensity_y = __propagate_2D(fresnel_propagator,
+        integrated_intensity_y, \
+        x_coordinates, \
+        y_coordinates = __propagate_2D(fresnel_propagator,
                                                 initial_wavefront,
                                                 magnification_x,
                                                 magnification_y,
                                                 propagation_distance,
                                                 shift_half_pixel,
-                                                x_coordinates,
                                                 x_rms_range,
-                                                y_coordinates,
                                                 y_rms_range)
 
         # note: inf is used for the purpose of best focus scan, while NaN is the failed return value, useful for optimization purposes
@@ -722,6 +749,8 @@ def execute_back_propagation(**arguments) -> dict:
                                                    None,
                                                    focus_z_position_x,
                                                    focus_z_position_y,
+                                                   wf_position_x,
+                                                   wf_position_y,
                                                    x_coordinates,
                                                    y_coordinates,
                                                    intensity_wofry,
@@ -737,8 +766,8 @@ def execute_back_propagation(**arguments) -> dict:
             plt.subplot(1, 2, 1)
             plt.pcolormesh(X, Y, intensity_wofry.T, shading='auto', norm=PowerNorm(gamma=gamma))
             plt.colorbar(label='Intensity')
-            plt.xlabel('X (meters)')
-            plt.ylabel('Y (meters)')
+            plt.xlabel(f'X (meters) / tilt : {round(1e6*wf_position_x, 2)} um')
+            plt.ylabel(f'Y (meters) / tilt : {round(1e6*wf_position_y, 2)} um')
             plt.title(f'Intensity distribution at {propagation_distance} m')
             plt.subplot(1, 2, 2)
             plt.plot(x_coordinates, integrated_intensity_x)
@@ -759,6 +788,23 @@ def execute_back_propagation(**arguments) -> dict:
         x_array = np.linspace(-pixel_size * int_x.shape[0] / 2, pixel_size * int_x.shape[0] / 2, int_x.shape[0])
         y_array = np.linspace(-pixel_size * int_y.shape[0] / 2, pixel_size * int_y.shape[0] / 2, int_y.shape[0])
 
+        if rebin_factor > 1:
+            x_array, int_x = rebin_1D(x_array, int_x, rebin_factor, exact=False)
+            _,     phase_x = rebin_1D(None, phase_x, rebin_factor, exact=False)
+            dim_x          = dim_x // rebin_factor
+
+            y_array, int_y = rebin_1D(y_array, int_y, rebin_factor, exact=False)
+            _,     phase_y = rebin_1D(None, phase_y, rebin_factor, exact=False)
+            dim_y          = dim_y // rebin_factor
+
+        if args.smooth_intensity:
+            int_x = gaussian_filter(int_x, args.sigma_intensity)
+            int_y = gaussian_filter(int_y, args.sigma_intensity)
+
+        if args.smooth_phase:
+            phase_x = gaussian_filter(phase_x, args.sigma_phase)
+            phase_y = gaussian_filter(phase_y, args.sigma_phase)
+
         # Calculate the start and end indices for x and y, incorporating the shifts
         start_x = max((phase_x.shape[0] - dim_x) // 2 + shift_x, 0)
         end_x = min(start_x + dim_x, phase_x.shape[0])
@@ -773,19 +819,14 @@ def execute_back_propagation(**arguments) -> dict:
         x_array = x_array[start_x:end_x]
         y_array = y_array[start_y:end_y]
 
-        from scipy.ndimage import gaussian_filter
-
-        int_x   = gaussian_filter(int_x, 21)
-        int_y   = gaussian_filter(int_y, 21)
-        phase_x = gaussian_filter(phase_x, 100)
-        phase_y = gaussian_filter(phase_y, 100)
-
         # Construct the complex wavefront
         wavefront_x = np.sqrt(int_x) * np.exp(1j * phase_x)
         wavefront_y = np.sqrt(int_y) * np.exp(1j * phase_y)
 
         propagation_distance_x = args.distance_x if not args.distance_x is None else -R_x  # propagation distance in meters
         propagation_distance_y = args.distance_y if not args.distance_y is None else -R_y  # propagation distance in meters
+        wf_position_x = propagation_distance_x * tilt_x
+        wf_position_y = propagation_distance_y * tilt_y
 
         if delta_f_x != 0: wavefront_x *= np.exp(1j * np.pi * (x_array ** 2) * delta_f_x / (wavelength * propagation_distance_x ** 2))
         if delta_f_y != 0: wavefront_y *= np.exp(1j * np.pi * (y_array ** 2) * delta_f_y / (wavelength * propagation_distance_y ** 2))
@@ -793,27 +834,20 @@ def execute_back_propagation(**arguments) -> dict:
         initial_wavefront_x = GenericWavefront1D.initialize_wavefront_from_arrays(x_array=x_array, y_array=wavefront_x, wavelength=wavelength)
         initial_wavefront_y = GenericWavefront1D.initialize_wavefront_from_arrays(x_array=y_array, y_array=wavefront_y, wavelength=wavelength)
 
-        # New pixel sizes after magnification
-        new_pixel_size_x = pixel_size * magnification_x
-        new_pixel_size_y = pixel_size * magnification_y
-        x_coordinates = np.linspace(-new_pixel_size_x * int_x.shape[0] / 2, new_pixel_size_x * int_x.shape[0] / 2, int_x.shape[0])
-        y_coordinates = np.linspace(-new_pixel_size_y * int_y.shape[0] / 2, new_pixel_size_y * int_y.shape[0] / 2, int_y.shape[0])
         # Instantiate the propagator
         fresnel_propagator = FresnelZoom1D()
 
-        sigma_x, fwhm_x, fwhm_x_gauss, intensity_x_wofry, propagated_wf_x = __propagate_1D(fresnel_propagator,
+        sigma_x, fwhm_x, fwhm_x_gauss, intensity_x_wofry, x_coordinates = __propagate_1D(fresnel_propagator,
                                                                                            initial_wavefront_x,
                                                                                            magnification_x,
                                                                                            propagation_distance_x,
-                                                                                           x_coordinates,
                                                                                            x_rms_range,
                                                                                            "X")
 
-        sigma_y , fwhm_y, fwhm_y_gauss, intensity_y_wofry, propagated_wf_y = __propagate_1D(fresnel_propagator,
+        sigma_y , fwhm_y, fwhm_y_gauss, intensity_y_wofry, y_coordinates = __propagate_1D(fresnel_propagator,
                                                                                             initial_wavefront_y,
                                                                                             magnification_y,
                                                                                             propagation_distance_y,
-                                                                                            y_coordinates,
                                                                                             y_rms_range,
                                                                                             "Y")
 
@@ -855,6 +889,8 @@ def execute_back_propagation(**arguments) -> dict:
                                                    propagation_distance_y,
                                                    focus_z_position_x,
                                                    focus_z_position_y,
+                                                   wf_position_x,
+                                                   wf_position_y,
                                                    x_coordinates,
                                                    y_coordinates,
                                                    None,
@@ -871,36 +907,14 @@ def execute_back_propagation(**arguments) -> dict:
             ax3 = axs[1, 0]
             ax4 = axs[1, 1]
 
-            ax1.plot(initial_wavefront_x.get_abscissas(), initial_wavefront_x.get_phase(unwrap=True))
-            ax2.plot(initial_wavefront_y.get_abscissas(), initial_wavefront_y.get_phase(unwrap=True))
-            ax1.set_xlabel('X (meters)')
-            ax2.set_xlabel('Y (meters)')
-            ax1.set_ylabel('Phase')
-
-            ax3.plot(propagated_wf_x.get_abscissas(), propagated_wf_x.get_phase(unwrap=True))
-            ax4.plot(propagated_wf_y.get_abscissas(), propagated_wf_y.get_phase(unwrap=True))
-            ax3.set_xlabel('X (meters)')
-            ax4.set_xlabel('Y (meters)')
-            ax3.set_ylabel('Phase')
-
-            plt.title(f'Phase profile at {propagation_distance_x}x{propagation_distance_y} distance')
-            plt.show()
-
-            _, (axs) = plt.subplots(2, 2)
-
-            ax1 = axs[0, 0]
-            ax2 = axs[0, 1]
-            ax3 = axs[1, 0]
-            ax4 = axs[1, 1]
-
             ax1.plot(initial_wavefront_x.get_abscissas(), initial_wavefront_x.get_intensity())
             ax2.plot(initial_wavefront_y.get_abscissas(), initial_wavefront_y.get_intensity())
             ax1.set_xlabel('X (meters)')
             ax2.set_xlabel('Y (meters)')
             ax1.set_ylabel('Integrated Intensity')
 
-            ax3.plot(propagated_wf_x.get_abscissas(), propagated_wf_x.get_intensity())
-            ax4.plot(propagated_wf_y.get_abscissas(), propagated_wf_y.get_intensity())
+            ax3.plot(x_coordinates, intensity_x_wofry)
+            ax4.plot(y_coordinates, intensity_y_wofry)
             ax3.set_xlabel('X (meters)')
             ax4.set_xlabel('Y (meters)')
             ax3.set_ylabel('Integrated Intensity')
@@ -983,11 +997,11 @@ def __propagate_1D(fresnel_propagator,
                    initial_wavefront,
                    magnification,
                    propagation_distance,
-                   coordinates,
                    rms_range,
                    direction):
     propagated_wavefront = fresnel_propagator.propagate_wavefront(initial_wavefront, propagation_distance, magnification_x=magnification)
     intensity_wofry      = propagated_wavefront.get_intensity()
+    coordinates          = propagated_wavefront.get_abscissas()
 
     # Calculate beam size
     success, fwhm = find_fwhm(coordinates, intensity_wofry)
@@ -999,7 +1013,7 @@ def __propagate_1D(fresnel_propagator,
 
     print(f"{direction} direction: sigma = {sigma:.3g}, FWHM = {fwhm:.3g}, Gaussian fit FWHM = {fwhm_gauss:.3g}")
 
-    return sigma, fwhm, fwhm_gauss, intensity_wofry, propagated_wavefront
+    return sigma, fwhm, fwhm_gauss, intensity_wofry, coordinates
 
 def __propagate_2D(fresnel_propagator,
                    initial_wavefront,
@@ -1007,9 +1021,7 @@ def __propagate_2D(fresnel_propagator,
                    magnification_y,
                    propagation_distance,
                    shift_half_pixel,
-                   x_coordinates,
                    x_rms_range,
-                   y_coordinates,
                    y_rms_range):
     propagated_wavefront_wofry = fresnel_propagator.propagate_wavefront(initial_wavefront,
                                                                         propagation_distance,
@@ -1017,6 +1029,8 @@ def __propagate_2D(fresnel_propagator,
                                                                         magnification_y=magnification_y,
                                                                         shift_half_pixel=shift_half_pixel)
     intensity_wofry = np.abs(propagated_wavefront_wofry.get_complex_amplitude()) ** 2
+    x_coordinates   = propagated_wavefront_wofry.get_coordinate_x()
+    y_coordinates   = propagated_wavefront_wofry.get_coordinate_y()
 
     integrated_intensity_x = np.sum(intensity_wofry, axis=1)  # Sum over y
     integrated_intensity_y = np.sum(intensity_wofry, axis=0)  # Sum over x
@@ -1046,6 +1060,8 @@ def __propagate_2D(fresnel_propagator,
            fwhm_y_gauss, \
            intensity_wofry, \
            integrated_intensity_x, \
-           integrated_intensity_y
+           integrated_intensity_y, \
+           x_coordinates, \
+           y_coordinates
 
 

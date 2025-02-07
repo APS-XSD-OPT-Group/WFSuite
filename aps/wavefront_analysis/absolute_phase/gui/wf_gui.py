@@ -1,6 +1,8 @@
 import os, sys
+import time
 import traceback
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -11,112 +13,107 @@ from cmasher import cm as cmm
 from aps.wavefront_analysis.absolute_phase.factory import create_wavefront_analyzer
 from aps.wavefront_analysis.driver.factory import create_wavefront_sensor
 
-
 try:
     from epics import ca
+
     ca.finalize_libca()
 except:
     pass
 
+
 def initialize(working_directory, energy):
     measurement_directory = os.path.abspath(os.path.join(working_directory, "wf_images"))
 
-    wavefront_sensor   = create_wavefront_sensor(measurement_directory=measurement_directory)
+    wavefront_sensor = create_wavefront_sensor(measurement_directory=measurement_directory)
     wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=measurement_directory, energy=energy)
 
-    try:    wavefront_sensor.restore_status()
-    except: pass
+    try:
+        wavefront_sensor.restore_status()
+    except:
+        pass
 
     return wavefront_sensor, wavefront_analyzer
 
-from PyQt5.QtWidgets import (QApplication, QLabel, QWidget, QVBoxLayout, QHBoxLayout,
-                             QTextEdit, QPushButton, QMessageBox, QLineEdit, QGridLayout)
+
+from PyQt5.QtWidgets import (QApplication, QWidget, QTextEdit, QPushButton, QMessageBox, QGridLayout)
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import KIND, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V
+from aps.common.plot import gui
+from aps.common.plot.image import apply_transformations
+
+from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import IMAGE_OPS
+from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
+                                                                      REBINNING_BP, SIGMA_INTENSITY, SIGMA_PHASE, SMOOTH_INTENSITY, SMOOTH_PHASE)
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import MODE, LINE_WIDTH, DOWN_SAMPLING, N_CORES, WINDOW_SEARCH, REBINNING
 
 WIDTH = 500
-
+HEIGHT = 660
 class WavefrontAnalysisForm(QWidget):
+    mode          = MODE
+    image_ops     = str(IMAGE_OPS).replace("[", "").replace("]", "").replace("'", "")
+    line_width    = LINE_WIDTH
+    rebinning     = REBINNING
+    down_sampling = DOWN_SAMPLING
+    window_search = WINDOW_SEARCH
+    n_cores       = N_CORES
+
+    kind                   = KIND
+    propagation_distance_h = DISTANCE_H
+    propagation_distance_v = DISTANCE_V
+    rebinning_bp           = REBINNING_BP
+    sigma_intensity        = 0 if not SMOOTH_INTENSITY else SIGMA_INTENSITY
+    sigma_phase            = 0 if not SMOOTH_PHASE else SIGMA_PHASE
+    crop_h                 = CROP_H
+    crop_v                 = CROP_V
+    magnification_h        = MAGNIFICATION_H
+    magnification_v        = MAGNIFICATION_V
+
     def __init__(self,
                  working_directory=os.path.abspath(os.curdir),
                  energy=12398.0,
                  is_detector_rotated=False):
         super().__init__()
 
-        def get_line(label: str, text, parent_layout) -> QLineEdit:
-            box = QWidget()
-            lt = QHBoxLayout()
-            la = QLabel(label)
-            la.setFixedWidth(90)
-            le = QLineEdit()
-            le.setText(str(text))
-            lt.addWidget(la)
-            lt.addWidget(le)
-            box.setLayout(lt)
-            parent_layout.addWidget(box)
-            return le
+        self.setFixedWidth(2 * WIDTH + 10)
+        self.setFixedHeight(HEIGHT + 10)
 
-        self.setFixedWidth(2*WIDTH + 10)
-
-        main_layout = QHBoxLayout()
-
-        left_box = QWidget()
-        right_box = QWidget()
-
-        layout_left = QVBoxLayout()
-        layout_right = QVBoxLayout()
-
-        input_box = QWidget()
-        input_box.setMinimumWidth(WIDTH)
-
-        layout_ib = QHBoxLayout()
+        main_box  = gui.widgetBox(self, "", orientation="horizontal", addSpace=False)
+        left_box  = gui.widgetBox(main_box, "", orientation="vertical", addSpace=False)
+        input_box = gui.widgetBox(left_box, "", orientation="horizontal", width=WIDTH, addSpace=False)
+        right_box = gui.widgetBox(main_box, "", orientation="vertical", addSpace=False)
+        image_box = gui.widgetBox(right_box, "", orientation="vertical", width=WIDTH, height=WIDTH)
 
         # -------------------------------------
-        text_field_box_1 = QWidget()
-        text_field_box_1.setMinimumWidth(int(WIDTH/2)-5)
-        layout_1 = QVBoxLayout()
+        text_field_box_1 = gui.widgetBox(input_box, "Process Image", orientation="vertical", width=int(WIDTH / 2) - 10)
 
-        self.mode          = get_line("Mode", MODE, layout_1)
-        self.line_width    = get_line("Line W", LINE_WIDTH, layout_1)
-        self.rebinning     = get_line("Rebin", REBINNING, layout_1)
-        self.down_sampling = get_line("Down Samp", DOWN_SAMPLING, layout_1)
-        self.window_search = get_line("W Search", WINDOW_SEARCH, layout_1)
-        self.n_cores       = get_line("N Cores", N_CORES, layout_1)
-
-        text_field_box_1.setLayout(layout_1)
+        self.le_mode          = gui.lineEdit(text_field_box_1, self, "mode", label="Mode", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
+        self.le_image_ops     = gui.lineEdit(text_field_box_1, self, "image_ops", label="Image Ops", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
+        self.le_line_width    = gui.lineEdit(text_field_box_1, self, "line_width", label="Line W", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_rebinning     = gui.lineEdit(text_field_box_1, self, "rebinning", label="Rebin", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_down_sampling = gui.lineEdit(text_field_box_1, self, "down_sampling", label="Down Samp", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_window_search = gui.lineEdit(text_field_box_1, self, "window_search", label="W Search", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_n_cores       = gui.lineEdit(text_field_box_1, self, "n_cores", label="N Cores", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
 
         # -------------------------------------
 
-        text_field_box_2 = QWidget()
-        text_field_box_2.setMinimumWidth(int(WIDTH / 2) - 5)
-        text_field_box_2.setFixedHeight(400)
-        layout_2 = QVBoxLayout()
+        text_field_box_2 = gui.widgetBox(input_box, "Back Propagation", orientation="vertical", width=int(WIDTH / 2) - 10, height=350)
 
-        self.kind                   = get_line("Kind", KIND, layout_2)
-        self.propagation_distance_h = get_line("Pr Dist H/2D", DISTANCE_H, layout_2)
-        self.propagation_distance_v = get_line("Pr Dist V", DISTANCE_V, layout_2)
-        self.crop_h                 = get_line("Crop H", CROP_H, layout_2)
-        self.crop_v                 = get_line("Crop V", CROP_V, layout_2)
-        self.magnification_h        = get_line("Mag H", MAGNIFICATION_H, layout_2)
-        self.magnification_v        = get_line("Mag V", MAGNIFICATION_V, layout_2)
+        self.le_kind                   = gui.lineEdit(text_field_box_2, self, "kind", label="Kind", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
+        self.le_propagation_distance_h = gui.lineEdit(text_field_box_2, self, "propagation_distance_h", label="Pr Dist H/2D", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_propagation_distance_v = gui.lineEdit(text_field_box_2, self, "propagation_distance_v", label="Pr Dist V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_rebinning_bp           = gui.lineEdit(text_field_box_2, self, "rebinning_bp", label="Rebin", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_sigma_intensity        = gui.lineEdit(text_field_box_2, self, "sigma_intensity", label="Sigma Int", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_sigma_phase            = gui.lineEdit(text_field_box_2, self, "sigma_phase",    label="Sigma Ph", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
 
-        text_field_box_2.setLayout(layout_2)
-
-        # -------------------------------------
-
-        layout_ib.addWidget(text_field_box_1)
-        layout_ib.addWidget(text_field_box_2)
-
-        input_box.setLayout(layout_ib)
-
-        layout_left.addWidget(input_box)
+        self.le_crop_h                 = gui.lineEdit(text_field_box_2, self, "crop_h", label="Crop H", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_crop_v                 = gui.lineEdit(text_field_box_2, self, "crop_v", label="Crop V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_magnification_h        = gui.lineEdit(text_field_box_2, self, "magnification_h", label="Mag H", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_magnification_v        = gui.lineEdit(text_field_box_2, self, "magnification_v", label="Mag V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
 
         # -------------------------------------
 
         button_box = QWidget()
-        button_box.setMinimumWidth(WIDTH-10)
+        button_box.setMinimumWidth(WIDTH - 10)
 
         button_grid = QGridLayout()
 
@@ -153,7 +150,7 @@ class WavefrontAnalysisForm(QWidget):
 
         button_box.setLayout(button_grid)
 
-        layout_left.addWidget(button_box)
+        left_box.layout().addWidget(button_box)
 
         # Create text field
         self.output_data = QTextEdit()
@@ -161,33 +158,17 @@ class WavefrontAnalysisForm(QWidget):
         self.output_data.setMinimumWidth(350)
         self.output_data.setReadOnly(True)
 
-        layout_left.addWidget(self.output_data)
+        left_box.layout().addWidget(self.output_data)
 
-        image_box = QWidget()
-        image_box.setFixedHeight(WIDTH)
-        image_box.setFixedWidth(WIDTH)
-        layout_box = QVBoxLayout()
-
-        self._result_figure        = Figure(figsize=(6.0, 6.0), constrained_layout=True)
+        self._result_figure = Figure(figsize=(6.0, 6.0), constrained_layout=True)
         self._result_figure_canvas = FigureCanvas(self._result_figure)
-
         self._toolbar = NavigationToolbar(self._result_figure_canvas, self)
-        layout_box.addWidget(self._toolbar)
 
-        layout_box.addWidget(self._result_figure_canvas)
-        image_box.setLayout(layout_box)
+        image_box.layout().addWidget(self._toolbar)
+        image_box.layout().addWidget(self._result_figure_canvas)
 
-        layout_right.addWidget(image_box)
-
-        left_box.setLayout(layout_left)
-        right_box.setLayout(layout_right)
-
-        main_layout.addWidget(left_box)
-        main_layout.addWidget(right_box)
-
-        # Set the layout for the widget
-        self.setLayout(main_layout)
-
+        self.__working_directory = working_directory
+        self.__energy = energy
         self.__wavefront_sensor, self.__wavefront_analyzer = initialize(working_directory, energy)
         self.__is_detector_rotated = is_detector_rotated
 
@@ -196,10 +177,11 @@ class WavefrontAnalysisForm(QWidget):
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
 
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="um")
+                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
 
-                if self.__is_detector_rotated: self.plot_image(image.T, v_coord, h_coord)
-                else:                     self.plot_image(image, h_coord, v_coord)
+                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
+
+                self.plot_image(image, h_coord, v_coord)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -222,26 +204,25 @@ class WavefrontAnalysisForm(QWidget):
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
 
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="um")
-
-                if self.__is_detector_rotated: self.plot_image(image.T, v_coord, h_coord)
-                else:                     self.plot_image(image, h_coord, v_coord)
+                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
 
                 self.__wavefront_analyzer.generate_simulated_mask(image_data=image,
-                                                                  mode = self.mode.text(),
-                                                                  line_width = int(self.line_width.text()),
-                                                                  rebinning = int(self.rebinning.text()),
-                                                                  down_sampling = float(self.down_sampling.text()),
-                                                                  window_search = int(self.window_search.text()),
-                                                                  n_cores = int(self.n_cores.text()))
+                                                                  image_ops=self.image_ops.split(sep=","),
+                                                                  mode=self.mode,
+                                                                  line_width=int(self.line_width),
+                                                                  rebinning=int(self.rebinning),
+                                                                  down_sampling=float(self.down_sampling),
+                                                                  window_search=int(self.window_search),
+                                                                  n_cores=int(self.n_cores))
+
+                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
+                self.plot_image(image, h_coord, v_coord)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
                 try:    self.__wavefront_sensor.end_collection()
                 except: pass
-
             except Exception as e:
-
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
                 try:    self.__wavefront_sensor.end_collection()
@@ -258,31 +239,30 @@ class WavefrontAnalysisForm(QWidget):
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
 
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="um")
+                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
 
                 self.__wavefront_analyzer.process_image(image_index=1,
                                                         image_data=image,
-                                                        mode=self.mode.text(),
-                                                        line_width=int(self.line_width.text()),
-                                                        rebinning=int(self.rebinning.text()),
-                                                        down_sampling=float(self.down_sampling.text()),
-                                                        window_search=int(self.window_search.text()),
-                                                        n_cores=int(self.n_cores.text()))
+                                                        image_ops=self.image_ops.split(sep=","),
+                                                        mode=self.mode,
+                                                        line_width=int(self.line_width),
+                                                        rebinning=int(self.rebinning),
+                                                        down_sampling=float(self.down_sampling),
+                                                        window_search=int(self.window_search),
+                                                        n_cores=int(self.n_cores))
 
-                if self.__is_detector_rotated: self.plot_image(image.T, v_coord, h_coord)
-                else:                     self.plot_image(image, h_coord, v_coord)
+                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
+                self.plot_image(image, h_coord, v_coord)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
                 try:    self.__wavefront_sensor.end_collection()
                 except: pass
             except Exception as e:
-
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
                 try:    self.__wavefront_sensor.end_collection()
                 except: pass
-
                 QMessageBox.information(self, "Error", traceback.format_exc())
         except Exception as e:
             QMessageBox.information(self, "Error", traceback.format_exc())
@@ -298,30 +278,36 @@ class WavefrontAnalysisForm(QWidget):
 
                 self.__wavefront_analyzer.process_image(image_index=1,
                                                         image_data=image,
-                                                        mode=self.mode.text(),
-                                                        line_width=int(self.line_width.text()),
-                                                        rebinning=int(self.rebinning.text()),
-                                                        down_sampling=float(self.down_sampling.text()),
-                                                        window_search=int(self.window_search.text()),
-                                                        n_cores=int(self.n_cores.text()))
+                                                        image_ops=self.image_ops.split(sep=","),
+                                                        mode=self.mode,
+                                                        line_width=int(self.line_width),
+                                                        rebinning=int(self.rebinning),
+                                                        down_sampling=float(self.down_sampling),
+                                                        window_search=int(self.window_search),
+                                                        n_cores=int(self.n_cores))
 
                 wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
-                                                                                    kind=self.kind.text(),
-                                                                                    propagation_distance=float(self.propagation_distance_h.text()),
-                                                                                    propagation_distance_h=float(self.propagation_distance_h.text()),
-                                                                                    propagation_distance_v=float(self.propagation_distance_v.text()),
-                                                                                    crop_h=int(self.crop_h.text()),
-                                                                                    crop_v=int(self.crop_v.text()),
-                                                                                    magnification_h=float(self.magnification_h.text()),
-                                                                                    magnification_v=float(self.magnification_v.text()),
+                                                                                    kind=self.kind,
+                                                                                    propagation_distance=float(self.propagation_distance_h),
+                                                                                    propagation_distance_h=float(self.propagation_distance_h),
+                                                                                    propagation_distance_v=float(self.propagation_distance_v),
+                                                                                    rebinning=int(self.rebinning_bp),
+                                                                                    smooth_intensity=True if int(self.sigma_intensity) > 0 else False,
+                                                                                    smooth_phase=True if int(self.sigma_phase) > 0 else False,
+                                                                                    sigma_intensity = int(self.sigma_intensity),
+                                                                                    sigma_phase = int(self.sigma_phase),
+                                                                                    crop_h=int(self.crop_h),
+                                                                                    crop_v=int(self.crop_v),
+                                                                                    magnification_h=float(self.magnification_h),
+                                                                                    magnification_v=float(self.magnification_v),
                                                                                     scan_best_focus=False,
                                                                                     show_figure=True,
                                                                                     save_result=True,
                                                                                     verbose=True)
                 self.output_data.setText(str(wavefront_data))
 
-                if self.__is_detector_rotated: self.plot_image(image.T, v_coord, h_coord)
-                else:                     self.plot_image(image, h_coord, v_coord)
+                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
+                self.plot_image(image, h_coord, v_coord)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -329,7 +315,6 @@ class WavefrontAnalysisForm(QWidget):
                 except: pass
 
             except Exception as e:
-
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
                 try:    self.__wavefront_sensor.end_collection()
@@ -342,24 +327,24 @@ class WavefrontAnalysisForm(QWidget):
     def generate_mask(self):
         try:
             self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1,
-                                                              mode=self.mode.text(),
-                                                              line_width=int(self.line_width.text()),
-                                                              rebinning=int(self.rebinning.text()),
-                                                              down_sampling=float(self.down_sampling.text()),
-                                                              window_search=int(self.window_search.text()),
-                                                              n_cores=int(self.n_cores.text()))
+                                                              mode=self.mode,
+                                                              line_width=int(self.line_width),
+                                                              rebinning=int(self.rebinning),
+                                                              down_sampling=float(self.down_sampling),
+                                                              window_search=int(self.window_search),
+                                                              n_cores=int(self.n_cores))
         except Exception as e:
             QMessageBox.information(self, "Error", traceback.format_exc())
 
     def process_image(self):
         try:
             self.__wavefront_analyzer.process_image(image_index=1,
-                                                    mode=self.mode.text(),
-                                                    line_width=int(self.line_width.text()),
-                                                    rebinning=int(self.rebinning.text()),
-                                                    down_sampling=float(self.down_sampling.text()),
-                                                    window_search=int(self.window_search.text()),
-                                                    n_cores=int(self.n_cores.text()))
+                                                    mode=self.mode,
+                                                    line_width=int(self.line_width),
+                                                    rebinning=int(self.rebinning),
+                                                    down_sampling=float(self.down_sampling),
+                                                    window_search=int(self.window_search),
+                                                    n_cores=int(self.n_cores))
         except Exception as e:
             QMessageBox.information(self, "Error", traceback.format_exc())
 
@@ -368,14 +353,19 @@ class WavefrontAnalysisForm(QWidget):
             self.output_data.clear()
 
             wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
-                                                                                kind=self.kind.text(),
-                                                                                propagation_distance=float(self.propagation_distance_h.text()),
-                                                                                propagation_distance_h=float(self.propagation_distance_h.text()),
-                                                                                propagation_distance_v=float(self.propagation_distance_v.text()),
-                                                                                crop_h=int(self.crop_h.text()),
-                                                                                crop_v=int(self.crop_v.text()),
-                                                                                magnification_h=float(self.magnification_h.text()),
-                                                                                magnification_v=float(self.magnification_v.text()),
+                                                                                kind=self.kind,
+                                                                                propagation_distance=float(self.propagation_distance_h),
+                                                                                propagation_distance_h=float(self.propagation_distance_h),
+                                                                                propagation_distance_v=float(self.propagation_distance_v),
+                                                                                rebinning=int(self.rebinning_bp),
+                                                                                smooth_intensity=True if int(self.sigma_intensity) > 0 else False,
+                                                                                smooth_phase=True if int(self.sigma_phase) > 0 else False,
+                                                                                sigma_intensity=int(self.sigma_intensity),
+                                                                                sigma_phase=int(self.sigma_phase),
+                                                                                crop_h=int(self.crop_h),
+                                                                                crop_v=int(self.crop_v),
+                                                                                magnification_h=float(self.magnification_h),
+                                                                                magnification_v=float(self.magnification_v),
                                                                                 scan_best_focus=False,
                                                                                 show_figure=True,
                                                                                 save_result=True,
@@ -387,7 +377,7 @@ class WavefrontAnalysisForm(QWidget):
 
     def plot_image(self, image, hh, vv):
         data_2D = image.T
-        fig     = self._result_figure
+        fig = self._result_figure
 
         xrange = [np.min(hh), np.max(hh)]
         yrange = [np.min(vv), np.max(vv)]
@@ -413,6 +403,7 @@ class WavefrontAnalysisForm(QWidget):
         cbar.ax.text(0.5, 1.05, "pI", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
 
         fig.savefig("test.png")
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

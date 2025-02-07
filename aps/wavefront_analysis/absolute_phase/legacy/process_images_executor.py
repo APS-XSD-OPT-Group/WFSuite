@@ -763,19 +763,12 @@ def cv2_clipped_zoom(img, zoom_factor=0):
     return result
 
 def image_translation(img, shift):
-    # # roi = lambda x: x[0:100][0:100]
-    # shift, error, diffphase = register_translation(image, offset_image, 10)
-    # # shift, error, diffphase = phase_cross_correlation(image, offset_image, 100)
-    # # shift, error, diffphase = register_translation(roi(image), roi(offset_image), 100)
-
-    # print('shift dist: {}, alignment error: {} and phase difference: {}'.format(shift, error, diffphase))
-    # image_back = image_shift(offset_image, shift[0], shift[1])
     image_back = snd.fourier_shift(np.fft.fftn(img), shift)
     image_back = np.real(np.fft.ifftn(image_back))
 
     return image_back
 
-def speckle_tracking(ref, img, para_XST, p_x, displace_offset):
+def speckle_tracking(ref, img, para_XST, displace_offset):
     import cv2 # here to avoid conflict with PyQt5
     '''
         to get displacement
@@ -816,9 +809,6 @@ def speckle_tracking(ref, img, para_XST, p_x, displace_offset):
                          para_XST['crop_boundary'][0]:-para_XST['crop_boundary'][0],
                          para_XST['crop_boundary'][1]:-para_XST['crop_boundary'][1]]
 
-        displace_x -= np.mean(displace_x)
-        displace_y -= np.mean(displace_y)
-
     elif para_XST['method'] == 'WXST':
         # use WXST to find displacement accurately
         WXST_solver = WXST(img,
@@ -855,9 +845,6 @@ def speckle_tracking(ref, img, para_XST, p_x, displace_offset):
             displace_y = displace_y[
                          para_XST['crop_boundary'][0]:-para_XST['crop_boundary'][0],
                          para_XST['crop_boundary'][1]:-para_XST['crop_boundary'][1]]
-
-        displace_x -= np.mean(displace_x)
-        displace_y -= np.mean(displace_y)
 
     elif para_XST['method'] == 'SPINNet':
         # from func import image_align
@@ -904,9 +891,6 @@ def speckle_tracking(ref, img, para_XST, p_x, displace_offset):
             displace_y = displace_y[
                          para_XST['crop_boundary'][0]:-para_XST['crop_boundary'][0],
                          para_XST['crop_boundary'][1]:-para_XST['crop_boundary'][1]]
-
-        displace_x -= np.mean(displace_x)
-        displace_y -= np.mean(displace_y)
 
     elif para_XST['method'] == 'SPINNet_split':
         '''
@@ -1010,10 +994,13 @@ def speckle_tracking(ref, img, para_XST, p_x, displace_offset):
                          para_XST['crop_boundary'][0]:-para_XST['crop_boundary'][0],
                          para_XST['crop_boundary'][1]:-para_XST['crop_boundary'][1]]
 
-        displace_x -= np.mean(displace_x)
-        displace_y -= np.mean(displace_y)
+    displace_x_tilt = np.mean(displace_x)
+    displace_y_tilt = np.mean(displace_y)
 
-    return displace_y, displace_x, displace_fine
+    displace_x -= displace_x_tilt
+    displace_y -= displace_y_tilt
+
+    return displace_y, displace_x, displace_fine, displace_y_tilt, displace_x_tilt
 
 def get_local_curvature(displace_y, displace_x, d_prop):
     '''
@@ -1078,7 +1065,7 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
         I_simu = normalize(I_simu) * 255
 
         prColor('speckle tracking mode: area. Will use the whole cropping area for calculation.', 'cyan')
-        displace_y, displace_x, _, = speckle_tracking(I_simu, I_img, para_XST_simple, para_simulation['p_x'], displace_offset=[displace_y_offset, displace_x_offset])
+        displace_y, displace_x, _, _, _ = speckle_tracking(I_simu, I_img, para_XST_simple, displace_offset=[displace_y_offset, displace_x_offset])
 
         # # do filter for displacement before calcuating the curvature
         # displace_x_filtered = snd.gaussian_filter(displace_x, 21)
@@ -1098,13 +1085,14 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
 ################################################################
 
 from aps.wavefront_analysis.common.arguments import Args
-from aps.common.plot.image import rebin
+from aps.common.plot.image import rebin_2D, apply_transformations
 
 def execute_process_image(**arguments):
     arguments["img"]                   = arguments.get("img", './images/sample_00001.tif') # path to sample image
     arguments["dark"]                  = arguments.get("dark", None) # file path to the dark image
     arguments["flat"]                  = arguments.get("flat", None) # file path to the flat image
     arguments["image_data"]            = arguments.get("image_data", None) # numpy array with the image data from streaming
+    arguments["image_ops"]             = arguments.get("image_ops", [])
     arguments["result_folder"]         = arguments.get("result_folder", './images/results') # saving folder
     arguments["pattern_path"]          = arguments.get("pattern_path", './mask/RanMask5umB0.npy') # path to mask design pattern
     arguments["propagated_pattern"]    = arguments.get("propagated_pattern", './images/propagated_pattern.npz') # if None, will create one in the data folder
@@ -1223,10 +1211,10 @@ def execute_process_image(**arguments):
     # =====================  start to find the pattern   ================================================
 
     if args.image_data is None: I_img_raw = load_image(file_img)
-    else:                       I_img_raw = args.image_data
+    else:                       _, _, I_img_raw = apply_transformations(None, None, args.image_data, args.image_ops)
 
     if args.rebinning > 1:
-        _, _, I_img_raw = rebin(None, None, I_img_raw, args.rebinning)
+        _, _, I_img_raw = rebin_2D(None, None, I_img_raw, args.rebinning, exact=True)
 
         if args.det_size[0] % args.rebinning != 0: raise ValueError(f"Incompatible shape: det_size[0] {args.det_size[0]} is not divisible by the rebinning factor {args.rebinning}")
         if args.det_size[1] % args.rebinning != 0: raise ValueError(f"Incompatible shape: det_size[1] {args.det_size[1]} is not divisible by the rebinning factor {args.rebinning}")
@@ -1240,12 +1228,12 @@ def execute_process_image(**arguments):
     if args.dark is None: dark = np.zeros(I_img_raw.shape)
     else:
         dark = load_image(args.dark)
-        if args.rebinning > 1: _, _, dark = rebin(None, None, dark, args.rebinning)
+        if args.rebinning > 1: _, _, dark = rebin_2D(None, None, dark, args.rebinning, exact=True)
 
     if args.flat is None: flat = snd.uniform_filter(I_img_raw, size = 10 * (args.pattern_size / args.p_x))  # XSHI Feb 2024 change from 5 to 10
     else:
         flat = load_image(args.flat)
-        if args.rebinning > 1: _, _, flat = rebin(None, None, flat, args.rebinning)
+        if args.rebinning > 1: _, _, flat = rebin_2D(None, None, flat, args.rebinning, exact=True)
 
     if len(args.crop) == 4:
         if args.rebinning > 1:
@@ -1436,7 +1424,11 @@ def execute_process_image(**arguments):
     if args.mode == 'area':
         prColor('speckle tracking mode: area. Will use the whole cropping area for calculation.', 'cyan')
         # XSHI removed DPC and phase from speckle_tracking
-        displace_y, displace_x, displace_fine = speckle_tracking(I_simu, I_img, para_XST, para_simulation['p_x'], displace_offset=[displace_y_offset, displace_x_offset])
+        (displace_y,
+         displace_x,
+         displace_fine,
+         displace_y_tilt,
+         displace_x_tilt) = speckle_tracking(I_simu, I_img, para_XST, displace_offset=[displace_y_offset, displace_x_offset])
 
         block_width = int(args.lineWidth * args.pattern_size / args.p_x) + 2 * para_XST['window_searching']
 
@@ -1456,6 +1448,9 @@ def execute_process_image(**arguments):
                       np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
         DPC_y = (displace_y) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
         DPC_x = (displace_x) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
+        tilt_y = (displace_y_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
+        tilt_x = (displace_x_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
+
         phase = frankotchellappa(DPC_x, DPC_y) * para_simulation['p_x'] * 2 * np.pi / c_w
         line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
                     line_displace[1] * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling]
@@ -1505,7 +1500,9 @@ def execute_process_image(**arguments):
         plt.close()
 
         write_json(args.result_folder, 'result', {'avg_source_d_x': 1 / np.mean(line_curve[1]),
-                                                  'avg_source_d_y': 1 / np.mean(line_curve[0])})
+                                                  'avg_source_d_y': 1 / np.mean(line_curve[0]),
+                                                  'avg_tilt_x': tilt_x ,
+                                                  'avg_tilt_y': tilt_y})
         # To do: saving data and figures. Get 1D line profile and curvature profile.
         save_figure(image_pair=[['displace_x', displace_x, '[px]'],
                                 ['displace_y', displace_y, '[px]'],
@@ -1541,7 +1538,7 @@ def execute_process_image(**arguments):
         displace_x_offset_v = displace_x_offset[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
 
         # XSHI removed DPC and phase from speckle_tracking
-        displace_y, _, _ = speckle_tracking(I_simu_v, I_img_v, para_XST, para_simulation['p_x'], displace_offset=[displace_y_offset_v, displace_x_offset_v])
+        displace_y, _, _, displace_y_tilt, _ = speckle_tracking(I_simu_v, I_img_v, para_XST, displace_offset=[displace_y_offset_v, displace_x_offset_v])
 
         I_img_h = I_img[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
         I_simu_h = I_simu[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
@@ -1549,7 +1546,7 @@ def execute_process_image(**arguments):
         displace_x_offset_h = displace_x_offset[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
 
         # XSHI removed DPC and phase from speckle_tracking
-        _, displace_x, _ = speckle_tracking(I_simu_h, I_img_h, para_XST, para_simulation['p_x'], displace_offset=[displace_y_offset_h, displace_x_offset_h])
+        _, displace_x, _, _, displace_x_tilt = speckle_tracking(I_simu_h, I_img_h, para_XST, displace_offset=[displace_y_offset_h, displace_x_offset_h])
 
         line_displace = [np.mean(displace_y, axis=1), np.mean(displace_x, axis=0)]
         line_displace = [line_displace[0] - np.mean(line_displace[0]), line_displace[1] - np.mean(line_displace[1])]
@@ -1562,6 +1559,8 @@ def execute_process_image(**arguments):
         y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
         line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
                       np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
+        tilt_y = (displace_y_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
+        tilt_x = (displace_x_tilt) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
 
         # get phase and curveature for central line profile
         line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
@@ -1581,8 +1580,12 @@ def execute_process_image(**arguments):
                                    ['line_curve_y', line_curve_filter[0], '[1/m]'],
                                    ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
 
+
+
         write_json(args.result_folder, 'result', {'avg_source_d_x': 1 / np.mean(line_curve[1]),
-                                                  'avg_source_d_y': 1 / np.mean(line_curve[0])})
+                                                  'avg_source_d_y': 1 / np.mean(line_curve[0]),
+                                                  'avg_tilt_x': tilt_x ,
+                                                  'avg_tilt_y': tilt_y})
 
         ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
         # x_scaling = 1/(1 + para_simulation['d_prop'] *np.mean(line_curve[1]))
