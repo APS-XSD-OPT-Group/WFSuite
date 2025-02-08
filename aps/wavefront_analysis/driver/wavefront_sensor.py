@@ -63,6 +63,7 @@ IMAGE_SIZE_PIXEL_V  = WavefrontSensorInitializationFile.IMAGE_SIZE_PIXEL_V
 IMAGE_SIZE_PIXEL_H  = WavefrontSensorInitializationFile.IMAGE_SIZE_PIXEL_H
 DETECTOR_RESOLUTION = WavefrontSensorInitializationFile.DETECTOR_RESOLUTION
 INDEX_DIGITS        = WavefrontSensorInitializationFile.INDEX_DIGITS
+IS_STREAM_AVAILABLE = WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE
 
 def get_default_file_name_prefix(exposure_time=None):
     return __gdfnp(exposure_time=(exposure_time if not exposure_time is None else WavefrontSensorInitializationFile.EXPOSURE_TIME))

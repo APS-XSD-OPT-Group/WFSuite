@@ -9,7 +9,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FuncFormatter
 from matplotlib.figure import Figure
 from cmasher import cm as cmm
-from openpyxl.styles.builtins import output
 
 from aps.wavefront_analysis.absolute_phase.factory import create_wavefront_analyzer
 from aps.wavefront_analysis.driver.factory import create_wavefront_sensor
@@ -55,6 +54,7 @@ class WavefrontAnalysisForm(QWidget):
     window_search = WINDOW_SEARCH
     n_cores       = N_CORES
     data_from     = 0
+    save_result   = 0
 
     kind                   = KIND
     propagation_distance_h = DISTANCE_H
@@ -98,6 +98,7 @@ class WavefrontAnalysisForm(QWidget):
         gui.separator(text_field_box_1)
 
         self.cb_data_from     = gui.comboBox(text_field_box_1, self, "data_from", label="Data From", labelWidth=250, orientation='horizontal', items=["stream", "file"])
+        self.cb_save_result   = gui.comboBox(text_field_box_1, self, "save_result", label="Save Results", labelWidth=250, orientation='horizontal', items=["No", "Yes"])
 
         # -------------------------------------
 
@@ -187,12 +188,12 @@ class WavefrontAnalysisForm(QWidget):
 
                 if self.data_from == 0:
                     image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
-                    # PVA to Image
-                    h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
+                    image_ops = self.image_ops.split(sep=",") # PVA to Image
                 else:
                     image, h_coord, v_coord = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
+                    image_ops = []
 
-                self.plot_image(image, h_coord, v_coord)
+                self.plot_image(image, h_coord, v_coord, image_ops)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -216,10 +217,15 @@ class WavefrontAnalysisForm(QWidget):
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
 
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
+                if self.data_from == 0:
+                    image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
+                    image_ops = self.image_ops.split(sep=",") # PVA to Image
+                else:
+                    image, h_coord, v_coord = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
+                    image_ops = []
 
                 image_transfer_matrix, _ = self.__wavefront_analyzer.generate_simulated_mask(image_data=image,
-                                                                                             image_ops=self.image_ops.split(sep=","),
+                                                                                             image_ops=image_ops,
                                                                                              mode=self.mode,
                                                                                              method=self.method,
                                                                                              line_width=int(self.line_width),
@@ -229,8 +235,7 @@ class WavefrontAnalysisForm(QWidget):
                                                                                              n_cores=int(self.n_cores))
                 self.output_data.setText("I.T.F.: " + str(image_transfer_matrix))
 
-                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
-                self.plot_image(image, h_coord, v_coord)
+                self.plot_image(image, h_coord, v_coord, image_ops)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -253,11 +258,16 @@ class WavefrontAnalysisForm(QWidget):
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
 
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
+                if self.data_from == 0:
+                    image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
+                    image_ops = self.image_ops.split(sep=",") # PVA to Image
+                else:
+                    image, h_coord, v_coord = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
+                    image_ops = []
 
                 self.__wavefront_analyzer.process_image(image_index=1,
                                                         image_data=image,
-                                                        image_ops=self.image_ops.split(sep=","),
+                                                        image_ops=image_ops,
                                                         mode=self.mode,
                                                         method=self.method,
                                                         line_width=int(self.line_width),
@@ -266,8 +276,7 @@ class WavefrontAnalysisForm(QWidget):
                                                         window_search=int(self.window_search),
                                                         n_cores=int(self.n_cores))
 
-                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
-                self.plot_image(image, h_coord, v_coord)
+                self.plot_image(image, h_coord, v_coord, image_ops)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -289,11 +298,16 @@ class WavefrontAnalysisForm(QWidget):
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
 
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="um")
+                if self.data_from == 0:
+                    image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
+                    image_ops = self.image_ops.split(sep=",") # PVA to Image
+                else:
+                    image, h_coord, v_coord = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
+                    image_ops = []
 
                 self.__wavefront_analyzer.process_image(image_index=1,
                                                         image_data=image,
-                                                        image_ops=self.image_ops.split(sep=","),
+                                                        image_ops=image_ops,
                                                         mode=self.mode,
                                                         method=self.method,
                                                         line_width=int(self.line_width),
@@ -320,8 +334,9 @@ class WavefrontAnalysisForm(QWidget):
                                                                                     scan_best_focus=self.scan_best_focus==1,
                                                                                     best_focus_from=self.best_focus_from,
                                                                                     show_figure=True,
-                                                                                    save_result=True,
+                                                                                    save_result=self.save_result==1,
                                                                                     verbose=True)
+
 
                 output_text = ""
                 for key in wavefront_data.keys():
@@ -335,8 +350,7 @@ class WavefrontAnalysisForm(QWidget):
                         output_text += f"{key} : {wavefront_data[key]}\n"
                 self.output_data.setText(output_text)
 
-                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
-                self.plot_image(image, h_coord, v_coord)
+                self.plot_image(image, h_coord, v_coord, image_ops)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -356,13 +370,9 @@ class WavefrontAnalysisForm(QWidget):
     def read_from_file(self):
         try:
             try:
-                self.__wavefront_sensor.collect_single_shot_image(index=1)
+                image, h_coord, v_coord = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
 
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
-
-                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
-
-                self.plot_image(image, h_coord, v_coord)
+                self.plot_image(image, h_coord, v_coord, [])
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -432,7 +442,7 @@ class WavefrontAnalysisForm(QWidget):
                                                                                 scan_best_focus=self.scan_best_focus == 1,
                                                                                 best_focus_from=self.best_focus_from,
                                                                                 show_figure=True,
-                                                                                save_result=True,
+                                                                                save_result=self.save_result==1,
                                                                                 verbose=True)
 
             output_text = ""
@@ -449,11 +459,13 @@ class WavefrontAnalysisForm(QWidget):
         except Exception as e:
             QMessageBox.information(self, "Error", traceback.format_exc())
 
-    def plot_image(self, image, x_coord, v_coord):
+    def plot_image(self, image, h_coord, v_coord, image_ops):
+        h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
+
         # Image/PVA to matplotlib
-        data_2D = image.T
-        hh      = x_coord
-        vv      = v_coord[::-1]
+        data_2D = image
+        hh      = v_coord
+        vv      = h_coord[::-1]
 
         fig = self._result_figure
 

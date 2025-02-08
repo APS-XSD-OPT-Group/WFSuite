@@ -259,12 +259,11 @@ def execute_back_propagation(**arguments) -> dict:
     arguments["scan_x_rel_range"]       = arguments.get("scan_x_rel_range", [-0.001, 0.001, 0.0001])
     arguments["scan_y_rel_range"]       = arguments.get("scan_y_rel_range", [-0.001, 0.001, 0.0001])
     arguments["verbose"]                = arguments.get("verbose", True)
-
-    arguments["rebinning"]         = arguments.get("rebinning", 1)
-    arguments["smooth_intensity"]  = arguments.get("smooth_intensity", False)
-    arguments["smooth_phase"]      = arguments.get("smooth_phase", False)
-    arguments["sigma_intensity"]   = arguments.get("sigma_intensity", 21)
-    arguments["sigma_phase"]       = arguments.get("sigma_phase", 21)
+    arguments["rebinning"]              = arguments.get("rebinning", 1)
+    arguments["smooth_intensity"]       = arguments.get("smooth_intensity", False)
+    arguments["smooth_phase"]           = arguments.get("smooth_phase", False)
+    arguments["sigma_intensity"]        = arguments.get("sigma_intensity", 21)
+    arguments["sigma_phase"]            = arguments.get("sigma_phase", 21)
 
     args = Args(arguments)
 
@@ -393,6 +392,8 @@ def execute_back_propagation(**arguments) -> dict:
                                                                            scan_rel_range,
                                                                            best_focus_from,
                                                                            args.show_figure,
+                                                                           args.save_result,
+                                                                           args.folder,
                                                                            args.verbose)
             focus_z_position_x = -(propagation_distance - best_distance_x)
             focus_z_position_y = -(propagation_distance - best_distance_y)
@@ -623,6 +624,8 @@ def __scan_best_focus_2D(fresnel_propagator,
                          scan_rel_range,
                          best_focus_from,
                          show_figure,
+                         save_result,
+                         folder,
                          verbose):
     propagation_distances = np.arange(propagation_distance + scan_rel_range[0],
                                       propagation_distance + scan_rel_range[1],
@@ -637,6 +640,13 @@ def __scan_best_focus_2D(fresnel_propagator,
     best_distance_y  = 0
     best_intensity_y = None
     size_values_y    = []
+
+    intensities              = []
+    integrated_intensities_x = []
+    integrated_intensities_y = []
+
+    x_coordinates = None
+    y_coordinates = None
 
     for distance in propagation_distances:
         sigma_x, \
@@ -668,6 +678,10 @@ def __scan_best_focus_2D(fresnel_propagator,
         size_values_x.append(size_x)
         size_values_y.append(size_y)
 
+        intensities.append(intensity_wofry)
+        integrated_intensities_x.append(integrated_intensity_x)
+        integrated_intensities_y.append(integrated_intensity_y)
+
         if size_x < smallest_size_x:
             smallest_size_x  = size_x
             best_distance_x  = distance
@@ -681,6 +695,32 @@ def __scan_best_focus_2D(fresnel_propagator,
     if verbose:
         print(f"Smallest size in X: {round(1e6*smallest_size_x, 3)} um {best_focus_from} at distance {best_distance_x} m")
         print(f"Smallest size in Y: {round(1e6*smallest_size_y, 3)} um {best_focus_from} at distance {best_distance_y} m")
+
+    if save_result:
+        with h5py.File(os.path.join(folder, "scan_best_focus.hdf5"), 'w') as h5file:
+            wf = h5file.create_group("scan_best_focus")
+
+            wf.attrs["best_focus_from"] = best_focus_from
+            wf.attrs["smallest_size_x"] = smallest_size_x
+            wf.attrs["best_distance_x"] = best_distance_x
+            wf.attrs["smallest_size_y"] = smallest_size_y
+            wf.attrs["best_distance_y"] = best_distance_y
+
+            wf.create_dataset('x_coordinates', data=x_coordinates)
+            wf.create_dataset('y_coordinates', data=y_coordinates)
+
+            wf.create_dataset('distances', data=propagation_distances)
+
+            for i in range(len(propagation_distances)):
+                sc = wf.create_group(f"{propagation_distances[i]}")
+
+                sc.attrs['size_x'] = size_values_x[i]
+                sc.attrs['size_y'] = size_values_y[i]
+
+                sc.create_dataset('intensity', data=intensities[i])
+                sc.create_dataset('integrated_intensity_x', data=integrated_intensities_x[i])
+                sc.create_dataset('integrated_intensity_y', data=integrated_intensities_y[i])
+
 
     if show_figure:
         plt.figure(figsize=(12, 4))
