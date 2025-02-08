@@ -817,21 +817,13 @@ def speckle_tracking(ref, img, para_XST, displace_offset):
                          para_XST['crop_boundary'][1]:-para_XST['crop_boundary'][1]]
 
     elif para_XST['method'] == 'SPINNet':
-        # from func import image_align
-        # use SPINNet to find displacement accurately   XSHI changed to absolute path
-        trained_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '../SPINNet/PhaseOnly/trained_model/Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining/'))
-        # trained_folder='../SPINNet/PhaseOnly/trained_model/Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining/'
-        # here is the best model
-        trained_model = os.path.join(trained_folder, 'training_model_002000.pt')
-        setting_path = os.path.join(trained_folder, 'setting_002000.json')
+        trained_model  = para_XST['trained_model']
+        setting_path   = para_XST['setting_path']
 
         device = 'cuda' if para_XST['GPU'] else 'cpu'
 
         ref = ref / snd.uniform_filter(ref, 50) * 255
         img = img / snd.uniform_filter(img, 50) * 255
-
-        # ref = ref / np.amax(ref) * 255
-        # img = img / np.amax(img) * 255
 
         I_mean = np.mean(ref)
         ref = (ref - np.mean(ref)) / np.std(ref) * I_mean / 2 + I_mean
@@ -876,26 +868,14 @@ def speckle_tracking(ref, img, para_XST, displace_offset):
             Results:
                 So now the sub-patch way shows that there is obvious boundary effect, and this seems hard to overcome. In addition, the alignment process for sub-patch is not that accurate. 
                 So the idea will be just use pre-calibration to get the rough value for the curvature using the simple method. The do the pattern searching again to get the accurate value.
-
-
-
         '''
         # from func import image_align
         # use SPINNet to find displacement accurately
-        trained_folder = '../SPINNet/PhaseOnly/trained_model/Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining/'
         # here is the best model
-        trained_model = os.path.join(trained_folder, 'training_model_002000.pt')
-        setting_path = os.path.join(trained_folder, 'setting_002000.json')
+        trained_model  = para_XST['trained_model']
+        setting_path   = para_XST['setting_path']
 
         device = 'cuda' if para_XST['GPU'] else 'cpu'
-
-        # # do image alignment
-        # if True:
-        #     pos_shift, img = image_align(ref, img)
-        #     max_shift = int(np.amax(np.abs(pos_shift))+1)
-        #     crop_area = lambda img: img[max_shift:-max_shift, max_shift:-max_shift]
-        #     img = crop_area(img)
-        #     ref = crop_area(ref)
 
         ref = ref / snd.uniform_filter(ref, 30) * 255
         img = img / snd.uniform_filter(img, 30) * 255
@@ -914,13 +894,6 @@ def speckle_tracking(ref, img, para_XST, displace_offset):
         Overlap_percent = 0.2
         raw_size, p_r_list, p_c_list, patches_img = split_image(img, N_split, overlap_percent=Overlap_percent)
         raw_size, p_r_list, p_c_list, patches_ref = split_image(ref, N_split, overlap_percent=Overlap_percent)
-        # print(len(patches))
-        # plt.figure()
-        # for n in range(len(patches_ref)):
-        #     plt.subplot(1, len(patches_ref), n+1)
-        #     plt.imshow(patches_ref[n])
-        # # plt.clim([0, 255])
-        # plt.show()
         # -------------------------------- do the prediction for each patch -----------------------------------
         # first find the relative displacement of each patch pair
         N_patch = len(patches_img)
@@ -1098,6 +1071,13 @@ def execute_process_image(**arguments):
     arguments["rebinning"]        = arguments.get("rebinning", 1) # rebin original image and size
     arguments["crop_boundary"]    = arguments.get("crop_boundary", -1) # crop the differential phase boundary. -1 will use the searching window. 0 means no cropping
     arguments["method"]           = arguments.get("method", 'WXST') # speckle tracking method. simple: slope-tracking, fast but less accurate; WXST: wavelet speckle tracking.
+
+    import aps.wavefront_analysis.spinnet.phase_only as spinnet_module
+    default_trained_folder = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__), "trained_model/Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining/"))
+
+    arguments["trained_model"]    = arguments.get("trained_model", os.path.join(default_trained_folder, 'training_model_002000.pt'))
+    arguments["setting_path"]     = arguments.get("setting_path", os.path.join(default_trained_folder, 'setting_002000.json'))
+
     arguments["GPU"]              = arguments.get("GPU", False) # Use GPU or not. GPU can be 2 times faster. But multi-resolution process is disabled.
     arguments["use_wavelet"]      = arguments.get("use_wavelet", False) # use wavelet transform or not.
     arguments["wavelet_lv_cut"]   = arguments.get("wavelet_lv_cut", 2) # wavelet cutting level
@@ -1119,12 +1099,9 @@ def execute_process_image(**arguments):
     if not os.path.exists(result_folder): os.makedirs(result_folder)
 
     para_pattern = {
-        'pattern_path':
-            args.pattern_path,  # path to raw binary pattern file
-        'propagated_pattern':
-            args.propagated_pattern,  # load saved propagated pattern or not, if None, will calculate it and save it
-        # 'propagated_pattern': None,
-        'saving_path': file_folder
+        'pattern_path':       args.pattern_path,  # path to raw binary pattern file
+        'propagated_pattern': args.propagated_pattern,  # load saved propagated pattern or not, if None, will calculate it and save it
+        'saving_path':       file_folder
         if args.saving_path is None else args.saving_path,  # if propagated_pattern is None, save the simulated to this path
         'propagated_patternDet': args.propagated_patternDet,  # propagated transformed simulated reference image at detector, if None, will search from the propagated pattern.
     }
@@ -1153,8 +1130,9 @@ def execute_process_image(**arguments):
     para_XST = {
         'down_sampling': args.down_sampling,  # down-sample to reduce calculation cost, [0~1]
         'crop_boundary': [args.window_searching + args.template_size * int(1 / args.down_sampling), args.window_searching + args.template_size * int(1 / args.down_sampling)] if args.crop_boundary == -1 else [args.crop_boundary, args.crop_boundary],  # crop boundary of dx and dy.
-        'method':
-            args.method,  # method to get displacement, simple: slope-tracking, fast,less accurate; WXST
+        'method': args.method,  # method to get displacement, simple: slope-tracking, fast,less accurate; WXST
+        'trained_model' : args.trained_model,
+        'setting_path' : args.setting_path,
         'GPU': args.GPU,  # use GPU for WXST or not
         'template_size': args.template_size,  # template size, half window
         'window_searching': int(args.window_searching * args.down_sampling),  # searching window size, half window

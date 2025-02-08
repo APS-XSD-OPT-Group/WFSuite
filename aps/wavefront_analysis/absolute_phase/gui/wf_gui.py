@@ -41,18 +41,20 @@ from aps.common.plot.image import apply_transformations
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import IMAGE_OPS
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
                                                                       REBINNING_BP, SIGMA_INTENSITY, SIGMA_PHASE, SMOOTH_INTENSITY, SMOOTH_PHASE, SCAN_BEST_FOCUS, BEST_FOCUS_FROM)
-from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import MODE, LINE_WIDTH, DOWN_SAMPLING, N_CORES, WINDOW_SEARCH, REBINNING
+from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import MODE, LINE_WIDTH, DOWN_SAMPLING, N_CORES, WINDOW_SEARCH, REBINNING, METHOD
 
-WIDTH = 500
+WIDTH  = 500
 HEIGHT = 660
 class WavefrontAnalysisForm(QWidget):
     mode          = MODE
     image_ops     = str(IMAGE_OPS).replace("[", "").replace("]", "").replace("'", "")
+    method        = METHOD
     line_width    = LINE_WIDTH
     rebinning     = REBINNING
     down_sampling = DOWN_SAMPLING
     window_search = WINDOW_SEARCH
     n_cores       = N_CORES
+    data_from     = 0
 
     kind                   = KIND
     propagation_distance_h = DISTANCE_H
@@ -86,11 +88,16 @@ class WavefrontAnalysisForm(QWidget):
 
         self.le_mode          = gui.lineEdit(text_field_box_1, self, "mode", label="Mode", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
         self.le_image_ops     = gui.lineEdit(text_field_box_1, self, "image_ops", label="Image Ops", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
+        self.le_method        = gui.lineEdit(text_field_box_1, self, "method", label="Method", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
         self.le_line_width    = gui.lineEdit(text_field_box_1, self, "line_width", label="Line W", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
         self.le_rebinning     = gui.lineEdit(text_field_box_1, self, "rebinning", label="Rebin", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
         self.le_down_sampling = gui.lineEdit(text_field_box_1, self, "down_sampling", label="Down Samp", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
         self.le_window_search = gui.lineEdit(text_field_box_1, self, "window_search", label="W Search", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
         self.le_n_cores       = gui.lineEdit(text_field_box_1, self, "n_cores", label="N Cores", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+
+        gui.separator(text_field_box_1)
+
+        self.cb_data_from     = gui.comboBox(text_field_box_1, self, "data_from", label="Data From", labelWidth=250, orientation='horizontal', items=["stream", "file"])
 
         # -------------------------------------
 
@@ -134,7 +141,9 @@ class WavefrontAnalysisForm(QWidget):
         button.clicked.connect(self.take_shot_and_back_propagate)
         button_grid.addWidget(button, 0, 3)
 
-        button_grid.addWidget(QWidget(), 1, 0)
+        button = QPushButton("Read Image\nFrom File")
+        button.clicked.connect(self.read_from_file)
+        button_grid.addWidget(button, 1, 0)
 
         button = QPushButton("Generate Mask\nFrom File")
         button.clicked.connect(self.generate_mask)
@@ -176,9 +185,12 @@ class WavefrontAnalysisForm(QWidget):
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
 
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
-
-                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
+                if self.data_from == 0:
+                    image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
+                    # PVA to Image
+                    h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
+                else:
+                    image, h_coord, v_coord = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
 
                 self.plot_image(image, h_coord, v_coord)
 
@@ -207,13 +219,14 @@ class WavefrontAnalysisForm(QWidget):
                 image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
 
                 image_transfer_matrix, _ = self.__wavefront_analyzer.generate_simulated_mask(image_data=image,
-                                                                                            image_ops=self.image_ops.split(sep=","),
-                                                                                            mode=self.mode,
-                                                                                            line_width=int(self.line_width),
-                                                                                            rebinning=int(self.rebinning),
-                                                                                            down_sampling=float(self.down_sampling),
-                                                                                            window_search=int(self.window_search),
-                                                                                            n_cores=int(self.n_cores))
+                                                                                             image_ops=self.image_ops.split(sep=","),
+                                                                                             mode=self.mode,
+                                                                                             method=self.method,
+                                                                                             line_width=int(self.line_width),
+                                                                                             rebinning=int(self.rebinning),
+                                                                                             down_sampling=float(self.down_sampling),
+                                                                                             window_search=int(self.window_search),
+                                                                                             n_cores=int(self.n_cores))
                 self.output_data.setText("I.T.F.: " + str(image_transfer_matrix))
 
                 h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
@@ -246,6 +259,7 @@ class WavefrontAnalysisForm(QWidget):
                                                         image_data=image,
                                                         image_ops=self.image_ops.split(sep=","),
                                                         mode=self.mode,
+                                                        method=self.method,
                                                         line_width=int(self.line_width),
                                                         rebinning=int(self.rebinning),
                                                         down_sampling=float(self.down_sampling),
@@ -281,6 +295,7 @@ class WavefrontAnalysisForm(QWidget):
                                                         image_data=image,
                                                         image_ops=self.image_ops.split(sep=","),
                                                         mode=self.mode,
+                                                        method=self.method,
                                                         line_width=int(self.line_width),
                                                         rebinning=int(self.rebinning),
                                                         down_sampling=float(self.down_sampling),
@@ -338,12 +353,40 @@ class WavefrontAnalysisForm(QWidget):
         except Exception as e:
             QMessageBox.information(self, "Error", traceback.format_exc())
 
+    def read_from_file(self):
+        try:
+            try:
+                self.__wavefront_sensor.collect_single_shot_image(index=1)
+
+                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
+
+                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, self.image_ops.split(sep=","))
+
+                self.plot_image(image, h_coord, v_coord)
+
+                try:    self.__wavefront_sensor.save_status()
+                except: pass
+                try:    self.__wavefront_sensor.end_collection()
+                except: pass
+            except Exception:
+                try:    self.__wavefront_sensor.save_status()
+                except: pass
+                try:    self.__wavefront_sensor.end_collection()
+                except: pass
+
+                QMessageBox.information(self, "Error", traceback.format_exc())
+
+        except Exception:
+            QMessageBox.information(self, "Error", traceback.format_exc())
+
+
     def generate_mask(self):
         try:
             self.output_data.clear()
 
             image_transfer_matrix, _ = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1,
                                                                                          mode=self.mode,
+                                                                                         method=self.method,
                                                                                          line_width=int(self.line_width),
                                                                                          rebinning=float(self.rebinning),
                                                                                          down_sampling=float(self.down_sampling),
@@ -358,6 +401,7 @@ class WavefrontAnalysisForm(QWidget):
         try:
             self.__wavefront_analyzer.process_image(image_index=1,
                                                     mode=self.mode,
+                                                    method=self.method,
                                                     line_width=int(self.line_width),
                                                     rebinning=float(self.rebinning),
                                                     down_sampling=float(self.down_sampling),
@@ -405,8 +449,12 @@ class WavefrontAnalysisForm(QWidget):
         except Exception as e:
             QMessageBox.information(self, "Error", traceback.format_exc())
 
-    def plot_image(self, image, hh, vv):
-        data_2D = image
+    def plot_image(self, image, x_coord, v_coord):
+        # Image/PVA to matplotlib
+        data_2D = image.T
+        hh      = x_coord
+        vv      = v_coord[::-1]
+
         fig = self._result_figure
 
         xrange = [np.min(hh), np.max(hh)]

@@ -90,8 +90,9 @@ class Network(torch.nn.Module):
                 # scale factor of 2 for flow/displacement
                 flow = torch.nn.functional.interpolate(flow, scale_factor = 2, mode = 'bilinear', align_corners=True) * 2
                 
-            with torch.cuda.amp.autocast(enabled=False):
-                    f1_warp = self.warping(f1.float(), flow.float())
+            #with torch.cuda.amp.autocast(enabled=False):
+            with torch.amp.autocast(device_type='cuda', enabled=False):
+                f1_warp = self.warping(f1.float(), flow.float())
 
             # correlation
             corr = self.corr(f2, f1_warp)
@@ -108,7 +109,6 @@ class Network(torch.nn.Module):
             
             if self.argv.with_refiner and lv == self.argv.output_level:
                 flow = self.flow_refiner[0](f1, f2, flow)
-
             else:
                 flow = flow_coarse
 

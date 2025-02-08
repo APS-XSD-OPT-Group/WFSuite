@@ -250,7 +250,7 @@ class Refiner_flow(torch.nn.Module):
             imgFeature_first = self.netFeat(imgFeature_first)
             imgFeature_second = self.netFeat(imgFeature_second)
         
-        with torch.cuda.amp.autocast(enabled=False):
-            imgFeature_first = self.warping(imgFeature_first.float(), flow.float()) / self.phaseC(flow.float())
+        with torch.amp.autocast(device_type='cuda', enabled=False): imgFeature_first = self.warping(imgFeature_first.float(), flow.float()) / self.phaseC(flow.float())
+
         return flow + self.NetMain_refiner(torch.cat([imgFeature_first, imgFeature_second, flow], 1))
 
