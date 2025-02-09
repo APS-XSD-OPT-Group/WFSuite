@@ -52,11 +52,6 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import PowerNorm
 import json
 
-from skimage.restoration import unwrap_phase
-from scipy.interpolate import RectBivariateSpline
-from scipy.interpolate import RegularGridInterpolator
-from scipy.optimize import curve_fit
-
 from wofry.propagator.wavefront2D.generic_wavefront import GenericWavefront2D
 from wofry.propagator.wavefront1D.generic_wavefront import GenericWavefront1D
 from wofryimpl.propagator.propagators2D.fresnel_zoom_xy import FresnelZoomXY2D
@@ -321,6 +316,9 @@ def execute_back_propagation(**arguments) -> dict:
 
     rebin_factor  = args.rebinning
 
+    def calculate_shift(image_shift, speckle_shift, propagation_distance):
+        return -image_shift + (speckle_shift / args.mask_detector_distance) * propagation_distance
+
     if args.kind.upper() == "2D":
         # Load the datasets
         intensity, phase = load_datasets2D(file_path, 'intensity', 'phase')
@@ -355,13 +353,12 @@ def execute_back_propagation(**arguments) -> dict:
     
         # Calculate the amplitude from the square root of A
         amplitude = np.sqrt(intensity)
-    
         # Construct the complex wavefront
         wavefront = amplitude * np.exp(1j * phase)
 
         propagation_distance = args.distance if not args.distance is None else -(R_x + R_y) / 2  # propagation distance in meters
-        wf_position_x = image_shift_x + (speckle_shift_x/args.mask_detector_distance)*propagation_distance
-        wf_position_y = image_shift_y + (speckle_shift_y/args.mask_detector_distance)*propagation_distance
+        wf_position_x = calculate_shift(image_shift_x, speckle_shift_x, propagation_distance)
+        wf_position_y = calculate_shift(image_shift_y, speckle_shift_y, propagation_distance)
 
         # Assuming original wavefront has some curvature:
         # Apply the phase corrections
@@ -507,8 +504,8 @@ def execute_back_propagation(**arguments) -> dict:
 
         propagation_distance_x = args.distance_x if not args.distance_x is None else -R_x  # propagation distance in meters
         propagation_distance_y = args.distance_y if not args.distance_y is None else -R_y  # propagation distance in meters
-        wf_position_x = image_shift_x + (speckle_shift_x/args.mask_detector_distance)*propagation_distance_x
-        wf_position_y = image_shift_y + (speckle_shift_y/args.mask_detector_distance)*propagation_distance_y
+        wf_position_x = calculate_shift(image_shift_x, speckle_shift_x, propagation_distance_x)
+        wf_position_y = calculate_shift(image_shift_y, speckle_shift_y, propagation_distance_y)
 
         if delta_f_x != 0: wavefront_x *= np.exp(1j * np.pi * (x_array ** 2) * delta_f_x / (wavelength * propagation_distance_x ** 2))
         if delta_f_y != 0: wavefront_y *= np.exp(1j * np.pi * (y_array ** 2) * delta_f_y / (wavelength * propagation_distance_y ** 2))
@@ -545,6 +542,8 @@ def execute_back_propagation(**arguments) -> dict:
                                                       best_focus_from,
                                                       "X",
                                                       args.show_figure,
+                                                      args.save_result,
+                                                      args.folder,
                                                       args.verbose)
             best_distance_y, _ = __scan_best_focus_1D(fresnel_propagator,
                                                       initial_wavefront_y,
@@ -555,6 +554,8 @@ def execute_back_propagation(**arguments) -> dict:
                                                       best_focus_from,
                                                       "Y",
                                                       args.show_figure,
+                                                      args.save_result,
+                                                      args.folder,
                                                       args.verbose)
             focus_z_position_x = -(propagation_distance_x - best_distance_x)
             focus_z_position_y = -(propagation_distance_y - best_distance_y)
@@ -771,6 +772,8 @@ def __scan_best_focus_1D(fresnel_propagator,
                          best_focus_from,
                          direction,
                          show_figure,
+                         save_result,
+                         folder,
                          verbose):
     propagation_distances = np.arange(propagation_distance + scan_rel_range[0],
                                       propagation_distance + scan_rel_range[1],
@@ -780,6 +783,9 @@ def __scan_best_focus_1D(fresnel_propagator,
     best_distance  = 0
     best_intensity = None
     size_values    = []
+
+    intensities = []
+    coordinates = None
 
     for distance in propagation_distances:
         sigma, fwhm, intensity_wofry, coordinates = __propagate_1D(fresnel_propagator,
@@ -794,6 +800,7 @@ def __scan_best_focus_1D(fresnel_propagator,
         else: raise ValueError(f"Best focus from not recognized {best_focus_from}")
 
         size_values.append(size)
+        intensities.append(intensity_wofry)
 
         if size < smallest_size:
             smallest_size  = size
@@ -801,6 +808,25 @@ def __scan_best_focus_1D(fresnel_propagator,
             best_intensity = intensity_wofry
 
     if verbose: print(f"Smallest size in {direction}: {smallest_size} {best_focus_from} at distance {best_distance} m")
+
+    if save_result:
+        with h5py.File(os.path.join(folder, f"scan_best_focus_{direction}.hdf5"), 'w') as h5file:
+            wf = h5file.create_group("scan_best_focus")
+
+            wf.attrs["best_focus_from"] = best_focus_from
+            wf.attrs["smallest_size"] = smallest_size
+            wf.attrs["best_distance"] = best_distance
+
+            wf.create_dataset('coordinates', data=coordinates)
+
+            wf.create_dataset('distances', data=propagation_distances)
+
+            for i in range(len(propagation_distances)):
+                sc = wf.create_group(f"{propagation_distances[i]}")
+
+                sc.attrs['size'] = size_values[i]
+                sc.create_dataset('intensity', data=intensities[i])
+
 
     if show_figure:
         plt.figure(figsize=(12, 4))

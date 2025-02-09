@@ -1088,7 +1088,8 @@ def execute_process_image(**arguments):
     arguments["nCores"]           = arguments.get("nCores", 1) # number of CPU cores used for calculation.
     arguments["nGroup"]           = arguments.get("nGroup", 1) # number of groups that parallel calculation is splitted into.
 
-    arguments["verbose"] = arguments.get("verbose", False)
+    arguments["verbose"]     = arguments.get("verbose", True)
+    arguments["save_images"] = arguments.get("save_images", True)
 
     args = Args(arguments)
 
@@ -1410,43 +1411,44 @@ def execute_process_image(**arguments):
 
         line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
 
-        plt.figure(figsize=(10, 8))
-        plt.subplot(221)
-        plt.imshow(displace_fine[0])
-        plt.colorbar()
-        plt.title('fine displace y')
-        plt.subplot(222)
-        plt.imshow(displace_fine[1])
-        plt.colorbar()
-        plt.title('fine displace x')
-        plt.subplot(223)
-        plt.imshow(displace_y)
-        plt.colorbar()
-        plt.title('displace y')
-        plt.subplot(224)
-        plt.imshow(displace_x)
-        plt.colorbar()
-        plt.title('displace x')
-        plt.savefig(os.path.join(args.result_folder, 'displace_fine.png'), dpi=150)
-        plt.close()
+        if args.save_images:
+            plt.figure(figsize=(10, 8))
+            plt.subplot(221)
+            plt.imshow(displace_fine[0])
+            plt.colorbar()
+            plt.title('fine displace y')
+            plt.subplot(222)
+            plt.imshow(displace_fine[1])
+            plt.colorbar()
+            plt.title('fine displace x')
+            plt.subplot(223)
+            plt.imshow(displace_y)
+            plt.colorbar()
+            plt.title('displace y')
+            plt.subplot(224)
+            plt.imshow(displace_x)
+            plt.colorbar()
+            plt.title('displace x')
+            plt.savefig(os.path.join(args.result_folder, 'displace_fine.png'), dpi=150)
+            plt.close()
 
-        plt.figure(figsize=(10, 4))
-        plt.subplot(121)
-        plt.plot(line_curve[0], 'k')
-        plt.plot(line_curve_filter[0], 'r')
-        plt.xlabel('[px]')
-        plt.ylabel('[1/m]')
-        plt.grid()
-        plt.title('vertical curvature')
-        plt.subplot(122)
-        plt.plot(line_curve[1], 'k')
-        plt.plot(line_curve_filter[1], 'r')
-        plt.xlabel('[px]')
-        plt.ylabel('[1/m]')
-        plt.grid()
-        plt.title('horizontal curvature')
-        plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
-        plt.close()
+            plt.figure(figsize=(10, 4))
+            plt.subplot(121)
+            plt.plot(line_curve[0], 'k')
+            plt.plot(line_curve_filter[0], 'r')
+            plt.xlabel('[px]')
+            plt.ylabel('[1/m]')
+            plt.grid()
+            plt.title('vertical curvature')
+            plt.subplot(122)
+            plt.plot(line_curve[1], 'k')
+            plt.plot(line_curve_filter[1], 'r')
+            plt.xlabel('[px]')
+            plt.ylabel('[1/m]')
+            plt.grid()
+            plt.title('horizontal curvature')
+            plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
+            plt.close()
 
         write_json(result_path=args.result_folder,
                    file_name='result',
@@ -1456,24 +1458,26 @@ def execute_process_image(**arguments):
                               'avg_radius_y':   avg_radius_y})
         if generate_simulated_mask: shutil.copy(os.path.join(args.result_folder,          'result.json'),
                                                 os.path.join(para_pattern['saving_path'], 'result.json'))
-        save_figure(image_pair=[['displace_x', displace_x, '[px]'],
-                                ['displace_y', displace_y, '[px]'],
-                                ['curve_y', curve_y, '[1/m]'],
-                                ['curve_x', curve_x, '[1/m]'],
-                                ['phase', phase, '[rad]'],
-                                ['flat', flat, 'intensity'],
-                                ['displace_x_fine', displace_fine[1], '[px]'],
-                                ['displace_y_fine', displace_fine[0], '[px]']],
-                    path=args.result_folder,
-                    p_x=para_simulation['p_x'],
-                    extention='.png')
-        save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
-                                   ['line_phase_x', line_phase[1], '[rad]'],
-                                   ['line_displace_y', line_displace[0], '[px]'],
-                                   ['line_phase_y', line_phase[0], '[rad]'],
-                                   ['line_curve_y', line_curve_filter[0], '[1/m]'],
-                                   ['line_curve_x', line_curve_filter[1], '[1/m]']],
-                       path=args.result_folder, p_x=para_simulation['p_x'])
+
+        if args.save_images:
+            save_figure(image_pair=[['displace_x', displace_x, '[px]'],
+                                    ['displace_y', displace_y, '[px]'],
+                                    ['curve_y', curve_y, '[1/m]'],
+                                    ['curve_x', curve_x, '[1/m]'],
+                                    ['phase', phase, '[rad]'],
+                                    ['flat', flat, 'intensity'],
+                                    ['displace_x_fine', displace_fine[1], '[px]'],
+                                    ['displace_y_fine', displace_fine[0], '[px]']],
+                        path=args.result_folder,
+                        p_x=para_simulation['p_x'],
+                        extention='.png')
+            save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
+                                       ['line_phase_x', line_phase[1], '[rad]'],
+                                       ['line_displace_y', line_displace[0], '[px]'],
+                                       ['line_phase_y', line_phase[0], '[rad]'],
+                                       ['line_curve_y', line_curve_filter[0], '[1/m]'],
+                                       ['line_curve_x', line_curve_filter[1], '[1/m]']],
+                           path=args.result_folder, p_x=para_simulation['p_x'])
         save_data(data={'intensity': intensity,
                         'displace_x': displace_x,
                         'displace_y': displace_y,
@@ -1539,12 +1543,13 @@ def execute_process_image(**arguments):
 
         prColor('mean source distance: {}y    {}x'.format(avg_source_d_y, avg_source_d_x), 'cyan')
 
-        save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
-                                   ['line_phase_x', line_phase[1], '[rad]'],
-                                   ['line_displace_y', line_displace[0], '[px]'],
-                                   ['line_phase_y', line_phase[0], '[rad]'],
-                                   ['line_curve_y', line_curve_filter[0], '[1/m]'],
-                                   ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
+        if args.save_images:
+            save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
+                                       ['line_phase_x', line_phase[1], '[rad]'],
+                                       ['line_displace_y', line_displace[0], '[px]'],
+                                       ['line_phase_y', line_phase[0], '[rad]'],
+                                       ['line_curve_y', line_curve_filter[0], '[1/m]'],
+                                       ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
         write_json(result_path=args.result_folder,
                    file_name='result',
                    data_dict={'avg_source_d_x': avg_source_d_x,
