@@ -38,7 +38,7 @@ from aps.common.plot import gui
 from aps.common.plot.image import apply_transformations
 
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import IMAGE_OPS
-from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
+from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DISTANCE, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
                                                                       REBINNING_BP, SIGMA_INTENSITY, SIGMA_PHASE, SMOOTH_INTENSITY, SMOOTH_PHASE, SCAN_BEST_FOCUS, BEST_FOCUS_FROM)
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import MODE, LINE_WIDTH, DOWN_SAMPLING, N_CORES, WINDOW_SEARCH, REBINNING, METHOD
 
@@ -57,7 +57,7 @@ class WavefrontAnalysisForm(QWidget):
     save_result   = 0
 
     kind                   = KIND
-    propagation_distance_h = DISTANCE_H
+    propagation_distance_h = DISTANCE_H if KIND == "1D" else DISTANCE
     propagation_distance_v = DISTANCE_V
     rebinning_bp           = REBINNING_BP
     sigma_intensity        = 0 if not SMOOTH_INTENSITY else SIGMA_INTENSITY

@@ -877,6 +877,9 @@ def __propagate_2D(fresnel_propagator,
                    x_rms_range,
                    y_rms_range,
                    verbose):
+
+    if verbose: print(f"Propagation distance: {propagation_distance}")
+
     propagated_wavefront_wofry = fresnel_propagator.propagate_wavefront(initial_wavefront,
                                                                         propagation_distance,
                                                                         magnification_x=magnification_x,
