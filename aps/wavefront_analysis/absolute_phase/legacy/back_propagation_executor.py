@@ -138,8 +138,10 @@ class PropagatedWavefront:
                  propagation_distance_y,
                  focus_z_position_x,
                  focus_z_position_y,
-                 wf_position_x,
-                 wf_position_y,
+                 wf_position_x_cm,
+                 wf_position_y_cm,
+                 wf_position_x_ic,
+                 wf_position_y_ic,
                  x_coordinates,
                  y_coordinates,
                  intensity,
@@ -157,8 +159,10 @@ class PropagatedWavefront:
             self.propagation_distance_y  = propagation_distance_y
             self.focus_z_position_x      = focus_z_position_x
             self.focus_z_position_y      = focus_z_position_y
-            self.wf_position_x           = wf_position_x
-            self.wf_position_y           = wf_position_y
+            self.wf_position_x_cm        = wf_position_x_cm
+            self.wf_position_y_cm        = wf_position_y_cm
+            self.wf_position_x_ic        = wf_position_x_ic
+            self.wf_position_y_ic        = wf_position_y_ic
             self.x_coordinates           = x_coordinates
             self.y_coordinates           = y_coordinates
             self.intensity               = intensity
@@ -178,8 +182,10 @@ class PropagatedWavefront:
             wf.attrs["sigma_y"]              = self.sigma_y
             wf.attrs["focus_z_position_x"]   = self.focus_z_position_x
             wf.attrs["focus_z_position_y"]   = self.focus_z_position_y
-            wf.attrs["wf_position_x"]        = self.wf_position_x
-            wf.attrs["wf_position_y"]        = self.wf_position_y
+            wf.attrs["wf_position_x_cm"]     = self.wf_position_x_cm
+            wf.attrs["wf_position_y_cm"]     = self.wf_position_y_cm
+            wf.attrs["wf_position_x_ic"]     = self.wf_position_x_ic
+            wf.attrs["wf_position_y_ic"]     = self.wf_position_y_ic
 
             wf.create_dataset('x_coordinates', data=self.x_coordinates)
             wf.create_dataset('y_coordinates', data=self.y_coordinates)
@@ -207,8 +213,10 @@ class PropagatedWavefront:
         out["sigma_y"]                = self.sigma_y
         out["focus_z_position_x"]     = self.focus_z_position_x
         out["focus_z_position_y"]     = self.focus_z_position_y
-        out["wf_position_x"]          = self.wf_position_x
-        out["wf_position_y"]          = self.wf_position_y
+        out["wf_position_x_cm"]       = self.wf_position_x_cm
+        out["wf_position_y_cm"]       = self.wf_position_y_cm
+        out["wf_position_x_ic"]       = self.wf_position_x_ic
+        out["wf_position_y_ic"]       = self.wf_position_y_ic
         out["coordinates_x"]          = self.x_coordinates
         out["coordinates_y"]          = self.y_coordinates
 
@@ -302,15 +310,21 @@ def execute_back_propagation(**arguments) -> dict:
     R_x          = results['avg_source_d_x']
     R_y          = results['avg_source_d_y']
 
-    ref_image_centroid = reference_mask['image_centroid']
+    ref_image_centroid = reference_mask['cropped_image_centroid']
+    ref_center_of_mass = reference_mask['center_of_mass']
+
     ref_speckle_shift  = reference_mask['speckle_shift']
 
-    image_centroid = reference['image_centroid']
+    image_centroid = reference['cropped_image_centroid']
+    center_of_mass = reference['center_of_mass']
     speckle_shift  = reference['speckle_shift']
     pixel_size     = args.pixel_size*args.image_rebinning
 
-    image_shift_x   = pixel_size*(image_centroid[1] - ref_image_centroid[1])
-    image_shift_y   = pixel_size*(image_centroid[0] - ref_image_centroid[0])
+    image_shift_x_cm   = pixel_size*(center_of_mass[1] - ref_center_of_mass[1])
+    image_shift_y_cm   = pixel_size*(center_of_mass[0] - ref_center_of_mass[0])
+    image_shift_x_ic   = pixel_size*(image_centroid[1] - ref_image_centroid[1])
+    image_shift_y_ic   = pixel_size*(image_centroid[0] - ref_image_centroid[0])
+
     speckle_shift_x = pixel_size*(speckle_shift[1] - ref_speckle_shift[1])
     speckle_shift_y = pixel_size*(speckle_shift[0] - ref_speckle_shift[0])
 
@@ -357,8 +371,10 @@ def execute_back_propagation(**arguments) -> dict:
         wavefront = amplitude * np.exp(1j * phase)
 
         propagation_distance = args.distance if not args.distance is None else -(R_x + R_y) / 2  # propagation distance in meters
-        wf_position_x = calculate_shift(image_shift_x, speckle_shift_x, propagation_distance)
-        wf_position_y = calculate_shift(image_shift_y, speckle_shift_y, propagation_distance)
+        wf_position_x_cm = calculate_shift(image_shift_x_cm, speckle_shift_x, propagation_distance)
+        wf_position_y_cm = calculate_shift(image_shift_y_cm, speckle_shift_y, propagation_distance)
+        wf_position_x_ic = calculate_shift(image_shift_x_ic, speckle_shift_x, propagation_distance)
+        wf_position_y_ic = calculate_shift(image_shift_y_ic, speckle_shift_y, propagation_distance)
 
         # Assuming original wavefront has some curvature:
         # Apply the phase corrections
@@ -428,8 +444,10 @@ def execute_back_propagation(**arguments) -> dict:
                                                    propagation_distance_y=None,
                                                    focus_z_position_x=focus_z_position_x,
                                                    focus_z_position_y=focus_z_position_y,
-                                                   wf_position_x=wf_position_x,
-                                                   wf_position_y=wf_position_y,
+                                                   wf_position_x_cm=wf_position_x_cm,
+                                                   wf_position_y_cm=wf_position_y_cm,
+                                                   wf_position_x_ic=wf_position_x_ic,
+                                                   wf_position_y_ic=wf_position_y_ic,
                                                    x_coordinates=x_coordinates,
                                                    y_coordinates=y_coordinates,
                                                    intensity=intensity_wofry,
@@ -445,8 +463,8 @@ def execute_back_propagation(**arguments) -> dict:
             plt.subplot(1, 2, 1)
             plt.pcolormesh(X, Y, intensity_wofry.T, shading='auto', norm=PowerNorm(gamma=gamma))
             plt.colorbar(label='Intensity')
-            plt.xlabel(f'X (meters) / tilt : {round(1e6*wf_position_x, 2)} um')
-            plt.ylabel(f'Y (meters) / tilt : {round(1e6*wf_position_y, 2)} um')
+            plt.xlabel(f'X (meters) / tilt : {round(1e6*wf_position_x_cm, 2)} um')
+            plt.ylabel(f'Y (meters) / tilt : {round(1e6*wf_position_y_cm, 2)} um')
             plt.title(f'Intensity distribution at {propagation_distance} m')
             plt.subplot(1, 2, 2)
             plt.plot(x_coordinates, integrated_intensity_x)
@@ -504,8 +522,10 @@ def execute_back_propagation(**arguments) -> dict:
 
         propagation_distance_x = args.distance_x if not args.distance_x is None else -R_x  # propagation distance in meters
         propagation_distance_y = args.distance_y if not args.distance_y is None else -R_y  # propagation distance in meters
-        wf_position_x = calculate_shift(image_shift_x, speckle_shift_x, propagation_distance_x)
-        wf_position_y = calculate_shift(image_shift_y, speckle_shift_y, propagation_distance_y)
+        wf_position_x_cm = calculate_shift(image_shift_x_cm, speckle_shift_x, propagation_distance_x)
+        wf_position_y_cm = calculate_shift(image_shift_y_cm, speckle_shift_y, propagation_distance_y)
+        wf_position_x_ic = calculate_shift(image_shift_x_ic, speckle_shift_x, propagation_distance_x)
+        wf_position_y_ic = calculate_shift(image_shift_y_ic, speckle_shift_y, propagation_distance_y)
 
         if delta_f_x != 0: wavefront_x *= np.exp(1j * np.pi * (x_array ** 2) * delta_f_x / (wavelength * propagation_distance_x ** 2))
         if delta_f_y != 0: wavefront_y *= np.exp(1j * np.pi * (y_array ** 2) * delta_f_y / (wavelength * propagation_distance_y ** 2))
@@ -574,8 +594,10 @@ def execute_back_propagation(**arguments) -> dict:
                                                    propagation_distance_y=propagation_distance_y,
                                                    focus_z_position_x=focus_z_position_x,
                                                    focus_z_position_y=focus_z_position_y,
-                                                   wf_position_x=wf_position_x,
-                                                   wf_position_y=wf_position_y,
+                                                   wf_position_x_cm=wf_position_x_cm,
+                                                   wf_position_y_cm=wf_position_y_cm,
+                                                   wf_position_x_ic=wf_position_x_ic,
+                                                   wf_position_y_ic=wf_position_y_ic,
                                                    x_coordinates=x_coordinates,
                                                    y_coordinates=y_coordinates,
                                                    intensity=None,

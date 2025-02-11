@@ -55,6 +55,7 @@ import sys
 import shutil
 import numpy as np
 import scipy.constants as sc
+
 import scipy.ndimage as snd
 import scipy.signal as ssignal
 
@@ -1238,8 +1239,10 @@ def execute_process_image(**arguments):
     dark      = boundary_crop(dark)
     I_img     = (I_img - dark) / (flat - dark)
 
-    crop_edge    = args.crop
-    center_shift = [(crop_edge[0] + crop_edge[1]) // 2 - I_img_raw.shape[0] // 2, (crop_edge[2] + crop_edge[3]) // 2 - I_img_raw.shape[1] // 2]
+    crop_edge      = args.crop
+    center_shift   = [(crop_edge[0] + crop_edge[1]) // 2 - I_img_raw.shape[0] // 2, (crop_edge[2] + crop_edge[3]) // 2 - I_img_raw.shape[1] // 2]
+    center_of_mass = snd.center_of_mass(I_img_raw)
+    center_of_mass = [center_of_mass[0] - I_img_raw.shape[0] // 2, center_of_mass[1] - I_img_raw.shape[1] // 2]
 
     # to find the pattern from the reference image
     pattern_find = pattern_search(ini_para=para_simulation)
@@ -1353,7 +1356,8 @@ def execute_process_image(**arguments):
     write_json(result_path=args.result_folder,
                file_name='reference',
                data_dict={'image_transfer_matrix': image_transfer_matrix,
-                          'image_centroid': center_shift,
+                          'cropped_image_centroid': center_shift,
+                          'center_of_mass' : center_of_mass,
                           'speckle_shift': pos_shift.tolist()})
     if generate_simulated_mask:  shutil.copy(os.path.join(args.result_folder, 'reference.json'),
                                              os.path.join(para_pattern['saving_path'], 'reference.json'))
