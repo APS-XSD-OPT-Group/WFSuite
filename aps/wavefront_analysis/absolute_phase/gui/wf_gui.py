@@ -36,6 +36,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 from aps.common.plot import gui
 from aps.common.plot.image import apply_transformations
+from aps.common.logger import _InnerColors
 
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import IMAGE_OPS
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DISTANCE, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
@@ -43,7 +44,7 @@ from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DIST
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import MODE, LINE_WIDTH, DOWN_SAMPLING, N_CORES, WINDOW_SEARCH, REBINNING, METHOD
 
 WIDTH  = 500
-HEIGHT = 660
+HEIGHT = 800
 class WavefrontAnalysisForm(QWidget):
     mode          = MODE
     image_ops     = str(IMAGE_OPS).replace("[", "").replace("]", "").replace("'", "")
@@ -54,7 +55,9 @@ class WavefrontAnalysisForm(QWidget):
     window_search = WINDOW_SEARCH
     n_cores       = N_CORES
     data_from     = 0
-    save_result   = 0
+    save_result     = 0
+    plot_image      = 1
+    capture_std_out = 0
 
     kind                   = KIND
     propagation_distance_h = DISTANCE_H if KIND == "1D" else DISTANCE
@@ -74,101 +77,87 @@ class WavefrontAnalysisForm(QWidget):
                  energy=12398.0):
         super().__init__()
 
+        self.__stdout = sys.stdout
+
         self.setFixedWidth(2 * WIDTH + 10)
         self.setFixedHeight(HEIGHT + 10)
 
         main_box  = gui.widgetBox(self, "", orientation="horizontal", addSpace=False)
         left_box  = gui.widgetBox(main_box, "", orientation="vertical", addSpace=False)
-        input_box = gui.widgetBox(left_box, "", orientation="horizontal", width=WIDTH, addSpace=False)
+
+        input_box_3 = gui.widgetBox(left_box, "General", orientation="vertical", height=120, addSpace=False)
+
+        self.cb_save_result     = gui.comboBox(input_box_3, self, "save_result", label="Save Results", labelWidth=350, orientation='horizontal', items=["No", "Yes"])
+        self.cb_plot_image      = gui.comboBox(input_box_3, self, "plot_image",  label="Plot Shot Image", labelWidth=350, orientation='horizontal', items=["No", "Yes"])
+        self.cb_capture_std_out = gui.comboBox(input_box_3, self, "capture_std_out", label="Capture Stdout", labelWidth=350, orientation='horizontal', items=["No", "Yes"], callback=self._capture_std_out)
+
+        self._input_tab_widget = gui.tabWidget(left_box)
+
+        self._input_tab_1 = gui.createTabPage(self._input_tab_widget, "Process Image")
+        self._input_tab_2 = gui.createTabPage(self._input_tab_widget, "Back-Propagation")
+
         right_box = gui.widgetBox(main_box, "", orientation="vertical", addSpace=False)
-        image_box = gui.widgetBox(right_box, "", orientation="vertical", width=WIDTH, height=WIDTH)
+        image_box = gui.widgetBox(right_box, "Detector Image", orientation="vertical", width=WIDTH, height=WIDTH, addSpace=False)
 
         # -------------------------------------
-        text_field_box_1 = gui.widgetBox(input_box, "Process Image", orientation="vertical", width=int(WIDTH / 2) - 10)
+        input_box_1 = gui.widgetBox(self._input_tab_1, "", orientation="horizontal", addSpace=False)
+        input_box_1_1 = gui.widgetBox(input_box_1, " ", orientation="vertical", width=int(WIDTH / 2) - 10, addSpace=False)
+        input_box_1_2 = gui.widgetBox(input_box_1, " ", orientation="vertical", width=int(WIDTH / 2) - 10, addSpace=False)
 
-        self.le_mode          = gui.lineEdit(text_field_box_1, self, "mode", label="Mode", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
-        self.le_image_ops     = gui.lineEdit(text_field_box_1, self, "image_ops", label="Image Ops", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
-        self.le_method        = gui.lineEdit(text_field_box_1, self, "method", label="Method", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
-        self.le_line_width    = gui.lineEdit(text_field_box_1, self, "line_width", label="Line W", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
-        self.le_rebinning     = gui.lineEdit(text_field_box_1, self, "rebinning", label="Rebin", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
-        self.le_down_sampling = gui.lineEdit(text_field_box_1, self, "down_sampling", label="Down Samp", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
-        self.le_window_search = gui.lineEdit(text_field_box_1, self, "window_search", label="W Search", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
-        self.le_n_cores       = gui.lineEdit(text_field_box_1, self, "n_cores", label="N Cores", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
-
-        gui.separator(text_field_box_1)
-
-        self.cb_data_from     = gui.comboBox(text_field_box_1, self, "data_from", label="Data From", labelWidth=250, orientation='horizontal', items=["stream", "file"])
-        self.cb_save_result   = gui.comboBox(text_field_box_1, self, "save_result", label="Save Results", labelWidth=250, orientation='horizontal', items=["No", "Yes"])
+        self.le_mode          = gui.lineEdit(input_box_1_1, self, "mode", label="Mode", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
+        self.le_image_ops     = gui.lineEdit(input_box_1_1, self, "image_ops", label="Image Ops", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
+        self.le_method        = gui.lineEdit(input_box_1_1, self, "method", label="Method", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
+        self.le_line_width    = gui.lineEdit(input_box_1_1, self, "line_width", label="Line W", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_rebinning     = gui.lineEdit(input_box_1_1, self, "rebinning", label="Rebin", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_down_sampling = gui.lineEdit(input_box_1_1, self, "down_sampling", label="Down Samp", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_window_search = gui.lineEdit(input_box_1_1, self, "window_search", label="W Search", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_n_cores       = gui.lineEdit(input_box_1_1, self, "n_cores", label="N Cores", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.cb_data_from     = gui.comboBox(input_box_1_1, self, "data_from", label="Data From", labelWidth=250, orientation='horizontal', items=["stream", "file"])
 
         # -------------------------------------
 
-        text_field_box_2 = gui.widgetBox(input_box, "Back Propagation", orientation="vertical", width=int(WIDTH / 2) - 10, height=350)
+        input_box_2 = gui.widgetBox(self._input_tab_2, "", orientation="horizontal", addSpace=False)
+        input_box_2_1 = gui.widgetBox(input_box_2, " ", orientation="vertical", width=int(WIDTH / 2) - 10, addSpace=False)
+        input_box_2_2 = gui.widgetBox(input_box_2, " ", orientation="vertical", width=int(WIDTH / 2) - 10, addSpace=False)
 
-        self.le_kind                   = gui.lineEdit(text_field_box_2, self, "kind", label="Kind", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
-        self.le_propagation_distance_h = gui.lineEdit(text_field_box_2, self, "propagation_distance_h", label="Pr Dist H/2D", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
-        self.le_propagation_distance_v = gui.lineEdit(text_field_box_2, self, "propagation_distance_v", label="Pr Dist V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
-        self.le_rebinning_bp           = gui.lineEdit(text_field_box_2, self, "rebinning_bp", label="Rebin", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
-        self.le_sigma_intensity        = gui.lineEdit(text_field_box_2, self, "sigma_intensity", label="Sigma Int", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
-        self.le_sigma_phase            = gui.lineEdit(text_field_box_2, self, "sigma_phase",    label="Sigma Ph", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_kind                   = gui.lineEdit(input_box_2_1, self, "kind", label="Kind", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
+        self.le_propagation_distance_h = gui.lineEdit(input_box_2_1, self, "propagation_distance_h", label="Pr Dist H/2D", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_propagation_distance_v = gui.lineEdit(input_box_2_1, self, "propagation_distance_v", label="Pr Dist V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_rebinning_bp           = gui.lineEdit(input_box_2_1, self, "rebinning_bp", label="Rebin", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_sigma_intensity        = gui.lineEdit(input_box_2_1, self, "sigma_intensity", label="Sigma Int", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_sigma_phase            = gui.lineEdit(input_box_2_1, self, "sigma_phase",    label="Sigma Ph", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
 
-        self.le_crop_h                 = gui.lineEdit(text_field_box_2, self, "crop_h", label="Crop H", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
-        self.le_crop_v                 = gui.lineEdit(text_field_box_2, self, "crop_v", label="Crop V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
-        self.le_magnification_h        = gui.lineEdit(text_field_box_2, self, "magnification_h", label="Mag H", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
-        self.le_magnification_v        = gui.lineEdit(text_field_box_2, self, "magnification_v", label="Mag V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
-        self.cb_scan_best_focus        = gui.comboBox(text_field_box_2, self, "scan_best_focus", label="Scan Best F", labelWidth=250, orientation='horizontal', items=["no", "yes"])
-        self.le_best_focus_from        = gui.lineEdit(text_field_box_2, self, "best_focus_from", label="Best F From", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
+        self.le_crop_h                 = gui.lineEdit(input_box_2_1, self, "crop_h", label="Crop H", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_crop_v                 = gui.lineEdit(input_box_2_1, self, "crop_v", label="Crop V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=int)
+        self.le_magnification_h        = gui.lineEdit(input_box_2_1, self, "magnification_h", label="Mag H", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.le_magnification_v        = gui.lineEdit(input_box_2_1, self, "magnification_v", label="Mag V", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=float)
+        self.cb_scan_best_focus        = gui.comboBox(input_box_2_1, self, "scan_best_focus", label="Scan Best F", labelWidth=250, orientation='horizontal', items=["no", "yes"])
+        self.le_best_focus_from        = gui.lineEdit(input_box_2_1, self, "best_focus_from", label="Best F From", labelWidth=150, orientation='horizontal', controlWidth=100, valueType=str)
 
         # -------------------------------------
 
-        button_box = QWidget()
-        button_box.setMinimumWidth(WIDTH - 10)
+        button_box  = gui.widgetBox(left_box, "", orientation="vertical", addSpace=False)
 
-        button_grid = QGridLayout()
+        button_box_1 = gui.widgetBox(button_box, "", orientation="horizontal", addSpace=False)
+        button_box_2 = gui.widgetBox(button_box, "", orientation="horizontal", addSpace=False)
 
-        # Add 8 buttons in a 2x4 grid
-        button = QPushButton("Take Shot\n Only", self)
-        button.clicked.connect(self.take_shot)
-        button_grid.addWidget(button, 0, 0)
+        gui.button(button_box_1, self, label="Take Shot\nOnly", callback=self.take_shot)
+        gui.button(button_box_1, self, label="Take Shot +\nGenerate Mask", callback=self.take_shot_and_generate_mask)
+        gui.button(button_box_1, self, label="Take Shot\nProcess Image", callback=self.take_shot_and_process_image)
+        gui.button(button_box_1, self, label="Take Shot\nBack Propagate", callback=self.take_shot_and_back_propagate)
 
-        button = QPushButton("Take Shot +\nGenerate Mask", self)
-        button.clicked.connect(self.take_shot_and_generate_mask)
-        button_grid.addWidget(button, 0, 1)
+        gui.button(button_box_2, self, label="Read Image\nFrom File", callback=self.read_from_file)
+        gui.button(button_box_2, self, label="Generate Mask\nFrom File", callback=self.generate_mask)
+        gui.button(button_box_2, self, label="Process Image\nFrom File", callback=self.process_image)
+        gui.button(button_box_2, self, label="Back Propagate\nFrom File", callback=self.back_propagate)
 
-        button = QPushButton("Take Shot +\nProcess Image", self)
-        button.clicked.connect(self.take_shot_and_process_image)
-        button_grid.addWidget(button, 0, 2)
-
-        button = QPushButton("Take Shot +\nBack Propagate", self)
-        button.clicked.connect(self.take_shot_and_back_propagate)
-        button_grid.addWidget(button, 0, 3)
-
-        button = QPushButton("Read Image\nFrom File")
-        button.clicked.connect(self.read_from_file)
-        button_grid.addWidget(button, 1, 0)
-
-        button = QPushButton("Generate Mask\nFrom File")
-        button.clicked.connect(self.generate_mask)
-        button_grid.addWidget(button, 1, 1)
-
-        button = QPushButton("Process Image\nFrom File")
-        button.clicked.connect(self.process_image)
-        button_grid.addWidget(button, 1, 2)
-
-        button = QPushButton("Back Propagate\nFrom File")
-        button.clicked.connect(self.back_propagate)
-        button_grid.addWidget(button, 1, 3)
-
-        button_box.setLayout(button_grid)
-
-        left_box.layout().addWidget(button_box)
+        output_box = gui.widgetBox(left_box, "Output", orientation="vertical", height=200, addSpace=False)
 
         # Create text field
         self.output_data = QTextEdit()
-        self.output_data.setMinimumHeight(150)
-        self.output_data.setMinimumWidth(350)
         self.output_data.setReadOnly(True)
 
-        left_box.layout().addWidget(self.output_data)
+        output_box.layout().addWidget(self.output_data)
 
         self._result_figure = Figure(figsize=(6.0, 6.0), constrained_layout=True)
         self._result_figure_canvas = FigureCanvas(self._result_figure)
@@ -177,9 +166,35 @@ class WavefrontAnalysisForm(QWidget):
         image_box.layout().addWidget(self._toolbar)
         image_box.layout().addWidget(self._result_figure_canvas)
 
+        stdout_box = gui.widgetBox(right_box, "Stdout", orientation="vertical", height=290, addSpace=False)
+
+        # Create text field
+        self.stdout_data = QTextEdit()
+        self.stdout_data.setReadOnly(True)
+
+        stdout_box.layout().addWidget(self.stdout_data)
+
         self.__working_directory = working_directory
         self.__energy = energy
         self.__wavefront_sensor, self.__wavefront_analyzer = initialize(working_directory, energy)
+
+    def _capture_std_out(self):
+        if self.capture_std_out == 0: sys.stdout = self.__stdout
+        else:
+            class OutputStream:
+                def __init__(self, text_edit):
+                    self.text_edit = text_edit
+
+                def write(self, text):
+                    if (text.startswith(_InnerColors.LIGHTCYAN) or
+                            text.startswith(_InnerColors.LIGHTGREEN) or
+                            text.startswith(_InnerColors.MAGENTA)): text = text[5:-5]
+                    if not text.endswith("\n"): self.text_edit.append(text + "\n")
+
+                def flush(self):
+                    pass
+
+            sys.stdout = OutputStream(self.stdout_data)
 
     def take_shot(self):
         try:
@@ -193,7 +208,7 @@ class WavefrontAnalysisForm(QWidget):
                     image, h_coord, v_coord = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
                     image_ops = []
 
-                self.plot_image(image, h_coord, v_coord, image_ops)
+                if self.plot_image: self.plot_shot_image(image, h_coord, v_coord, image_ops)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -213,6 +228,7 @@ class WavefrontAnalysisForm(QWidget):
     def take_shot_and_generate_mask(self):
         try:
             self.output_data.clear()
+            self.stdout_data.clear()
 
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
@@ -235,7 +251,7 @@ class WavefrontAnalysisForm(QWidget):
                                                                                              n_cores=int(self.n_cores))
                 self.output_data.setText("I.T.F.: " + str(image_transfer_matrix))
 
-                self.plot_image(image, h_coord, v_coord, image_ops)
+                if self.plot_image: self.plot_shot_image(image, h_coord, v_coord, image_ops)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -254,6 +270,7 @@ class WavefrontAnalysisForm(QWidget):
     def take_shot_and_process_image(self):
         try:
             self.output_data.clear()
+            self.stdout_data.clear()
 
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
@@ -276,7 +293,7 @@ class WavefrontAnalysisForm(QWidget):
                                                         window_search=int(self.window_search),
                                                         n_cores=int(self.n_cores))
 
-                self.plot_image(image, h_coord, v_coord, image_ops)
+                if self.plot_image: self.plot_shot_image(image, h_coord, v_coord, image_ops)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -294,6 +311,7 @@ class WavefrontAnalysisForm(QWidget):
     def take_shot_and_back_propagate(self):
         try:
             self.output_data.clear()
+            self.stdout_data.clear()
 
             try:
                 self.__wavefront_sensor.collect_single_shot_image(index=1)
@@ -350,7 +368,7 @@ class WavefrontAnalysisForm(QWidget):
                         output_text += f"{key} : {wavefront_data[key]}\n"
                 self.output_data.setText(output_text)
 
-                self.plot_image(image, h_coord, v_coord, image_ops)
+                if self.plot_image: self.plot_shot_image(image, h_coord, v_coord, image_ops)
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
@@ -393,6 +411,7 @@ class WavefrontAnalysisForm(QWidget):
     def generate_mask(self):
         try:
             self.output_data.clear()
+            self.stdout_data.clear()
 
             image_transfer_matrix, _ = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1,
                                                                                          mode=self.mode,
@@ -409,6 +428,9 @@ class WavefrontAnalysisForm(QWidget):
 
     def process_image(self):
         try:
+            self.output_data.clear()
+            self.stdout_data.clear()
+
             self.__wavefront_analyzer.process_image(image_index=1,
                                                     mode=self.mode,
                                                     method=self.method,
@@ -423,7 +445,7 @@ class WavefrontAnalysisForm(QWidget):
     def back_propagate(self):
         try:
             self.output_data.clear()
-
+            self.stdout_data.clear()
             wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
                                                                                 kind=self.kind,
                                                                                 image_rebinning=float(self.rebinning),
@@ -459,7 +481,7 @@ class WavefrontAnalysisForm(QWidget):
         except Exception as e:
             QMessageBox.information(self, "Error", traceback.format_exc())
 
-    def plot_image(self, image, h_coord, v_coord, image_ops):
+    def plot_shot_image(self, image, h_coord, v_coord, image_ops):
         h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
 
         # Image/PVA to matplotlib

@@ -1197,9 +1197,11 @@ def execute_process_image(**arguments):
                 int(corner[0][1]),
                 int(corner[1][1])
             ]
+            image_boundary = args.crop
         elif args.crop[0] == -1:
             # use auto-crop according to the intensity boundary. rectangular shapess
-            args.crop = auto_crop(flat, shrink=0.85)
+            image_boundary = auto_crop(flat, shrink=0.85, to_int=False)
+            args.crop      = auto_crop(flat, shrink=0.85, to_int=True)
         else:
             # central crop
             if args.rebinning > 1: args.crop[0] = args.crop[0] // args.rebinning
@@ -1208,7 +1210,8 @@ def execute_process_image(**arguments):
                       int(I_img_raw.shape[1] // 2 - args.crop[0] // 2),
                       int(I_img_raw.shape[1] // 2 + args.crop[0] // 2),
                       ]
-            args.crop = corner
+            args.crop      = corner
+            image_boundary = args.crop
     else:
         # error input
         prColor(
@@ -1232,7 +1235,6 @@ def execute_process_image(**arguments):
     extend_boundary = args.window_searching + args.template_size * int(1 / args.down_sampling)
     boundary_crop = lambda img: img[int(args.crop[0] - extend_boundary):int(args.crop[1] + extend_boundary),
                                 int(args.crop[2] - extend_boundary):int(args.crop[3] + extend_boundary)]
-
     I_img     = boundary_crop(I_img_raw)
     I_img_raw = (I_img_raw - dark) / (flat - dark)
     flat      = boundary_crop(flat)
@@ -1241,8 +1243,6 @@ def execute_process_image(**arguments):
 
     crop_edge      = args.crop
     center_shift   = [(crop_edge[0] + crop_edge[1]) // 2 - I_img_raw.shape[0] // 2, (crop_edge[2] + crop_edge[3]) // 2 - I_img_raw.shape[1] // 2]
-    center_of_mass = snd.center_of_mass(I_img_raw)
-    center_of_mass = [center_of_mass[0] - I_img_raw.shape[0] // 2, center_of_mass[1] - I_img_raw.shape[1] // 2]
 
     # to find the pattern from the reference image
     pattern_find = pattern_search(ini_para=para_simulation)
@@ -1356,8 +1356,6 @@ def execute_process_image(**arguments):
     write_json(result_path=args.result_folder,
                file_name='reference',
                data_dict={'image_transfer_matrix': image_transfer_matrix,
-                          'cropped_image_centroid': center_shift,
-                          'center_of_mass' : center_of_mass,
                           'speckle_shift': pos_shift.tolist()})
     if generate_simulated_mask:  shutil.copy(os.path.join(args.result_folder, 'reference.json'),
                                              os.path.join(para_pattern['saving_path'], 'reference.json'))

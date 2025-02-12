@@ -483,7 +483,7 @@ def smooth(x,window_len=11,window='hanning'):
     y=np.convolve(w/w.sum(),s,mode='valid')
     return y
 
-def auto_crop(img, shrink=0.9, count=None):
+def auto_crop(img, shrink=0.9, count=None, to_int=True):
     # auto-crop to find the rectangular area from the image intensity
     if count is None:
         img_seg = np.ones(img.shape) * (img > np.mean(img))
@@ -491,26 +491,37 @@ def auto_crop(img, shrink=0.9, count=None):
         img_seg = np.ones(img.shape) * (img > count)
 
     cen = snd.measurements.center_of_mass(img_seg)
-    cen_x, cen_y = int(cen[0]), int(cen[1])
+    if to_int: cen_x, cen_y = int(cen[0]), int(cen[1])
+    else:      cen_x, cen_y = cen[0], cen[1]
 
     # find the boundary
     n_width = 50
-    pos = np.array(np.where(img_seg[cen_y-n_width:cen_y+n_width, 0:cen_x]==0))
+    pos = np.array(np.where(img_seg[int(cen_y - n_width) : int(cen_y + n_width),
+                            0 : int(cen_x)]==0))
     left_x = np.amax(pos[1, :])
 
-    pos = np.array(np.where(img_seg[cen_y-n_width:cen_y+n_width, cen_x:]==0))
+    pos = np.array(np.where(img_seg[int(cen_y - n_width) : int(cen_y + n_width),
+                            int(cen_x) :]==0))
     right_x = np.amin(pos[1, :]) + cen_x
 
-    pos = np.array(np.where(img_seg[0:cen_y, cen_x-n_width:cen_x+n_width]==0))
+    pos = np.array(np.where(img_seg[0 : int(cen_y),
+                            int(cen_x - n_width) : int(cen_x + n_width)]==0))
     up_y = np.amax(pos[0, :])
 
-    pos = np.array(np.where(img_seg[cen_y:, cen_x-n_width:cen_x+n_width]==0))
+    pos = np.array(np.where(img_seg[int(cen_y) :,
+                            int(cen_x) - n_width : int(cen_x) + n_width]==0))
     down_y = np.amin(pos[0, :]) + cen_y
 
-    x_width = int(shrink * (right_x - left_x)/2)
-    y_width = int(shrink * (down_y - up_y)/2)
-    x_cen = int((right_x + left_x)/2)
-    y_cen = int((down_y + up_y)/2)
+    if to_int:
+        x_width = int(shrink * (right_x - left_x)/2)
+        y_width = int(shrink * (down_y - up_y)/2)
+        x_cen   = int((right_x + left_x)/2)
+        y_cen   = int((down_y + up_y)/2)
+    else:
+        x_width = (shrink * (right_x - left_x)/2)
+        y_width = (shrink * (down_y - up_y)/2)
+        x_cen   = ((right_x + left_x)/2)
+        y_cen   = ((down_y + up_y)/2)
 
     prColor('auto-crop. center: {} y {} x, width: {} y {} x'.format(y_cen, x_cen, y_width, x_width), 'green')
 
