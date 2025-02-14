@@ -40,7 +40,7 @@ from aps.common.logger import _InnerColors
 
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import IMAGE_OPS
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DISTANCE, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
-                                                                      REBINNING_BP, SIGMA_INTENSITY, SIGMA_PHASE, SMOOTH_INTENSITY, SMOOTH_PHASE, SCAN_BEST_FOCUS, BEST_FOCUS_FROM)
+                                                                      REBINNING_BP, SIGMA_INTENSITY, SIGMA_PHASE, SMOOTH_INTENSITY, SMOOTH_PHASE, SCAN_BEST_FOCUS, BEST_FOCUS_FROM, DELTA_F_H, DELTA_F_V)
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import MODE, LINE_WIDTH, DOWN_SAMPLING, N_CORES, WINDOW_SEARCH, REBINNING, METHOD
 
 WIDTH  = 500
@@ -347,6 +347,8 @@ class WavefrontAnalysisForm(QWidget):
                                                                                     sigma_phase = int(self.sigma_phase),
                                                                                     crop_h=int(self.crop_h),
                                                                                     crop_v=int(self.crop_v),
+                                                                                    delta_f_x=DELTA_F_H.get(self.method, 0.0),
+                                                                                    delta_f_y=DELTA_F_V.get(self.method, 0.0),
                                                                                     magnification_h=float(self.magnification_h),
                                                                                     magnification_v=float(self.magnification_v),
                                                                                     scan_best_focus=self.scan_best_focus==1,
@@ -390,7 +392,7 @@ class WavefrontAnalysisForm(QWidget):
             try:
                 image, h_coord, v_coord = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
 
-                self.plot_image(image, h_coord, v_coord, [])
+                if self.plot_image: self.plot_shot_image(image, h_coord, v_coord, [])
 
                 try:    self.__wavefront_sensor.save_status()
                 except: pass
