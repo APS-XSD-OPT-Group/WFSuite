@@ -252,6 +252,7 @@ def execute_back_propagation(**arguments) -> dict:
     arguments["show_figure"]            = arguments.get("show_figure", False)
     arguments["save_result"]            = arguments.get("save_result", False)
     arguments["scan_best_focus"]        = arguments.get("scan_best_focus", False)
+    arguments["use_fit"]                = arguments.get("use_fit", True)
     arguments["best_focus_from"]        = arguments.get("best_focus_from", "rms") # rms, fwhm, fwhmG
     arguments["scan_rel_range"]         = arguments.get("scan_rel_range", [-0.001, 0.001, 0.0001])
     arguments["scan_x_rel_range"]       = arguments.get("scan_x_rel_range", [-0.001, 0.001, 0.0001])
@@ -386,6 +387,7 @@ def execute_back_propagation(**arguments) -> dict:
                                                                            x_rms_range,
                                                                            y_rms_range,
                                                                            scan_rel_range,
+                                                                           args.use_fit,
                                                                            best_focus_from,
                                                                            args.show_figure,
                                                                            args.save_result,
@@ -538,6 +540,7 @@ def execute_back_propagation(**arguments) -> dict:
                                                       propagation_distance_x,
                                                       x_rms_range,
                                                       scan_x_rel_range,
+                                                      args.use_fit,
                                                       best_focus_from,
                                                       "X",
                                                       args.show_figure,
@@ -550,6 +553,7 @@ def execute_back_propagation(**arguments) -> dict:
                                                       propagation_distance_y,
                                                       y_rms_range,
                                                       scan_y_rel_range,
+                                                      args.use_fit,
                                                       best_focus_from,
                                                       "Y",
                                                       args.show_figure,
@@ -630,6 +634,7 @@ def __scan_best_focus_2D(fresnel_propagator,
                          x_rms_range,
                          y_rms_range,
                          scan_rel_range,
+                         use_fit,
                          best_focus_from,
                          show_figure,
                          save_result,
@@ -704,11 +709,15 @@ def __scan_best_focus_2D(fresnel_propagator,
     size_values_y         = np.array(size_values_y)
     propagation_distances = np.array(propagation_distances)
 
-    try:    best_distance_x_fit, smallest_size_x_fit, spline_x = __get_scan_fit(propagation_distances, size_values_x)
-    except: best_distance_x_fit, smallest_size_x_fit, spline_x = best_distance_x, smallest_size_x, None
+    if use_fit:
+        try:    best_distance_x_fit, smallest_size_x_fit, spline_x = __get_scan_fit(propagation_distances, size_values_x)
+        except: best_distance_x_fit, smallest_size_x_fit, spline_x = best_distance_x, smallest_size_x, None
 
-    try:    best_distance_y_fit, smallest_size_y_fit, spline_y = __get_scan_fit(propagation_distances, size_values_y)
-    except: best_distance_y_fit, smallest_size_y_fit, spline_y = best_distance_y, smallest_size_y, None
+        try:    best_distance_y_fit, smallest_size_y_fit, spline_y = __get_scan_fit(propagation_distances, size_values_y)
+        except: best_distance_y_fit, smallest_size_y_fit, spline_y = best_distance_y, smallest_size_y, None
+    else:
+        best_distance_x_fit, smallest_size_x_fit, spline_x = best_distance_x, smallest_size_x, None
+        best_distance_y_fit, smallest_size_y_fit, spline_y = best_distance_y, smallest_size_y, None
 
     if verbose:
         print(f"Smallest size in X    : {round(1e6*smallest_size_x, 3)} um {best_focus_from} at distance {best_distance_x} m")
@@ -792,6 +801,7 @@ def __scan_best_focus_1D(fresnel_propagator,
                          propagation_distance,
                          rms_range,
                          scan_rel_range,
+                         use_fit,
                          best_focus_from,
                          direction,
                          show_figure,
@@ -833,8 +843,11 @@ def __scan_best_focus_1D(fresnel_propagator,
     size_values           = np.array(size_values)
     propagation_distances = np.array(propagation_distances)
 
-    try:    best_distance_fit, smallest_size_fit, spline = __get_scan_fit(propagation_distances, size_values)
-    except: best_distance_fit, smallest_size_fit, spline = best_distance, smallest_size, None
+    if use_fit:
+        try:    best_distance_fit, smallest_size_fit, spline = __get_scan_fit(propagation_distances, size_values)
+        except: best_distance_fit, smallest_size_fit, spline = best_distance, smallest_size, None
+    else:
+        best_distance_fit, smallest_size_fit, spline = best_distance, smallest_size, None
 
     if verbose:
         print(f"Smallest size in {direction}: {smallest_size} {best_focus_from} at distance {best_distance} m")

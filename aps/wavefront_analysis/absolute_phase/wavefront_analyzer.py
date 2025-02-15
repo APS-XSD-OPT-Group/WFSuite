@@ -127,6 +127,7 @@ MAGNIFICATION_V         = ini_file.get_float_from_ini(  section="Back-Propagatio
 MAGNIFICATION_H         = ini_file.get_float_from_ini(  section="Back-Propagation", key="Magnification-H",             default=0.028)
 SHIFT_HALF_PIXEL        = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Shift-Half-Pixel",            default=False)
 SCAN_BEST_FOCUS         = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Scan-Best-Focus",             default=False)
+USE_FIT                 = ini_file.get_boolean_from_ini(section="Back-Propagation", key="USe-Fit",                     default=True)
 BEST_FOCUS_FROM         = ini_file.get_string_from_ini( section="Back-Propagation", key="Best-Focus-From",             default="rms")
 BEST_FOCUS_SCAN_RANGE   = ini_file.get_list_from_ini(   section="Back-Propagation", key="2D, Best-Focus-Scan-Range",   default=[-0.001, 0.001, 0.0001], type=float)
 BEST_FOCUS_SCAN_RANGE_V = ini_file.get_list_from_ini(   section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V", default=[-0.001, 0.001, 0.0001], type=float)
@@ -171,6 +172,7 @@ ini_file.set_dict_at_ini(section="Back-Propagation",  key="Delta-F-H",          
 ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-V",                values_list=RMS_RANGE_V)
 ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-H",                values_list=RMS_RANGE_H)
 ini_file.set_value_at_ini(section="Back-Propagation", key="Scan-Best-Focus",            value=SCAN_BEST_FOCUS)
+ini_file.set_value_at_ini(section="Back-Propagation", key="Use-Fit",                    value=USE_FIT)
 ini_file.set_value_at_ini(section="Back-Propagation", key="Best-Focus-From",            value=BEST_FOCUS_FROM)
 ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-V",            value=MAGNIFICATION_V)
 ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-H",            value=MAGNIFICATION_H)
@@ -507,6 +509,7 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_d
                                     show_figure            = kwargs.get("show_figure", False),
                                     save_result            = kwargs.get("save_result", False),
                                     scan_best_focus        = kwargs.get("scan_best_focus", SCAN_BEST_FOCUS),
+                                    use_fit                = kwargs.get("use_fit", USE_FIT),
                                     best_focus_from        = kwargs.get("best_focus_from", BEST_FOCUS_FROM),
                                     scan_rel_range         = kwargs.get("best_focus_scan_range", BEST_FOCUS_SCAN_RANGE),
                                     scan_x_rel_range       = kwargs.get("best_focus_scan_range_h", BEST_FOCUS_SCAN_RANGE_H),
