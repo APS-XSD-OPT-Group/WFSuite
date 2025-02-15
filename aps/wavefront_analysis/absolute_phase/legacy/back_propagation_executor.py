@@ -57,10 +57,13 @@ from wofry.propagator.wavefront1D.generic_wavefront import GenericWavefront1D
 from wofryimpl.propagator.propagators2D.fresnel_zoom_xy import FresnelZoomXY2D
 from wofryimpl.propagator.propagators1D.fresnel_zoom import FresnelZoom1D
 
-
 from aps.wavefront_analysis.common.arguments import Args
 from aps.common.plot.image import rebin_1D, rebin_2D
+
 from scipy.ndimage import gaussian_filter
+from scipy.interpolate import CubicSpline
+from scipy.optimize import fminbound
+
 
 def find_fwhm(x, y):
     """
@@ -610,6 +613,14 @@ def execute_back_propagation(**arguments) -> dict:
     else:
         raise ValueError(f"Propagation kind not recognized: {args.kind}")
 
+
+def __get_scan_fit(coordinates, size_values):
+    spline = CubicSpline(coordinates, size_values)
+    best_distance_fit = fminbound(spline, coordinates[0], coordinates[-1])
+    smallest_size_fit = spline(best_distance_fit)
+
+    return best_distance_fit, smallest_size_fit, spline
+
 def __scan_best_focus_2D(fresnel_propagator,
                          initial_wavefront,
                          magnification_x,
@@ -689,19 +700,31 @@ def __scan_best_focus_2D(fresnel_propagator,
             best_distance_y  = distance
             best_intensity_y = intensity_wofry
 
+    size_values_x         = np.array(size_values_x)
+    size_values_y         = np.array(size_values_y)
+    propagation_distances = np.array(propagation_distances)
+
+    try:    best_distance_x_fit, smallest_size_x_fit, spline_x = __get_scan_fit(propagation_distances, size_values_x)
+    except: best_distance_x_fit, smallest_size_x_fit, spline_x = best_distance_x, smallest_size_x, None
+
+    try:    best_distance_y_fit, smallest_size_y_fit, spline_y = __get_scan_fit(propagation_distances, size_values_y)
+    except: best_distance_y_fit, smallest_size_y_fit, spline_y = best_distance_y, smallest_size_y, None
+
     if verbose:
-        print(f"Smallest size in X: {round(1e6*smallest_size_x, 3)} um {best_focus_from} at distance {best_distance_x} m")
-        print(f"Smallest size in Y: {round(1e6*smallest_size_y, 3)} um {best_focus_from} at distance {best_distance_y} m")
+        print(f"Smallest size in X    : {round(1e6*smallest_size_x, 3)} um {best_focus_from} at distance {best_distance_x} m")
+        print(f"Smallest size in Y    : {round(1e6*smallest_size_y, 3)} um {best_focus_from} at distance {best_distance_y} m")
+        print(f"Smallest size in X FIT: {round(1e6*smallest_size_x_fit, 3)} um {best_focus_from} at distance {best_distance_x_fit} m")
+        print(f"Smallest size in Y FIT: {round(1e6*smallest_size_y_fit, 3)} um {best_focus_from} at distance {best_distance_y_fit} m")
 
     if save_result:
         with h5py.File(os.path.join(folder, "scan_best_focus.hdf5"), 'w') as h5file:
             wf = h5file.create_group("scan_best_focus")
 
             wf.attrs["best_focus_from"] = best_focus_from
-            wf.attrs["smallest_size_x"] = smallest_size_x
-            wf.attrs["best_distance_x"] = best_distance_x
-            wf.attrs["smallest_size_y"] = smallest_size_y
-            wf.attrs["best_distance_y"] = best_distance_y
+            wf.attrs["smallest_size_x"] = smallest_size_x_fit
+            wf.attrs["best_distance_x"] = best_distance_x_fit
+            wf.attrs["smallest_size_y"] = smallest_size_y_fit
+            wf.attrs["best_distance_y"] = best_distance_y_fit
 
             wf.create_dataset('x_coordinates', data=x_coordinates)
             wf.create_dataset('y_coordinates', data=y_coordinates)
@@ -718,11 +741,14 @@ def __scan_best_focus_2D(fresnel_propagator,
                 sc.create_dataset('integrated_intensity_x', data=integrated_intensities_x[i])
                 sc.create_dataset('integrated_intensity_y', data=integrated_intensities_y[i])
 
-
     if show_figure:
+        if not spline_x is None: size_values_x_fit = spline_x(propagation_distances)
+        if not spline_y is None: size_values_y_fit = spline_y(propagation_distances)
+
         plt.figure(figsize=(12, 4))
         plt.subplot(1, 2, 1)
         plt.plot(propagation_distances, size_values_x, label=f"Size X", marker='o')
+        plt.plot(propagation_distances, size_values_x_fit, label=f"Size X - FIT")
         plt.xlabel('Distance (m)')
         plt.ylabel('Size X (um)')
         plt.title('Size as a Function of Distance')
@@ -741,6 +767,7 @@ def __scan_best_focus_2D(fresnel_propagator,
         plt.figure(figsize=(12, 4))
         plt.subplot(1, 2, 1)
         plt.plot(propagation_distances, size_values_y, label=f"Size Y", marker='o')
+        plt.plot(propagation_distances, size_values_y_fit, label=f"Size Y - FIT")
         plt.xlabel('Distance (m)')
         plt.ylabel('Size Y (um)')
         plt.title('Size as a Function of Distance')
@@ -756,7 +783,7 @@ def __scan_best_focus_2D(fresnel_propagator,
         plt.tight_layout()  # Adjust spacing between plots
         plt.show()
 
-    return best_distance_x, smallest_size_x, best_distance_y, smallest_size_y
+    return best_distance_x_fit, smallest_size_x_fit, best_distance_y_fit, smallest_size_y_fit
 
 
 def __scan_best_focus_1D(fresnel_propagator,
@@ -803,7 +830,13 @@ def __scan_best_focus_1D(fresnel_propagator,
             best_distance  = distance
             best_intensity = intensity_wofry
 
-    if verbose: print(f"Smallest size in {direction}: {smallest_size} {best_focus_from} at distance {best_distance} m")
+    propagation_distances = np.array(propagation_distances)
+
+    best_distance_fit, smallest_size_fit, spline = __get_scan_fit(propagation_distances, size_values)
+
+    if verbose:
+        print(f"Smallest size in {direction}: {smallest_size} {best_focus_from} at distance {best_distance} m")
+        print(f"Smallest size from fit in {direction}: {smallest_size_fit} {best_focus_from} at distance {best_distance_fit} m")
 
     if save_result:
         with h5py.File(os.path.join(folder, f"scan_best_focus_{direction}.hdf5"), 'w') as h5file:
@@ -825,9 +858,12 @@ def __scan_best_focus_1D(fresnel_propagator,
 
 
     if show_figure:
+        size_values_fit = spline(propagation_distances)
+
         plt.figure(figsize=(12, 4))
         plt.subplot(1, 2, 1)
-        plt.plot(propagation_distances, size_values, label=f"Size {direction}", marker='o')
+        plt.plot(propagation_distances, size_values,     label=f"Size {direction}", marker='o')
+        plt.plot(propagation_distances, size_values_fit, label=f"Size {direction}")
         plt.xlabel('Distance (m)')
         plt.ylabel('Size (units)')
         plt.title('Size as a Function of Distance')
