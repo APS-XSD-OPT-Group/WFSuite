@@ -50,7 +50,7 @@ try:
 except AttributeError:
     from setuptools import find_packages, setup
 
-NAME = 'aps-wavefront-analysi'
+NAME = 'aps-wavefront-analysis'
 
 VERSION = '0.0.1'
 ISRELEASED = False
