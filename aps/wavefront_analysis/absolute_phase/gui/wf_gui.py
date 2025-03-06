@@ -520,11 +520,12 @@ class WavefrontAnalysisForm(QWidget):
 
         fig.savefig("test.png")
 
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
+def run_gui(argv: list[str]):
+    app = QApplication(argv)
     form = WavefrontAnalysisForm()
     form.setWindowTitle('Wavefront Analysis')
     form.show()
     sys.exit(app.exec_())
 
+if __name__ == '__main__':
+    run_gui(sys.argv)
