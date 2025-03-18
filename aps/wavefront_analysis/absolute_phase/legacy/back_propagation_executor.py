@@ -442,19 +442,30 @@ def execute_back_propagation(**arguments) -> dict:
         if args.show_figure:
             plt.figure(figsize=(12, 6))
             gamma = 1
-            X, Y = np.meshgrid(x_coordinates, y_coordinates)
+            intensity   = gaussian_filter(intensity_wofry, 1.5)
+            intensity_x = intensity.sum(axis=1)
+            intensity_y = intensity.sum(axis=0)
+
+            X, Y = np.meshgrid(1e6*(x_coordinates + wf_position_x),
+                               1e6*(y_coordinates + wf_position_y))
             plt.subplot(1, 2, 1)
-            plt.pcolormesh(X, Y, intensity_wofry.T, shading='auto', norm=PowerNorm(gamma=gamma))
+            plt.pcolormesh(X, Y, intensity.T, shading='auto', norm=PowerNorm(gamma=gamma), cmap="rainbow")
             plt.colorbar(label='Intensity')
-            plt.xlabel(f'X (meters) / tilt : {round(1e6*wf_position_x, 2)} um')
-            plt.ylabel(f'Y (meters) / tilt : {round(1e6*wf_position_y, 2)} um')
+            plt.xlabel(f'X ($\mu$m) / tilt : {round(1e6*wf_position_x, 2)}')
+            plt.ylabel(f'Y ($\mu$m) / tilt : {round(1e6*wf_position_y, 2)}')
+            plt.xlim(1e6*(wf_position_x - 3*sigma_x), 1e6*(wf_position_x + 3*sigma_x))
+            plt.ylim(1e6*(wf_position_y - 3*sigma_y), 1e6*(wf_position_y + 3*sigma_y))
+
             plt.title(f'Intensity distribution at {propagation_distance} m')
             plt.subplot(1, 2, 2)
-            plt.plot(x_coordinates, integrated_intensity_x)
-            plt.plot(y_coordinates, integrated_intensity_y)
-            plt.xlabel('X or Y (meters)')
+            plt.plot(1e6*(x_coordinates + wf_position_x), intensity_x)
+            plt.xlim(1e6*(wf_position_x - 3*sigma_x), 1e6*(wf_position_x + 3*sigma_x))
+            plt.plot(1e6*(y_coordinates + wf_position_y), intensity_y)
+            plt.xlim(1e6*(wf_position_y - 3*sigma_y), 1e6*(wf_position_y + 3*sigma_y))
+            plt.xlabel('X or Y ($\mu$m)')
             plt.ylabel('Integrated Intensity')
             plt.title('Integrated intensity profile')
+
             plt.show()
 
         if args.save_result:
@@ -601,8 +612,10 @@ def execute_back_propagation(**arguments) -> dict:
             ax2.set_xlabel('Y (meters)')
             ax1.set_ylabel('Integrated Intensity')
 
-            ax3.plot(x_coordinates, intensity_x_wofry)
-            ax4.plot(y_coordinates, intensity_y_wofry)
+            ax3.plot(x_coordinates + wf_position_x, intensity_x_wofry)
+            ax4.plot(y_coordinates + wf_position_y, intensity_y_wofry)
+            ax3.set_xlim(wf_position_x - 3*sigma_x, wf_position_x + 3*sigma_x)
+            ax4.set_xlim(wf_position_y - 3*sigma_y, wf_position_y + 3*sigma_y)
             ax3.set_xlabel('X (meters)')
             ax4.set_xlabel('Y (meters)')
             ax3.set_ylabel('Integrated Intensity')
@@ -754,10 +767,13 @@ def __scan_best_focus_2D(fresnel_propagator,
         if not spline_x is None: size_values_x_fit = spline_x(propagation_distances)
         if not spline_y is None: size_values_y_fit = spline_y(propagation_distances)
 
+        best_intensity_x = gaussian_filter(best_intensity_x, 1.5)
+        best_intensity_y = gaussian_filter(best_intensity_y, 1.5)
+
         plt.figure(figsize=(12, 4))
         plt.subplot(1, 2, 1)
-        plt.plot(propagation_distances, size_values_x, label=f"Size X", marker='o')
-        if not spline_x is None: plt.plot(propagation_distances, size_values_x_fit, label=f"Size X - FIT")
+        plt.plot(propagation_distances, 1e6*size_values_x, label=f"Size X", marker='o')
+        if not spline_x is None: plt.plot(propagation_distances, 1e6*size_values_x_fit, label=f"Size X - FIT")
         plt.xlabel('Distance (m)')
         plt.ylabel('Size X (um)')
         plt.title('Size as a Function of Distance')
@@ -765,8 +781,10 @@ def __scan_best_focus_2D(fresnel_propagator,
         plt.grid(True)
 
         plt.subplot(1, 2, 2)
-        plt.plot(x_coordinates, best_intensity_x.sum(axis=1))
-        plt.xlabel('X (meters)')
+        plt.plot(1e6*x_coordinates, best_intensity_x.sum(axis=1))
+        plt.xlim(-3e6 * (smallest_size_x if spline_x is None else smallest_size_x_fit),
+                 3e6 * (smallest_size_x if spline_x is None else smallest_size_x_fit))
+        plt.xlabel('X ($\mu$)')
         plt.ylabel('Intensity')
         plt.title(f"Intensity profile at X waist")
 
@@ -775,8 +793,8 @@ def __scan_best_focus_2D(fresnel_propagator,
 
         plt.figure(figsize=(12, 4))
         plt.subplot(1, 2, 1)
-        plt.plot(propagation_distances, size_values_y, label=f"Size Y", marker='o')
-        if not spline_y is None:plt.plot(propagation_distances, size_values_y_fit, label=f"Size Y - FIT")
+        plt.plot(propagation_distances, 1e6*size_values_y, label=f"Size Y", marker='o')
+        if not spline_y is None:plt.plot(propagation_distances, 1e6*size_values_y_fit, label=f"Size Y - FIT")
         plt.xlabel('Distance (m)')
         plt.ylabel('Size Y (um)')
         plt.title('Size as a Function of Distance')
@@ -784,8 +802,10 @@ def __scan_best_focus_2D(fresnel_propagator,
         plt.grid(True)
 
         plt.subplot(1, 2, 2)
-        plt.plot(y_coordinates, best_intensity_y.sum(axis=0))
-        plt.xlabel('Y (meters)')
+        plt.plot(1e6*y_coordinates, best_intensity_y.sum(axis=0))
+        plt.xlim(-3e6*(smallest_size_y if spline_y is None else smallest_size_y_fit),
+                 3e6*(smallest_size_y if spline_y is None else smallest_size_y_fit))
+        plt.xlabel('Y ($\mu$)')
         plt.ylabel('Intensity')
         plt.title(f"Intensity profile at Y waist")
 
