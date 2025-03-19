@@ -74,10 +74,11 @@ ini_file = get_registered_ini_instance(APPLICATION_NAME)
 
 PATTERN_SIZE          = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Size",         default=4.942e-6)
 PATTERN_THICKNESS     = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Thickness",    default=1.5e-6)
-PATTERN_TRANSMISSION  = ini_file.get_float_from_ini(section="Mask", key="Pattern-Transmission", default=0.613)
+PATTERN_TRANSMISSION  = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Transmission", default=0.613)
 RAN_MASK              = ini_file.get_string_from_ini( section="Mask", key="Pattern-Image",        default='RanMask5umB0.npy')
 PROPAGATION_DISTANCE  = ini_file.get_float_from_ini(  section="Mask", key="Propagation-Distance", default=500e-3)
 
+ENERGY                = ini_file.get_float_from_ini(  section="Source", key="Energy",            default=12398.0)
 SOURCE_V              = ini_file.get_float_from_ini(  section="Source", key="Source-Size-V",     default=6.925e-6)
 SOURCE_H              = ini_file.get_float_from_ini(  section="Source", key="Source-Size-H",     default=0.333e-6)
 SOURCE_DISTANCE_V     = ini_file.get_float_from_ini(  section="Source", key="Source-Distance-V", default=1.5)
@@ -143,6 +144,7 @@ ini_file.set_value_at_ini(section="Mask", key="Pattern-Transmission", value=PATT
 ini_file.set_value_at_ini(section="Mask", key="Pattern-Image",        value=RAN_MASK)
 ini_file.set_value_at_ini(section="Mask", key="Propagation-Distance", value=PROPAGATION_DISTANCE)
 
+ini_file.set_value_at_ini(section="Source", key="Energy",               value=ENERGY)
 ini_file.set_value_at_ini(section="Source", key="Source-Size-V",        value=SOURCE_V)
 ini_file.set_value_at_ini(section="Source", key="Source-Size-H",        value=SOURCE_H)
 ini_file.set_value_at_ini(section="Source", key="Source-Distance-V",    value=SOURCE_DISTANCE_V)
@@ -206,7 +208,7 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
                  data_collection_directory,
                  file_name_prefix=None,
                  simulated_mask_directory=None,
-                 energy=20000.0):
+                 energy=ENERGY):
         self.__data_collection_directory = data_collection_directory
         self.__file_name_prefix          = file_name_prefix if not file_name_prefix is None else get_default_file_name_prefix()
         self.__simulated_mask_directory  = simulated_mask_directory

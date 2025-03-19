@@ -1,8 +1,6 @@
 import os, sys
-import time
 import traceback
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -19,11 +17,11 @@ try:
 except:
     pass
 
-def initialize(working_directory, energy):
+def initialize(working_directory):
     measurement_directory = os.path.abspath(os.path.join(working_directory, "wf_images"))
 
-    wavefront_sensor = create_wavefront_sensor(measurement_directory=measurement_directory)
-    wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=measurement_directory, energy=energy)
+    wavefront_sensor   = create_wavefront_sensor(measurement_directory=measurement_directory)
+    wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=measurement_directory)
 
     try:    wavefront_sensor.restore_status()
     except: pass
@@ -31,7 +29,7 @@ def initialize(working_directory, energy):
     return wavefront_sensor, wavefront_analyzer
 
 
-from PyQt5.QtWidgets import (QApplication, QWidget, QTextEdit, QPushButton, QMessageBox, QGridLayout)
+from PyQt5.QtWidgets import QApplication, QWidget, QTextEdit, QMessageBox
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 from aps.common.plot import gui
@@ -73,8 +71,7 @@ class WavefrontAnalysisForm(QWidget):
     best_focus_from        = BEST_FOCUS_FROM
 
     def __init__(self,
-                 working_directory=os.path.abspath(os.curdir),
-                 energy=12398.0):
+                 working_directory=os.path.abspath(os.curdir)):
         super().__init__()
 
         self.__stdout = sys.stdout
@@ -175,8 +172,7 @@ class WavefrontAnalysisForm(QWidget):
         stdout_box.layout().addWidget(self.stdout_data)
 
         self.__working_directory = working_directory
-        self.__energy = energy
-        self.__wavefront_sensor, self.__wavefront_analyzer = initialize(working_directory, energy)
+        self.__wavefront_sensor, self.__wavefront_analyzer = initialize(working_directory)
 
     def _capture_std_out(self):
         if self.capture_std_out == 0: sys.stdout = self.__stdout
