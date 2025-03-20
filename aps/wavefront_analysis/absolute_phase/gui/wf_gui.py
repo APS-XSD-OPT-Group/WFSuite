@@ -485,7 +485,7 @@ class WavefrontAnalysisForm(QWidget):
         h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
 
         # Image/PVA to matplotlib
-        data_2D = image
+        data_2D = image.T
         hh      = v_coord
         vv      = h_coord[::-1]
 

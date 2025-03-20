@@ -1452,12 +1452,14 @@ def execute_process_image(**arguments):
             plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
             plt.close()
 
+        print("###############################################")
+        print(type(avg_source_d_x), type(avg_source_d_y), type(avg_radius_x), type(avg_radius_y))
         write_json(result_path=args.result_folder,
                    file_name='result',
-                   data_dict={'avg_source_d_x': avg_source_d_x,
-                              'avg_source_d_y': avg_source_d_y,
-                              'avg_radius_x':   avg_radius_x,
-                              'avg_radius_y':   avg_radius_y})
+                   data_dict={'avg_source_d_x': float(avg_source_d_x),
+                              'avg_source_d_y': float(avg_source_d_y),
+                              'avg_radius_x':   float(avg_radius_x),
+                              'avg_radius_y':   float(avg_radius_y)})
         if generate_simulated_mask: shutil.copy(os.path.join(args.result_folder,          'result.json'),
                                                 os.path.join(para_pattern['saving_path'], 'result.json'))
 
@@ -1554,8 +1556,8 @@ def execute_process_image(**arguments):
                                        ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
         write_json(result_path=args.result_folder,
                    file_name='result',
-                   data_dict={'avg_source_d_x': avg_source_d_x,
-                              'avg_source_d_y': avg_source_d_y,
+                   data_dict={'avg_source_d_x': float(avg_source_d_x),
+                              'avg_source_d_y': float(avg_source_d_y),
                               })
         if generate_simulated_mask: shutil.copy(os.path.join(args.result_folder,          'result.json'),
                                                 os.path.join(para_pattern['saving_path'], 'result.json'))

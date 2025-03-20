@@ -420,10 +420,10 @@ def execute_back_propagation(**arguments) -> dict:
 
         # note: inf is used for the purpose of best focus scan, while NaN is the failed return value, useful for optimization purposes
         propagated_wavefront = PropagatedWavefront(kind="2D",
-                                                   fwhm_x=fwhm_x if not np.isinf(fwhm_x) else np.NaN,
-                                                   fwhm_y=fwhm_y if not np.isinf(fwhm_y) else np.NaN,
-                                                   sigma_x=sigma_x if not np.isinf(sigma_x) else np.NaN,
-                                                   sigma_y=sigma_y if not np.isinf(sigma_x) else np.NaN,
+                                                   fwhm_x=fwhm_x if not np.isinf(fwhm_x) else np.nan,
+                                                   fwhm_y=fwhm_y if not np.isinf(fwhm_y) else np.nan,
+                                                   sigma_x=sigma_x if not np.isinf(sigma_x) else np.nan,
+                                                   sigma_y=sigma_y if not np.isinf(sigma_x) else np.nan,
                                                    propagation_distance=propagation_distance,
                                                    propagation_distance_x=None,
                                                    propagation_distance_y=None,
@@ -579,10 +579,10 @@ def execute_back_propagation(**arguments) -> dict:
 
         # note: inf is used for the purpose of best focus scan, while NaN is the failed return value, useful for optimization purposes
         propagated_wavefront = PropagatedWavefront(kind="1D",
-                                                   fwhm_x=fwhm_x if not np.isinf(fwhm_x) else np.NaN,
-                                                   fwhm_y=fwhm_y if not np.isinf(fwhm_y) else np.NaN,
-                                                   sigma_x=sigma_x if not np.isinf(sigma_x) else np.NaN,
-                                                   sigma_y=sigma_y if not np.isinf(sigma_x) else np.NaN,
+                                                   fwhm_x=fwhm_x if not np.isinf(fwhm_x) else np.nan,
+                                                   fwhm_y=fwhm_y if not np.isinf(fwhm_y) else np.nan,
+                                                   sigma_x=sigma_x if not np.isinf(sigma_x) else np.nan,
+                                                   sigma_y=sigma_y if not np.isinf(sigma_x) else np.nan,
                                                    propagation_distance=None,
                                                    propagation_distance_x=propagation_distance_x,
                                                    propagation_distance_y=propagation_distance_y,
