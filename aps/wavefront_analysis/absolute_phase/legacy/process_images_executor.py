@@ -1452,8 +1452,6 @@ def execute_process_image(**arguments):
             plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
             plt.close()
 
-        print("###############################################")
-        print(type(avg_source_d_x), type(avg_source_d_y), type(avg_radius_x), type(avg_radius_y))
         write_json(result_path=args.result_folder,
                    file_name='result',
                    data_dict={'avg_source_d_x': float(avg_source_d_x),

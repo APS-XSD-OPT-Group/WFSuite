@@ -36,6 +36,7 @@ from aps.common.plot import gui
 from aps.common.plot.image import apply_transformations
 from aps.common.logger import _InnerColors
 
+from aps.wavefront_analysis.driver.wavefront_sensor import IS_STREAM_AVAILABLE
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import IMAGE_OPS
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DISTANCE, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
                                                                       REBINNING_BP, SIGMA_INTENSITY, SIGMA_PHASE, SMOOTH_INTENSITY, SMOOTH_PHASE, SCAN_BEST_FOCUS, BEST_FOCUS_FROM, DELTA_F_H, DELTA_F_V)
@@ -52,7 +53,7 @@ class WavefrontAnalysisForm(QWidget):
     down_sampling = DOWN_SAMPLING
     window_search = WINDOW_SEARCH
     n_cores       = N_CORES
-    data_from     = 0
+    data_from     = 1 if not IS_STREAM_AVAILABLE else 0
     save_result     = 0
     plot_image      = 1
     capture_std_out = 0
@@ -508,8 +509,8 @@ class WavefrontAnalysisForm(QWidget):
         ax_1.yaxis.set_major_formatter(FuncFormatter(custom_formatter))
         ax_1.axhline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
         ax_1.axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
-        ax_1.set_xlabel("Horizontal ($\mu$m)")
-        ax_1.set_ylabel("Vertical ($\mu$m)")
+        ax_1.set_xlabel("Horizontal (mm)")
+        ax_1.set_ylabel("Vertical (mm)")
 
         cbar = fig.colorbar(mappable=image, ax=ax_1, pad=0.01, aspect=30, shrink=0.6)
         cbar.ax.text(0.5, 1.05, "pI", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
