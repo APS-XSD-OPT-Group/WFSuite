@@ -491,8 +491,7 @@ class pattern_search:
         self.scale = [sy, sx]
         self.rotation = rot_cita
 
-        I_pattern = self.image_transfer(I_pattern, img_transfer[0], img_transfer[1],
-                                        img_transfer[2])
+        I_pattern = self.image_transfer(I_pattern, img_transfer[0], img_transfer[1], img_transfer[2])
         m, n = I_img.shape
         y0 = (pos_center[1] - int(self.det_array[0] / 2))
         y1 = (pos_center[1] - int(self.det_array[0] / 2) + self.det_array[0])
@@ -1038,7 +1037,6 @@ def execute_process_image(**arguments):
     arguments["img_transfer_matrix"]   = arguments.get("img_transfer_matrix", [1, 0, 0]) # the image transfer matrix to make the images match with the simulated pattern.
     arguments["find_transferMatrix"]   = arguments.get("find_transferMatrix", False) # search the image transfer matrix or not
 
-    arguments["det_size"]              = arguments.get("det_size", [2160, 2560]) # detector array size, need to be same with the collected image
     arguments["p_x"]                   = arguments.get("p_x", 0.65e-6) # pixel size
     arguments["det_res"]               = arguments.get("det_res", 1.5e-6) # detector spatial resolution
     arguments["energy"]                = arguments.get("energy", 20e3) # X-ray energy
@@ -1121,7 +1119,6 @@ def execute_process_image(**arguments):
         'sv': args.source_v,  # vertical source size
         'sh': args.source_h,  # horizontal source size
         'det_res': args.det_res,  # detector resolution
-        'det_size': args.det_size,  # detector array size, will save the same shape simulated reference in the propagated_pattern's folder
         'rebinning': args.rebinning,
         'propagator': args.propagator,  # propagator for near-field diffraction
         'correct_scale': args.correct_scale,  # if correct horizontal and vertical scales
@@ -1155,16 +1152,27 @@ def execute_process_image(**arguments):
     if args.image_data is None: I_img_raw = load_image(file_img)
     else:                       _, _, I_img_raw = apply_transformations(None, None, args.image_data, args.image_ops)
 
+    #I_img_raw = I_img_raw.T
+
+    para_simulation['det_size'] = [int(I_img_raw.shape[0]), int(I_img_raw.shape[1]) ]
+
+    prColor(f"#################  Image Shape   {I_img_raw.shape}", 'red')
+    prColor(f"#################  Detector Size {para_simulation['det_size'] }", 'red')
+
     if args.rebinning > 1:
+        prColor(f"#################  rebinning the image with rebin factor {args.rebinning}", 'red')
+
+        size_h = I_img_raw.shape[0]
+        size_v = I_img_raw.shape[1]
+
+        if size_h % args.rebinning != 0: raise ValueError(f"Incompatible shape: size_h {size_h} is not divisible by the rebinning factor {args.rebinning}")
+        if size_v % args.rebinning != 0: raise ValueError(f"Incompatible shape: size_v {size_v} is not divisible by the rebinning factor {args.rebinning}")
+
         _, _, I_img_raw = rebin_2D(None, None, I_img_raw, args.rebinning, exact=True)
 
-        if args.det_size[0] % args.rebinning != 0: raise ValueError(f"Incompatible shape: det_size[0] {args.det_size[0]} is not divisible by the rebinning factor {args.rebinning}")
-        if args.det_size[1] % args.rebinning != 0: raise ValueError(f"Incompatible shape: det_size[1] {args.det_size[1]} is not divisible by the rebinning factor {args.rebinning}")
+        args.p_x *= args.rebinning
 
-        args.det_size = [int(args.det_size[0] / args.rebinning), int(args.det_size[1] / args.rebinning)]
-        args.p_x     *= args.rebinning
-
-        para_simulation['det_size'] = args.det_size
+        para_simulation['det_size'] = [int(I_img_raw.shape[0]), int(I_img_raw.shape[1])]
         para_simulation['p_x']      = args.p_x
 
     if args.dark is None: dark = np.zeros(I_img_raw.shape)

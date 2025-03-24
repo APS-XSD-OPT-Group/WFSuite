@@ -377,8 +377,15 @@ def image_align(image, offset_image):
     from scipy.ndimage import fourier_shift
     # roi = lambda x: x[0:100][0:100]
     # shift, error, diffphase = register_translation(image, offset_image, 10)
-    shift, error, diffphase = phase_cross_correlation(image, offset_image, upsample_factor=10)
-    # shift, error, diffphase = register_translation(roi(image), roi(offset_image), 100)
+
+    from matplotlib import pyplot as plt
+    plt.imshow(image)
+    plt.savefig("image_debug.png")
+    plt.imshow(offset_image)
+    plt.savefig("offset_image_debug.png")
+
+    try:              shift, error, diffphase = phase_cross_correlation(image, offset_image, upsample_factor=10, normalization=None)
+    except TypeError: shift, error, diffphase = phase_cross_correlation(image, offset_image, upsample_factor=10)
 
     print('shift dist: {}, alignment error: {} and phase difference: {}'.format(shift, error, diffphase))
     # image_back = image_shift(offset_image, shift[0], shift[1])

@@ -59,8 +59,6 @@ WavefrontSensorInitializationFile.initialize()
 WavefrontSensorInitializationFile.store()
 
 PIXEL_SIZE          = WavefrontSensorInitializationFile.PIXEL_SIZE
-IMAGE_SIZE_PIXEL_V  = WavefrontSensorInitializationFile.IMAGE_SIZE_PIXEL_V
-IMAGE_SIZE_PIXEL_H  = WavefrontSensorInitializationFile.IMAGE_SIZE_PIXEL_H
 DETECTOR_RESOLUTION = WavefrontSensorInitializationFile.DETECTOR_RESOLUTION
 INDEX_DIGITS        = WavefrontSensorInitializationFile.INDEX_DIGITS
 IS_STREAM_AVAILABLE = WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE

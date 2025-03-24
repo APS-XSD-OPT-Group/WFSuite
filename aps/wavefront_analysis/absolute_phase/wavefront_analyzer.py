@@ -59,7 +59,7 @@ from aps.wavefront_analysis.absolute_phase.legacy.back_propagation_executor impo
 
 from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer, ProcessingMode, MAX_THREADS
 from aps.wavefront_analysis.driver.wavefront_sensor import get_default_file_name_prefix, get_image_data, \
-    PIXEL_SIZE, IMAGE_SIZE_PIXEL_V, IMAGE_SIZE_PIXEL_H, DETECTOR_RESOLUTION, INDEX_DIGITS
+    PIXEL_SIZE, DETECTOR_RESOLUTION, INDEX_DIGITS
 
 from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
 
@@ -365,7 +365,6 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
                           crop=kwargs.get("crop", CROP),
                           img_transfer_matrix=kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
                           find_transferMatrix=False,
-                          det_size=kwargs.get("detector_size", [IMAGE_SIZE_PIXEL_V, IMAGE_SIZE_PIXEL_H]),
                           p_x=kwargs.get("pixel_size", PIXEL_SIZE),
                           det_res=kwargs.get("detector_resolution",DETECTOR_RESOLUTION),
                           energy=energy,
@@ -434,7 +433,6 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
                               crop=kwargs.get("crop", CROP),
                               img_transfer_matrix=None,
                               find_transferMatrix=True,
-                              det_size=kwargs.get("detector_size", [IMAGE_SIZE_PIXEL_V, IMAGE_SIZE_PIXEL_H]),
                               p_x=kwargs.get("pixel_size", PIXEL_SIZE),
                               det_res=kwargs.get("detector_resolution", DETECTOR_RESOLUTION),
                               energy=energy,

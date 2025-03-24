@@ -21,7 +21,7 @@ def initialize(working_directory):
     measurement_directory = os.path.abspath(os.path.join(working_directory, "wf_images"))
 
     wavefront_sensor   = create_wavefront_sensor(measurement_directory=measurement_directory)
-    wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=measurement_directory)
+    wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=measurement_directory, energy=ENERGY)
 
     try:    wavefront_sensor.restore_status()
     except: pass
@@ -38,7 +38,7 @@ from aps.common.logger import _InnerColors
 
 from aps.wavefront_analysis.driver.wavefront_sensor import IS_STREAM_AVAILABLE
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import IMAGE_OPS
-from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (KIND, DISTANCE, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
+from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import (ENERGY, KIND, DISTANCE, DISTANCE_H, DISTANCE_V, CROP_H, CROP_V, MAGNIFICATION_H, MAGNIFICATION_V,
                                                                       REBINNING_BP, SIGMA_INTENSITY, SIGMA_PHASE, SMOOTH_INTENSITY, SMOOTH_PHASE, SCAN_BEST_FOCUS, BEST_FOCUS_FROM, DELTA_F_H, DELTA_F_V)
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import MODE, LINE_WIDTH, DOWN_SAMPLING, N_CORES, WINDOW_SEARCH, REBINNING, METHOD
 
@@ -485,10 +485,9 @@ class WavefrontAnalysisForm(QWidget):
     def plot_shot_image(self, image, h_coord, v_coord, image_ops):
         h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
 
-        # Image/PVA to matplotlib
-        data_2D = image.T
-        hh      = v_coord
-        vv      = h_coord[::-1]
+        data_2D = image
+        hh      = h_coord
+        vv      = v_coord[::-1]
 
         fig = self._result_figure
 
