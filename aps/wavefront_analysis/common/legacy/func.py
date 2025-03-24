@@ -370,25 +370,15 @@ def image_align(image, offset_image):
             pos:                best shift postion to maximize the correlation
             image_back:         the image after alignment
     '''
-    # from skimage.feature import register_translation
-    # from skimage.feature.register_translation import _upsampled_dft
     from skimage.registration import phase_cross_correlation
-    # from skimage.registration._phase_cross_correlation import _upsampled_dft
     from scipy.ndimage import fourier_shift
-    # roi = lambda x: x[0:100][0:100]
-    # shift, error, diffphase = register_translation(image, offset_image, 10)
 
-    from matplotlib import pyplot as plt
-    plt.imshow(image)
-    plt.savefig("image_debug.png")
-    plt.imshow(offset_image)
-    plt.savefig("offset_image_debug.png")
-
-    try:              shift, error, diffphase = phase_cross_correlation(image, offset_image, upsample_factor=10, normalization=None)
-    except TypeError: shift, error, diffphase = phase_cross_correlation(image, offset_image, upsample_factor=10)
+    # L. REBUFFI: this try/except takes into account the change in behaviour after scikit-image version > 0.19.2
+    try:              shift, error, diffphase = phase_cross_correlation(image, offset_image, upsample_factor=10, normalization=None) # scikit-image > 0.19.2
+    except TypeError: shift, error, diffphase = phase_cross_correlation(image, offset_image, upsample_factor=10)                     # scikit-image <= 0.19.2
 
     print('shift dist: {}, alignment error: {} and phase difference: {}'.format(shift, error, diffphase))
-    # image_back = image_shift(offset_image, shift[0], shift[1])
+
     image_back = fourier_shift(np.fft.fftn(offset_image), shift)
     image_back = np.real(np.fft.ifftn(image_back))
     return shift, image_back
