@@ -202,7 +202,7 @@ class WavefrontAnalysisForm(QWidget):
                     image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
                     image_ops = self.image_ops.split(sep=",") # PVA to Image
                 else:
-                    image, h_coord, v_coord = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
+                    h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
                     image_ops = []
 
                 if self.plot_image: self.plot_shot_image(image, h_coord, v_coord, image_ops)

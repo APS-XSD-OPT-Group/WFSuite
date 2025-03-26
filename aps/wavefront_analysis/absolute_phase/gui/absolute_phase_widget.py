@@ -44,6 +44,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
+import os
 import sys
 
 import numpy as np
@@ -57,12 +58,17 @@ from aps.common.scripts.script_data import ScriptData
 from aps.common.utilities import list_to_string, string_to_list
 
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.ticker import FuncFormatter
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
+from cmasher import cm as cmm
 
 from PyQt5.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QScrollArea
 from PyQt5.QtCore import QRect, Qt
-from PyQt5.QtGui import QFont, QPalette, QColor
+from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
+
+from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager_initialization import get_data_from_int_to_string, get_data_from_string_to_int
+
+DEBUG_MODE = int(os.environ.get("DEBUG_MODE", 0)) == 1
 
 class AbsolutePhaseWidget(GenericWidget):
     def __init__(self, parent, application_name=None, **kwargs):
@@ -73,8 +79,24 @@ class AbsolutePhaseWidget(GenericWidget):
         # METHODS
         self._connect_wavefront_sensor      = kwargs["connect_wavefront_sensor_method"]
         self._close                         = kwargs["close_method"]
+        self._take_shot                     = kwargs["take_shot_method"]
+        self._take_shot_and_generate_mask   = kwargs["take_shot_and_generate_mask_method"]
+        self._take_shot_and_process_image   = kwargs["take_shot_and_process_image_method"]
+        self._take_shot_and_back_propagate  = kwargs["take_shot_and_back_propagate_method"]
+        self._read_image_from_file          = kwargs["read_image_from_file_method"]
+        self._generate_mask_from_file       = kwargs["generate_mask_from_file_method"]
+        self._process_image_from_file       = kwargs["process_image_from_file_method"]
+        self._back_propagate_from_file      = kwargs["back_propagate_from_file_method"]
 
         self._set_values_from_initialization_parameters()
+
+        icons_path = os.path.join(os.path.dirname(__import__("aps.wavefront_analysis.absolute_phase.gui", fromlist=[""]).__file__), 'icons')
+        self.__ws_pixmaps = {
+            "red": QPixmap(os.path.join(icons_path, "red_light.png")).scaled(25, 25, Qt.KeepAspectRatio, Qt.SmoothTransformation),
+            "green": QPixmap(os.path.join(icons_path, "green_light.png")).scaled(25, 25, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        }
+
+        self.__is_wavefront_sensor_initialized = False
 
         super(AbsolutePhaseWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
 
@@ -86,9 +108,9 @@ class AbsolutePhaseWidget(GenericWidget):
         initialization_parameters: ScriptData = self._initialization_parameters
 
         self.wavefront_sensor_image_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory", os.path.join(os.path.abspath(os.curdir), "wf_images"))
-        self.save_result                      = initialization_parameters.get_parameter("save_result", True)
+        self.save_images                      = initialization_parameters.get_parameter("save_images", True)
         self.plot_raw_image                   = initialization_parameters.get_parameter("plot_raw_image", True)
-        self.data_from                        = initialization_parameters.get_parameter("data_from", True)
+        self.data_from                        = initialization_parameters.get_parameter("data_from", 1)
 
         # -----------------------------------------------------
         # Wavefront Sensor
@@ -137,7 +159,10 @@ class AbsolutePhaseWidget(GenericWidget):
         self.crop = list_to_string(data_analysis_configuration["crop"])
         self.estimation_method = data_analysis_configuration["estimation_method"]
         self.propagator = data_analysis_configuration["propagator"]
-        self.image_ops = list_to_string(data_analysis_configuration["image_ops"])
+
+        self._image_ops = data_analysis_configuration["image_ops"]
+
+        self.image_ops = list_to_string(self._image_ops.get(get_data_from_int_to_string(self.data_from), []))
         self.calibration_path = data_analysis_configuration["calibration_path"]
         self.mode = data_analysis_configuration["mode"]
         self.line_width = data_analysis_configuration["line_width"]
@@ -151,13 +176,12 @@ class AbsolutePhaseWidget(GenericWidget):
         self.n_iterations = data_analysis_configuration["n_iterations"]
         self.template_size = data_analysis_configuration["template_size"]
         self.window_search = data_analysis_configuration["window_search"]
-        self.crop_boundary = list_to_string(data_analysis_configuration["crop_boundary"])
+        self.crop_boundary = data_analysis_configuration["crop_boundary"]
         self.n_cores = data_analysis_configuration["n_cores"]
         self.n_group = data_analysis_configuration["n_group"]
         self.image_transfer_matrix = list_to_string(data_analysis_configuration["image_transfer_matrix"])
         self.show_align_figure = data_analysis_configuration["show_align_figure"]
         self.correct_scale = data_analysis_configuration["correct_scale"]
-
 
         self._delta_f_v = back_propagation_configuration["delta_f_v"]
         self._delta_f_h = back_propagation_configuration["delta_f_h"]
@@ -266,7 +290,7 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(ws_box_2, self, "pixel_size",          "Pixel Size [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(ws_box_2, self, "detector_resolution", "Resolution [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
 
-        ws_box_3 = gui.widgetBox(ws_tab_2, "Epics", width=self._ws_box.width()-15, height=350)
+        ws_box_3 = gui.widgetBox(ws_tab_2, "Epics", width=self._ws_box.width()-15, height=340)
 
         gui.lineEdit(ws_box_3, self, "cam_pixel_format",      "Cam: Pixel Format",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
         gui.lineEdit(ws_box_3, self, "cam_acquire",           "Cam: Acquire",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
@@ -280,17 +304,6 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(ws_box_3, self, "tiff_savefile",         "Tiff: Write File",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
         gui.lineEdit(ws_box_3, self, "tiff_autoincrement",    "Tiff: Auto-Increment",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
         gui.lineEdit(ws_box_3, self, "pva_image",             "Pva Image",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-
-        ws_button = gui.button(self._ws_box, None, "Connect Wavefront Sensor", callback=self._connect_wavefront_sensor_callback, width=self._ws_box.width(), height=60)
-
-        font = QFont(ws_button.font())
-        font.setBold(True)
-        font.setItalic(False)
-        font.setPixelSize(18)
-        ws_button.setFont(font)
-        palette = QPalette(ws_button.palette())
-        palette.setColor(QPalette.ButtonText, QColor('Dark Red'))
-        ws_button.setPalette(palette)
 
         #########################################################################################
         # WAVEFRONT ANALYSIS
@@ -337,8 +350,8 @@ class AbsolutePhaseWidget(GenericWidget):
 
         wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=130)
 
-        gui.comboBox(wa_box_3, self, "data_from", label="Data From", labelWidth=labels_width_1, orientation='horizontal', items=["stream", "file"])
-        gui.lineEdit(wa_box_3, self, "image_ops", "Image Transformations (T, FV, FH)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
+        gui.comboBox(wa_box_3, self, "data_from", label="Data From", labelWidth=labels_width_1, orientation='horizontal', items=["stream", "file"], callback=self._set_data_from)
+        self.le_image_ops = gui.lineEdit(wa_box_3, self, "image_ops", "Image Transformations (T, FV, FH)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_image_ops)
         gui.lineEdit(wa_box_3, self, "crop", "Crop (-1: auto, n: pixels around center,\n            x1, x2, y2, y2: coordinates in pixels)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
         wa_box_7 = gui.widgetBox(wa_tab_5, "Processing", width=self._wa_box.width()-25, height=120)
@@ -351,13 +364,13 @@ class AbsolutePhaseWidget(GenericWidget):
 
         gui.checkBox(wa_box_4, self, "show_align_figure",  "Show Align Figure")
         gui.checkBox(wa_box_4, self, "correct_scale",      "Correct Scale")
-        le = gui.lineEdit(wa_box_4, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
-        le.setReadOnly(True)
-        font = QFont(le.font())
+        self._le_itm = gui.lineEdit(wa_box_4, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
+        self._le_itm.setReadOnly(True)
+        font = QFont(self._le_itm.font())
         font.setBold(True)
         font.setItalic(False)
-        le.setFont(font)
-        le.setStyleSheet("QLineEdit {color : darkgreen; background : rgb(243, 240, 160)}")
+        self._le_itm.setFont(font)
+        self._le_itm.setStyleSheet("QLineEdit {color : darkgreen; background : rgb(243, 240, 160)}")
 
         wa_box_5 = gui.widgetBox(wa_tab_2, "Simulated Mask", width=self._wa_box.width()-25, height=90)
 
@@ -378,15 +391,14 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(wa_box_6, self, "n_iterations", label="Number of Iterations", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(wa_box_6, self, "template_size", label="Template Size", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(wa_box_6, self, "window_search", label="Window Search", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
-        gui.lineEdit(wa_box_6, self, "crop_boundary", "Boundary Crop (same format as Crop)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
-
+        gui.lineEdit(wa_box_6, self, "crop_boundary", "Boundary Crop (-1: auto, 0: no, n: nr pixels)", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
         #########################################################################################
         # Back-Propagation
 
         bp_box_1 = gui.widgetBox(wa_tab_3, "Propagation", width=self._wa_box.width()-25, height=260)
 
-        self.le_kind                   = gui.lineEdit(bp_box_1, self, "kind", label="Kind (1D, 2D)", labelWidth=labels_width_1, orientation='horizontal',  valueType=str, callback=self._set_kind)
+        self.le_kind  = gui.lineEdit(bp_box_1, self, "kind", label="Kind (1D, 2D)", labelWidth=labels_width_1, orientation='horizontal',  valueType=str, callback=self._set_kind)
 
         self.kind_box_1_1 = gui.widgetBox(bp_box_1, "", width=bp_box_1.width()-20, height=50)
         self.kind_box_2_1 = gui.widgetBox(bp_box_1, "", width=bp_box_1.width()-20, height=50)
@@ -435,12 +447,41 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(bp_box_3, self, "rms_range_h", label="R.M.S. Range H [m] (start, stop)", labelWidth=220, orientation='horizontal', valueType=str)
         gui.lineEdit(bp_box_3, self, "rms_range_v", label="R.M.S. Range V [m] (start, stop)", labelWidth=220, orientation='horizontal', valueType=str)
 
+        self._set_data_from()
+        self._set_method()
         self._set_d_source_recal()
         self._set_kind()
 
         #########################################################################################
-        # BACK-PROPAGATION
+        # Execution
 
+        self._ex_box = gui.widgetBox(ex_tab, "", width=self._main_box.width() - 10, height=self._main_box.height() - 85)
+
+        gui.separator(self._ex_box)
+
+        ex_box_0 = gui.widgetBox(self._ex_box , "Wavefront Sensor",  width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
+        ex_box_1 = gui.widgetBox(self._ex_box , "Online",            width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
+        ex_box_2 = gui.widgetBox(self._ex_box , "Offline (no W.S.)", width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
+
+        ws_button = gui.button(ex_box_0, None, "Connect Wavefront Sensor", callback=self._connect_wavefront_sensor_callback, width=ex_box_0.width()-20, height=60)
+        font = QFont(ws_button.font())
+        font.setBold(True)
+        font.setItalic(False)
+        font.setPixelSize(18)
+        ws_button.setFont(font)
+        palette = QPalette(ws_button.palette())
+        palette.setColor(QPalette.ButtonText, QColor('Dark Red'))
+        ws_button.setPalette(palette)
+
+        gui.button(ex_box_1, None, "Take Shot",                    callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
+        gui.button(ex_box_1, None, "Take Shot and Generate Mask",  callback=self._take_shot_and_generate_mask_callback, width=ex_box_1.width()-20, height=35)
+        gui.button(ex_box_1, None, "Take Shot and Process Image",  callback=self._take_shot_and_process_image_callback, width=ex_box_1.width()-20, height=35)
+        gui.button(ex_box_1, None, "Take Shot and Back-Propagate", callback=self._take_shot_and_back_propagate_callback, width=ex_box_1.width()-20, height=35)
+
+        gui.button(ex_box_2, None, "Read Image From File",     callback=self._read_image_from_file_callback, width=ex_box_2.width()-20, height=35)
+        gui.button(ex_box_2, None, "Generate Mask From File",  callback=self._generate_mask_from_file_callback, width=ex_box_2.width()-20, height=35)
+        gui.button(ex_box_2, None, "Process Image From File",  callback=self._process_image_from_file_callback, width=ex_box_2.width()-20, height=35)
+        gui.button(ex_box_2, None, "Back-Propagate From File", callback=self._back_propagate_from_file_callback, width=ex_box_2.width()-20, height=35)
 
         #########################################################################################
         #########################################################################################
@@ -449,9 +490,12 @@ class AbsolutePhaseWidget(GenericWidget):
         #########################################################################################
 
         self._out_box     = gui.widgetBox(self, "", width=self.width() - main_box_width - 20, height=self.height() - 20, orientation="vertical")
-        self._ws_dir_box  = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=50)
+        self._ws_dir_box  = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=50, orientation="horizontal")
 
-        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Working Directory", labelWidth=150, orientation='horizontal', valueType=str)
+        gui.widgetLabel(self._ws_dir_box, "Wavefront Sensor  ")
+        self._ws_label = gui.widgetLabel(self._ws_dir_box)
+
+        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Working Directory", labelWidth=120, orientation='horizontal', valueType=str)
         self.le_working_directory.setReadOnly(True)
         font = QFont(self.le_working_directory.font())
         font.setBold(True)
@@ -479,34 +523,91 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self._wf_tab_widget = gui.tabWidget(self._wavefront_box)
 
+        figsize = (9.4, 5.15)
+
         self._wf_tab_0 = gui.createTabPage(self._wf_tab_widget, "At Detector")
         self._wf_tab_1 = gui.createTabPage(self._wf_tab_widget, "Back Propagated")
         self._wf_tab_2 = gui.createTabPage(self._wf_tab_widget, "Longitudinal Profiles")
+        
+        # ------------------------- WF DET
+        
+        self._wf_tab_0_widget = gui.tabWidget(self._wf_tab_0)
 
-        self._wf_box_0     = gui.widgetBox(self._wf_tab_0, "")
-        self._wf_box_1     = gui.widgetBox(self._wf_tab_1, "")
-        self._wf_box_2     = gui.widgetBox(self._wf_tab_2, "")
+        self._wf_tab_0_0 = gui.createTabPage(self._wf_tab_0_widget, "Intensity")
+        self._wf_tab_0_1 = gui.createTabPage(self._wf_tab_0_widget, "Phase")
+        self._wf_tab_0_2 = gui.createTabPage(self._wf_tab_0_widget, "Displacement")
+        self._wf_tab_0_3 = gui.createTabPage(self._wf_tab_0_widget, "Curvature")
 
-        self._wf_det_figure = Figure(figsize=(9.65, 5.9), constrained_layout=True)
-        self._wf_det_figure_canvas = FigureCanvas(self._wf_det_figure)
-        self._wf_det_scroll = QScrollArea(self._wf_box_0)
-        self._wf_det_scroll.setWidget(self._wf_det_figure_canvas)
-        self._wf_box_0.layout().addWidget(NavigationToolbar(self._wf_det_figure_canvas, self))
-        self._wf_box_0.layout().addWidget(self._wf_det_scroll)
+        self._wf_box_0_0     = gui.widgetBox(self._wf_tab_0_0, "")
+        self._wf_box_0_1     = gui.widgetBox(self._wf_tab_0_1, "")
+        self._wf_box_0_2     = gui.widgetBox(self._wf_tab_0_2, "")
+        self._wf_box_0_3     = gui.widgetBox(self._wf_tab_0_3, "")        
 
-        self._wf_prop_figure = Figure(figsize=(9.65, 5.9), constrained_layout=True)
-        self._wf_prop_figure_canvas = FigureCanvas(self._wf_prop_figure)
-        self._wf_prop_scroll = QScrollArea(self._wf_box_1)
-        self._wf_prop_scroll.setWidget(self._wf_prop_figure_canvas)
-        self._wf_box_1.layout().addWidget(NavigationToolbar(self._wf_prop_figure_canvas, self))
-        self._wf_box_1.layout().addWidget(self._wf_prop_scroll)
+        self._wf_int_figure = Figure(figsize=figsize, constrained_layout=True)
+        self._wf_int_figure_canvas = FigureCanvas(self._wf_int_figure)
+        self._wf_int_scroll = QScrollArea(self._wf_box_0_0)
+        self._wf_int_scroll.setWidget(self._wf_int_figure_canvas)
+        self._wf_box_0_0.layout().addWidget(NavigationToolbar(self._wf_int_figure_canvas, self))
+        self._wf_box_0_0.layout().addWidget(self._wf_int_scroll)
 
-        self._wf_prof_figure = Figure(figsize=(9.65, 5.9), constrained_layout=True)
+        self._wf_pha_figure = Figure(figsize=figsize, constrained_layout=True)
+        self._wf_pha_figure_canvas = FigureCanvas(self._wf_pha_figure)
+        self._wf_pha_scroll = QScrollArea(self._wf_box_0_1)
+        self._wf_pha_scroll.setWidget(self._wf_pha_figure_canvas)
+        self._wf_box_0_1.layout().addWidget(NavigationToolbar(self._wf_pha_figure_canvas, self))
+        self._wf_box_0_1.layout().addWidget(self._wf_pha_scroll)
+        
+        self._wf_dis_figure = Figure(figsize=figsize, constrained_layout=True)
+        self._wf_dis_figure_canvas = FigureCanvas(self._wf_dis_figure)
+        self._wf_dis_scroll = QScrollArea(self._wf_box_0_2)
+        self._wf_dis_scroll.setWidget(self._wf_dis_figure_canvas)
+        self._wf_box_0_2.layout().addWidget(NavigationToolbar(self._wf_dis_figure_canvas, self))
+        self._wf_box_0_2.layout().addWidget(self._wf_dis_scroll)
+        
+        self._wf_cur_figure = Figure(figsize=figsize, constrained_layout=True)
+        self._wf_cur_figure_canvas = FigureCanvas(self._wf_cur_figure)
+        self._wf_cur_scroll = QScrollArea(self._wf_box_0_3)
+        self._wf_cur_scroll.setWidget(self._wf_cur_figure_canvas)
+        self._wf_box_0_3.layout().addWidget(NavigationToolbar(self._wf_cur_figure_canvas, self))
+        self._wf_box_0_3.layout().addWidget(self._wf_cur_scroll)
+
+        # ------------------------- WF PROP
+        
+        self._wf_tab_1_widget = gui.tabWidget(self._wf_tab_1)
+
+        self._wf_tab_1_0 = gui.createTabPage(self._wf_tab_1_widget, "Intensity (2D)")
+        self._wf_tab_1_1 = gui.createTabPage(self._wf_tab_1_widget, "Projections (1D)")
+
+        self._wf_box_1_0 = gui.widgetBox(self._wf_tab_1_0, "")
+        self._wf_box_1_1 = gui.widgetBox(self._wf_tab_1_1, "")
+
+        self._wf_int_prop_figure = Figure(figsize=figsize, constrained_layout=True)
+        self._wf_int_prop_figure_canvas = FigureCanvas(self._wf_int_prop_figure)
+        self._wf_int_prop_scroll = QScrollArea(self._wf_box_1_0)
+        self._wf_int_prop_scroll.setWidget(self._wf_int_prop_figure_canvas)
+        self._wf_box_1_0.layout().addWidget(NavigationToolbar(self._wf_int_prop_figure_canvas, self))
+        self._wf_box_1_0.layout().addWidget(self._wf_int_prop_scroll)
+        
+        self._wf_ipr_prop_figure = Figure(figsize=figsize, constrained_layout=True)
+        self._wf_ipr_prop_figure_canvas = FigureCanvas(self._wf_ipr_prop_figure)
+        self._wf_ipr_prop_scroll = QScrollArea(self._wf_box_1_1)
+        self._wf_ipr_prop_scroll.setWidget(self._wf_ipr_prop_figure_canvas)
+        self._wf_box_1_1.layout().addWidget(NavigationToolbar(self._wf_ipr_prop_figure_canvas, self))
+        self._wf_box_1_1.layout().addWidget(self._wf_ipr_prop_scroll)
+
+        # ------------------------- WF PROILES
+        
+        self._wf_tab_2_widget = gui.tabWidget(self._wf_tab_2)
+
+        self._wf_tab_2_0 = gui.createTabPage(self._wf_tab_2_widget, "Best Focus Search")
+        self._wf_box_2_0 = gui.widgetBox(self._wf_tab_2_0, "")
+
+        self._wf_prof_figure = Figure(figsize=figsize, constrained_layout=True)
         self._wf_prof_figure_canvas = FigureCanvas(self._wf_prof_figure)
-        self._wf_prof_scroll = QScrollArea(self._wf_box_2)
+        self._wf_prof_scroll = QScrollArea(self._wf_box_2_0)
         self._wf_prof_scroll.setWidget(self._wf_prof_figure_canvas)
-        self._wf_box_2.layout().addWidget(NavigationToolbar(self._wf_prof_figure_canvas, self))
-        self._wf_box_2.layout().addWidget(self._wf_prof_scroll)
+        self._wf_box_2_0.layout().addWidget(NavigationToolbar(self._wf_prof_figure_canvas, self))
+        self._wf_box_2_0.layout().addWidget(self._wf_prof_scroll)
 
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignCenter)
@@ -516,6 +617,8 @@ class AbsolutePhaseWidget(GenericWidget):
             self._log_stream_widget.set_widget_size(width=self._log_box.width() - 15, height=self._log_box.height() - 35)
         else:
             self._log_box.layout().addWidget(QLabel("Log on file only"))
+
+        self._set_wavefront_sensor_icon()
 
     def _set_wavefront_sensor_image_directory(self):
         self.le_wavefront_sensor_image_directory.setText(
@@ -533,6 +636,17 @@ class AbsolutePhaseWidget(GenericWidget):
             self.kind_box_1_2.setVisible(self.kind=="2D")
             self.kind_box_2_1.setVisible(self.kind=="1D")
             self.kind_box_2_2.setVisible(self.kind=="1D")
+
+    def _set_data_from(self):
+        data_from = get_data_from_int_to_string(self.data_from)
+
+        self.image_ops = list_to_string(self._image_ops.get(data_from, []))
+        self.le_image_ops.setText(str(self.image_ops))
+
+    def _set_image_ops(self):
+        data_from = get_data_from_int_to_string(self.data_from)
+
+        self._image_ops[data_from] = string_to_list(self.image_ops, str)
 
     def _set_method(self):
         if not self.method in ["WXST", "SPINNet"]: MessageDialog.message(self, title="Input Error", message="Method must be 'WXST' or 'SPINNet'", type="critical", width=500)
@@ -606,7 +720,7 @@ class AbsolutePhaseWidget(GenericWidget):
         data_analysis_configuration["crop"] = string_to_list(self.crop, int)
         data_analysis_configuration["estimation_method"] = self.estimation_method
         data_analysis_configuration["propagator"] = self.propagator
-        data_analysis_configuration["image_ops"] = string_to_list(self.image_ops, str)
+        data_analysis_configuration["image_ops"] = self._image_ops
         data_analysis_configuration["calibration_path"] = self.calibration_path
         data_analysis_configuration["mode"] = self.mode
         data_analysis_configuration["line_width"] = self.line_width
@@ -620,7 +734,7 @@ class AbsolutePhaseWidget(GenericWidget):
         data_analysis_configuration["n_iterations"] = self.n_iterations
         data_analysis_configuration["template_size"] = self.template_size
         data_analysis_configuration["window_search"] = self.window_search
-        data_analysis_configuration["crop_boundary"] = string_to_list(self.crop_boundary, int)
+        data_analysis_configuration["crop_boundary"] = self.crop_boundary
         data_analysis_configuration["n_cores"] = self.n_cores
         data_analysis_configuration["n_group"] = self.n_group
         data_analysis_configuration["image_transfer_matrix"] = string_to_list(self.image_transfer_matrix, int)
@@ -657,7 +771,7 @@ class AbsolutePhaseWidget(GenericWidget):
         # Widget ini
 
         initialization_parameters.set_parameter("wavefront_sensor_image_directory", self.wavefront_sensor_image_directory)
-        initialization_parameters.set_parameter("save_result",                      bool(self.save_result))
+        initialization_parameters.set_parameter("save_images",                      bool(self.save_images))
         initialization_parameters.set_parameter("plot_raw_image",                   bool(self.plot_raw_image))
         initialization_parameters.set_parameter("data_from",                        self.data_from)
 
@@ -672,11 +786,365 @@ class AbsolutePhaseWidget(GenericWidget):
             self._connect_wavefront_sensor(self._initialization_parameters)
 
             MessageDialog.message(self, title="Wavefront Sensor", message="Wavefront Sensor is connected", type="information", width=500)
+
+            self.__is_wavefront_sensor_initialized = True
         except ValueError as error:
+            self.__is_wavefront_sensor_initialized = False
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
         except Exception as exception:
+            self.__is_wavefront_sensor_initialized = False
             MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+
+        self._set_wavefront_sensor_icon()
+
+    def _set_wavefront_sensor_icon(self):
+        color = "green" if self.__is_wavefront_sensor_initialized else "red"
+        self._ws_label.setPixmap(self.__ws_pixmaps[color])
+
+    # Online -------------------------------------------
+
+    def _take_shot_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+            h_coord, v_coord, image = self._take_shot(self._initialization_parameters)
+
+            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            if DEBUG_MODE: raise exception
+
+    def _take_shot_and_generate_mask_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+            h_coord, v_coord, image, image_transfer_matrix = self._take_shot_and_generate_mask(self._initialization_parameters)
+
+            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            if DEBUG_MODE: raise exception
+
+    def _take_shot_and_process_image_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+            h_coord, v_coord, image, wavefront_at_detector_data = self._take_shot_and_process_image(self._initialization_parameters)
+
+            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+            self.__plot_wavefront_at_detector(wavefront_at_detector_data)
+
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            if DEBUG_MODE: raise exception
+
+    def _take_shot_and_back_propagate_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+            h_coord, v_coord, image, wavefront_at_detector_data, propagated_wavefront_data = self._take_shot_and_back_propagate(self._initialization_parameters)
+
+            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+            self.__plot_wavefront_at_detector(wavefront_at_detector_data)
+            self.__plot_back_propagated_wavefront(propagated_wavefront_data)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            if DEBUG_MODE: raise exception
+
+    # Offline -------------------------------------------
+
+    def _read_image_from_file_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+            h_coord, v_coord, image = self._read_image_from_file(self._initialization_parameters)
+
+            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            if DEBUG_MODE: raise exception
+
+    def _generate_mask_from_file_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+
+            image_transfer_matrix = self._generate_mask_from_file(self._initialization_parameters)
+
+            MessageDialog.message(self, title="Mask Generation", message=f"Image Transfer Matrix: {image_transfer_matrix}", type="information", width=500)
+
+            self.image_transfer_matrix = list_to_string(image_transfer_matrix)
+            self._le_itm.setText(self.image_transfer_matrix)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            if DEBUG_MODE: raise exception
+
+    def _process_image_from_file_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+
+            wavefront_at_detector_data = self._process_image_from_file(self._initialization_parameters)
+
+            self.__plot_wavefront_at_detector(wavefront_at_detector_data)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            if DEBUG_MODE: raise exception
+
+    def _back_propagate_from_file_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+
+            propagated_wavefront_data = self._back_propagate_from_file(self._initialization_parameters)
+
+            self.__plot_back_propagated_wavefront(propagated_wavefront_data)
+            if bool(self.scan_best_focus): self.__plot_longitudinal_profiles(propagated_wavefront_data)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            if DEBUG_MODE: raise exception
 
     @synchronized_method
     def analysis_completed(self):
         pass
+
+    def __plot_shot_image(self, h_coord, v_coord, image):
+        data_2D = image
+        hh      = h_coord
+        vv      = v_coord[::-1]
+
+        xrange = [np.min(hh), np.max(hh)]
+        yrange = [np.min(vv), np.max(vv)]
+
+        fig = self._image_figure.figure
+        fig.clear()
+
+        def custom_formatter(x, pos): return f'{x:.2f}'
+
+        axis  = fig.gca()
+        image = axis.pcolormesh(hh, vv, data_2D, cmap=cmm.sunburst_r, rasterized=True)
+        axis.set_xlim(xrange[0], xrange[1])
+        axis.set_ylim(yrange[0], yrange[1])
+        axis.set_xticks(np.linspace(xrange[0], xrange[1], 11, endpoint=True))
+        axis.set_yticks(np.linspace(yrange[0], yrange[1], 11, endpoint=True))
+        axis.xaxis.set_major_formatter(FuncFormatter(custom_formatter))
+        axis.yaxis.set_major_formatter(FuncFormatter(custom_formatter))
+        axis.axhline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+        axis.axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+        axis.set_xlabel("Horizontal (mm)")
+        axis.set_ylabel("Vertical (mm)")
+        axis.set_aspect("equal")
+
+        cbar = fig.colorbar(mappable=image, ax=axis, pad=0.01, aspect=30, shrink=0.6)
+        cbar.ax.text(0.5, 1.05, "pI", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
+
+        self._image_figure_canvas.draw()
+
+        self._out_tab_widget.setCurrentIndex(0)
+        
+    def __plot_wavefront_at_detector(self, wavefront_data):
+        p_x = self.pixel_size*self.rebinning
+
+        if wavefront_data['mode'] == 'area':
+            intensity     = wavefront_data['intensity']
+            phase         = wavefront_data['phase']
+            line_displace = wavefront_data['line_displace']
+            line_curve    = wavefront_data['line_curve']
+
+            plot_2D(self._wf_int_figure.figure, intensity, "[counts]", p_x)
+            self._wf_int_figure_canvas.draw()
+
+            plot_2D(self._wf_pha_figure.figure, phase, "[rad]", p_x)
+            self._wf_pha_figure_canvas.draw()
+
+            plot_1D(self._wf_dis_figure.figure, line_displace[0], line_displace[1], "[px]", p_x)
+            self._wf_dis_figure_canvas.draw()
+
+            plot_1D(self._wf_cur_figure.figure, line_curve[0], line_curve[1], "[1/m]", p_x)
+            self._wf_cur_figure_canvas.draw()
+
+        elif wavefront_data['mode'] == 'lineWidth':
+            intensity     = wavefront_data['intensity']
+            phase         = wavefront_data['line_phase']
+            line_displace = wavefront_data['line_displace']
+            line_curve    = wavefront_data['line_curve']
+
+            plot_1D(self._wf_int_figure.figure, intensity[0], intensity[1], "[counts]", p_x)
+            self._wf_int_figure_canvas.draw()
+
+            plot_1D(self._wf_pha_figure.figure, phase[0], phase[1], "[rad]", p_x)
+            self._wf_pha_figure_canvas.draw()
+
+            plot_1D(self._wf_dis_figure.figure, line_displace[0], line_displace[1], "[px]", p_x)
+            self._wf_dis_figure_canvas.draw()
+
+            plot_1D(self._wf_cur_figure.figure, line_curve[0], line_curve[1], "[1/m]", p_x)
+            self._wf_cur_figure_canvas.draw()
+        else:
+            MessageDialog.message(self, title="Unexpected Error", message=f"Data not plottable, mode not recognized {wavefront_data['mode']}", type="critical", width=500)
+
+        self._out_tab_widget.setCurrentIndex(1)
+        self._wf_tab_widget.setCurrentIndex(0)
+        self._wf_tab_0_widget.setCurrentIndex(0)
+
+    def __plot_back_propagated_wavefront(self, wavefront_data):
+        if wavefront_data['kind'] == '2D':
+            intensity     = wavefront_data['intensity']
+            intensity_x   = wavefront_data['integrated_intensity_x']
+            intensity_y   = wavefront_data['integrated_intensity_y']
+            wf_position_x = wavefront_data['wf_position_x']
+            wf_position_y = wavefront_data['wf_position_y']
+            x_coordinates = wavefront_data['coordinates_x']
+            y_coordinates = wavefront_data['coordinates_y']
+
+            coords_orig = [(x_coordinates)*1e6, (y_coordinates)*1e6]
+            coords      = [(x_coordinates + wf_position_x)*1e6, (y_coordinates + wf_position_y)*1e6]
+
+            fig = self._wf_int_prop_figure.figure
+            fig.clear()
+
+            def custom_formatter(x, pos): return f'{x:.2f}'
+
+            axis = fig.gca()
+            image = axis.pcolormesh(coords[0], coords[1], intensity.T, cmap=cmm.sunburst_r, rasterized=True)
+            axis.set_xlim(coords_orig[0][0], coords_orig[0][-1])
+            axis.set_ylim(coords_orig[1][0], coords_orig[1][-1])
+            axis.set_xticks(np.linspace(coords_orig[0][0], coords_orig[0][-1], 6, endpoint=True))
+            axis.set_yticks(np.linspace(coords_orig[1][0], coords_orig[1][-1], 6, endpoint=True))
+            axis.xaxis.set_major_formatter(FuncFormatter(custom_formatter))
+            axis.yaxis.set_major_formatter(FuncFormatter(custom_formatter))
+            axis.axhline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+            axis.axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+            axis.set_xlabel('x ($\mu$m)')
+            axis.set_ylabel('y ($\mu$m)')
+            axis.set_aspect("equal")
+            axis.set_position([-0.175, 0.15, 1.0, 0.8])
+
+            cbar = fig.colorbar(mappable=image, ax=axis, pad=0.03, aspect=30, shrink=0.6)
+            cbar.ax.text(0.5, 1.05, "counts", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
+
+            self._wf_int_prop_figure_canvas.draw()
+
+            axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords)
+            axes[0].set_xlim(coords_orig[0][0], coords_orig[0][-1])
+            axes[1].set_xlim(coords_orig[1][0], coords_orig[1][-1])
+            axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+            axes[1].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+
+            self._wf_ipr_prop_figure_canvas.draw()
+        elif wavefront_data['kind'] == '1D':
+            intensity_x   = wavefront_data['intensity_x']
+            intensity_y   = wavefront_data['intensity_y']
+            wf_position_x = wavefront_data['wf_position_x']
+            wf_position_y = wavefront_data['wf_position_y']
+            x_coordinates = wavefront_data['coordinates_x']
+            y_coordinates = wavefront_data['coordinates_y']
+
+            coords = [(x_coordinates + wf_position_x)*1e6, (y_coordinates + wf_position_y)*1e6]
+
+            self._wf_int_prop_figure.figure.clear()
+            self._wf_int_prop_figure_canvas.draw()
+
+            axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords)
+            axes[0].set_xlim(coords_orig[0][0], coords_orig[0][-1])
+            axes[1].set_xlim(coords_orig[1][0], coords_orig[1][-1])
+            axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+            axes[1].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+
+            self._wf_ipr_prop_figure_canvas.draw()
+
+        self._out_tab_widget.setCurrentIndex(1)
+        self._wf_tab_widget.setCurrentIndex(1)
+        self._wf_tab_1_widget.setCurrentIndex(0)
+
+    def __plot_longitudinal_profiles(self, profiles_data):
+        bf_size_values_x     = profiles_data['bf_size_values_x']
+        bf_size_values_fit_x = profiles_data.get('bf_size_values_fit_x', None)
+        bf_size_values_y     = profiles_data['bf_size_values_y']
+        bf_size_values_fit_y = profiles_data.get('bf_size_values_fit_y', None)
+
+        if profiles_data['kind'] == '2D':
+            bf_propagation_distances  = profiles_data['bf_propagation_distances']
+            coords = [bf_propagation_distances, bf_propagation_distances]
+
+            focus_z_position_x = profiles_data["propagation_distance"] + profiles_data["focus_z_position_x"]
+            focus_z_position_y = profiles_data["propagation_distance"] + profiles_data["focus_z_position_y"]
+
+        elif profiles_data['kind'] == '1D':
+            bf_propagation_distances_x  = profiles_data['bf_propagation_distances_x']
+            bf_propagation_distances_y  = profiles_data['bf_propagation_distances_y']
+            coords = [bf_propagation_distances_x, bf_propagation_distances_y]
+
+            focus_z_position_x = profiles_data["propagation_distance_x"] + profiles_data["focus_z_position_x"]
+            focus_z_position_y = profiles_data["propagation_distance_y"] + profiles_data["focus_z_position_y"]
+
+        fig = self._wf_prof_figure
+        fig.clear()
+        axes = fig.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
+        axes[0].plot(coords[0], 1e6*bf_size_values_x,  marker='o', label=f"Size X")
+        if not bf_size_values_fit_x is None: axes[0].plot(coords[0], 1e6*bf_size_values_fit_x, label=f"Size X - FIT")
+        axes[0].set_xlabel('p. distance x (m)', fontsize=22)
+        axes[0].set_ylabel("Size X (um)", fontsize=22)
+        axes[0].legend()
+        axes[0].grid(True)
+        axes[0].axvline(focus_z_position_x, color="gray", ls="--", linewidth=2, alpha=0.9)
+
+        axes[1].plot(coords[1], 1e6*bf_size_values_y,  marker='o', label=f"Size Y")
+        if not bf_size_values_fit_y is None: axes[1].plot(coords[1], 1e6*bf_size_values_fit_y, label=f"Size Y - FIT")
+        axes[1].set_xlabel('p. distance y (m)', fontsize=22)
+        axes[1].set_ylabel("Size Y (um)", fontsize=22)
+        axes[1].legend()
+        axes[1].grid(True)
+        axes[1].axvline(focus_z_position_y, color="gray", ls="--", linewidth=2, alpha=0.9)
+
+        fig.tight_layout()
+
+        self._wf_prof_figure_canvas.draw()
+
+def plot_2D(fig, image, label, p_x, extent_data=None):
+    extent_data = np.array([
+        -image.shape[1] / 2 * p_x * 1e6,
+        image.shape[1] / 2 * p_x * 1e6,
+        -image.shape[0] / 2 * p_x * 1e6,
+        image.shape[0] / 2 * p_x * 1e6]) if extent_data is None else extent_data
+
+    fig.clear()
+    im = fig.gca().imshow(image, interpolation='bilinear', extent=extent_data)
+    fig.gca().set_position([-0.175, 0.15, 1.0, 0.8])
+    fig.gca().set_xlabel('x ($\mu$m)', fontsize=22)
+    fig.gca().set_ylabel('y ($\mu$m)', fontsize=22)
+    cbar = fig.colorbar(mappable=im, ax=fig.gca())
+    cbar.set_label(label, rotation=90, fontsize=20)
+    fig.gca().set_aspect('equal')
+
+def plot_1D(fig, line_x, line_y, label, p_x, coords=None):
+    coords = [(np.arange(len(line_x)) - len(line_x) / 2) * p_x * 1e6,
+            (np.arange(len(line_y)) - len(line_y) / 2) * p_x * 1e6] if coords is None else coords
+
+    fig.clear()
+    axes = fig.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
+    axes[0].plot(coords[0], line_x, 'k')
+    axes[0].set_xlabel('x ($\mu$m)', fontsize=22)
+    axes[0].set_ylabel(label, fontsize=22)
+    axes[1].plot(coords[1], line_y, 'k')
+    axes[1].set_xlabel('y ($\mu$m)', fontsize=22)
+    axes[1].set_ylabel(label, fontsize=22)
+    fig.tight_layout()
+
+    return axes

@@ -271,7 +271,7 @@ class pattern_search:
                     (self.source_distance_v + self.d_propagation) / self.source_distance_v]
         d_approx = [self.d_propagation / M_factor[0], self.d_propagation / M_factor[1]]
         prColor('M factor for propagation: {}'.format(M_factor), 'green')
-        prColor('equvalent distance for propagation: {}'.format(d_approx), 'green')
+        prColor('equivalent distance for propagation: {}'.format(d_approx), 'green')
         size_origin = A_pattern.shape
         prColor('origin size before propagation: {}'.format(size_origin), 'green')
 
@@ -1022,6 +1022,55 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
 from aps.wavefront_analysis.common.arguments import Args
 from aps.common.plot.image import rebin_2D, apply_transformations
 
+class ProcessImageResult:
+    def __init__(self, mode, intensity, phase, line_phase, line_displace, line_curve):
+        self.__mode = mode
+        self.__intensity = intensity
+        self.__phase = phase
+        self.__line_phase = line_phase
+        self.__line_displace = line_displace
+        self.__line_curve = line_curve
+
+    @property
+    def mode(self): return self.__mode
+    @mode.setter
+    def mode(self, value): self.__mode = value
+
+    @property
+    def intensity(self): return self.__intensity
+    @intensity.setter
+    def intensity(self, value): self.__intensity = value
+
+    @property
+    def phase(self): return self.__phase
+    @phase.setter
+    def phase(self, value): self.__phase = value
+
+    @property
+    def line_phase(self): return self.__line_phase
+    @line_phase.setter
+    def line_phase(self, value): self.__line_phase = value
+
+    @property
+    def line_displace(self): return self.__line_displace
+    @line_displace.setter
+    def line_displace(self, value): self.__line_displace = value
+
+    @property
+    def line_curve(self): return self.__line_curve
+    @line_curve.setter
+    def line_curve(self, value): self.__line_curve = value
+
+    def to_dict(self):
+        return {
+            'mode': self.__mode,
+            'intensity': self.__intensity,
+            'phase': self.__phase,
+            'line_phase': self.__line_phase,
+            'line_displace': self.__line_displace,
+            'line_curve': self.__line_curve
+        }
+
 def execute_process_image(**arguments):
     arguments["img"]                   = arguments.get("img", './images/sample_00001.tif') # path to sample image
     arguments["dark"]                  = arguments.get("dark", None) # file path to the dark image
@@ -1501,6 +1550,8 @@ def execute_process_image(**arguments):
                         'line_displace_x': line_displace[1],
                         'line_curve_x': line_curve_filter[1]},
                   path_folder=args.result_folder)
+
+        result = ProcessImageResult(args.mode, intensity, phase, line_phase, line_displace, line_curve_filter)
     elif args.mode == 'centralLine':
         prColor('speckle tracking mode: centralLine. Will use the central linewidth of {}um for calculation.'.format(args.lineWidth * args.pattern_size * 1e6), 'cyan')
         # crop the vertical and horizontal block for calculation
@@ -1579,3 +1630,6 @@ def execute_process_image(**arguments):
                         'line_curve_x': line_curve_filter[1]},
                   path_folder=args.result_folder)
 
+        result = ProcessImageResult(args.mode, [int_x, int_y], None, line_phase, line_displace, line_curve_filter)
+
+    return result.to_dict()

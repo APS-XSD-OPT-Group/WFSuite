@@ -62,6 +62,7 @@ from aps.wavefront_analysis.driver.wavefront_sensor import get_default_file_name
     PIXEL_SIZE, DETECTOR_RESOLUTION, INDEX_DIGITS
 
 from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
+from aps.common.plot.image import apply_transformations
 
 APPLICATION_NAME = "WAVEFRONT-ANALYSIS"
 
@@ -87,7 +88,7 @@ D_SOURCE_RECAL        = ini_file.get_boolean_from_ini(section="Execution", key="
 CROP                  = ini_file.get_list_from_ini(   section="Execution", key="Crop",                          default=[-1], type=int)
 ESTIMATION_METHOD     = ini_file.get_string_from_ini( section="Execution", key="Estimation-Method",             default='simple_speckle')
 PROPAGATOR            = ini_file.get_string_from_ini( section="Execution", key="Propagator",                    default='RS')
-IMAGE_OPS             = ini_file.get_list_from_ini(   section="Execution", key="Image-Ops",                     default=["T", "FH", "FV"], type=str)
+IMAGE_OPS             = ini_file.get_dict_from_ini(   section="Execution", key="Image-Ops",                     default={"file" : [], "stream" :["T", "FH", "FV"]}, type=str)
 
 CALIBRATION_PATH      = ini_file.get_string_from_ini( section="Reconstruction", key="Calibration-Path",  default=None)
 MODE                  = ini_file.get_string_from_ini( section="Reconstruction", key="Mode",              default='centralLine')
@@ -154,7 +155,7 @@ def store():
     ini_file.set_list_at_ini( section="Execution", key="Crop",                          values_list=CROP)
     ini_file.set_value_at_ini(section="Execution", key="Estimation-Method",             value=ESTIMATION_METHOD)
     ini_file.set_value_at_ini(section="Execution", key="Propagator",                    value=PROPAGATOR)
-    ini_file.set_list_at_ini( section="Execution", key="Image-Ops",                     values_list=IMAGE_OPS)
+    ini_file.set_dict_at_ini( section="Execution", key="Image-Ops",                     values_dict=IMAGE_OPS)
 
     ini_file.set_value_at_ini(section="Back-Propagation", key="Kind",                       value=KIND)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Rebinning",                  value=REBINNING_BP)
@@ -217,6 +218,14 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
         self.__simulated_mask_directory  = simulated_mask_directory
         self.__energy                    = energy
 
+    def get_current_setup(self) -> dict:
+        return {
+            "data_collection_directory" : self.__data_collection_directory,
+            "file_name_prefix" : self.__file_name_prefix,
+            "simulated_mask_directory" : self.__simulated_mask_directory,
+            "energy" : self.__energy
+        }
+
     def generate_simulated_mask(self, image_index_for_mask: int = 1, data_collection_directory: str = None, **kwargs) -> [list, bool]:
         image_transfer_matrix, is_new_mask = _generate_simulated_mask(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
                                                                       file_name_prefix=self.__file_name_prefix,
@@ -227,19 +236,24 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
         return image_transfer_matrix, is_new_mask
 
     def get_wavefront_data(self, image_index: int, data_collection_directory: str = None, **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
-        return get_image_data(measurement_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
-                              file_name_prefix=self.__file_name_prefix,
-                              image_index=image_index,
-                              **kwargs)
+        image_ops = kwargs.get("image_ops", [])
+
+        image, hh, vv = get_image_data(measurement_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
+                                       file_name_prefix=self.__file_name_prefix,
+                                       image_index=image_index,
+                                       **(kwargs))
+        hh, vv, image = apply_transformations(hh, vv, image, image_ops)
+
+        return hh, vv, image
 
 
     def process_image(self, image_index: int, data_collection_directory: str = None, **kwargs):
-        _process_image(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
-                       file_name_prefix=self.__file_name_prefix,
-                       mask_directory=self.__simulated_mask_directory,
-                       energy=self.__energy,
-                       image_index=image_index,
-                       **kwargs)
+        return _process_image(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
+                              file_name_prefix=self.__file_name_prefix,
+                              mask_directory=self.__simulated_mask_directory,
+                              energy=self.__energy,
+                              image_index=image_index,
+                              **kwargs)
 
     def process_images(self, data_collection_directory: str = None, mode=ProcessingMode.LIVE, n_threads=MAX_THREADS, **kwargs):
         data_collection_directory = self.__data_collection_directory if data_collection_directory is None else data_collection_directory
@@ -344,6 +358,9 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     image_data   = kwargs.get("image_data", None)
     image_ops    = kwargs.get("image_ops", IMAGE_OPS)
 
+    if image_data is None: image_ops = image_ops.get("file", [])
+    else:                  image_ops = image_ops.get("stream", [])
+
     dark           = None
     flat           = None
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
@@ -355,51 +372,51 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     propagated_patternDet = os.path.join(mask_directory, 'propagated_patternDet.npz')
     saving_path           = mask_directory
 
-    execute_process_image(img=img,
-                          image_data=image_data,
-                          image_ops=image_ops,
-                          dark=dark,
-                          flat=flat,
-                          result_folder=result_folder,
-                          pattern_path=pattern_path,
-                          propagated_pattern=propagated_pattern,
-                          propagated_patternDet=propagated_patternDet,
-                          saving_path=saving_path,
-                          crop=kwargs.get("crop", CROP),
-                          img_transfer_matrix=kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
-                          find_transferMatrix=False,
-                          p_x=kwargs.get("pixel_size", PIXEL_SIZE),
-                          det_res=kwargs.get("detector_resolution",DETECTOR_RESOLUTION),
-                          energy=energy,
-                          pattern_size=kwargs.get("pattern_size", PATTERN_SIZE),
-                          pattern_thickness=kwargs.get("pattern_thickness", PATTERN_THICKNESS),
-                          pattern_T=kwargs.get("pattern_transmission", PATTERN_TRANSMISSION),
-                          d_prop=kwargs.get("propagation_distance", PROPAGATION_DISTANCE),
-                          d_source_v=kwargs.get("source_distance_v", SOURCE_DISTANCE_V),
-                          d_source_h=kwargs.get("source_distance_h", SOURCE_DISTANCE_H),
-                          source_v=kwargs.get("source_size_v", SOURCE_V),
-                          source_h=kwargs.get("source_size_h", SOURCE_H),
-                          correct_scale=kwargs.get("correct_scale", CORRECT_SCALE),
-                          show_alignFigure=kwargs.get("show_align_figure", SHOW_ALIGN_FIGURE),
-                          d_source_recal=False,  # for mask generation only,
-                          propagator=kwargs.get("propagator", PROPAGATOR),
-                          cali_path=kwargs.get("calibration_path", CALIBRATION_PATH),
-                          mode=kwargs.get("mode", MODE),
-                          lineWidth=kwargs.get("line_width", LINE_WIDTH),
-                          rebinning=kwargs.get("rebinning", REBINNING),
-                          down_sampling=kwargs.get("down_sampling", DOWN_SAMPLING),
-                          crop_boundary=kwargs.get("crop_boundary", CROP_BOUNDARY),
-                          method=kwargs.get("method", METHOD),
-                          GPU=kwargs.get("use_gpu", USE_GPU),
-                          use_wavelet=kwargs.get("use_wavelet", USE_WAVELET),
-                          wavelet_lv_cut=kwargs.get("wavelet_lv_cut", WAVELET_CUT),
-                          n_iter=kwargs.get("n_iterations", N_ITERATIONS),
-                          pyramid_level=kwargs.get("pyramid_level", PYRAMID_LEVEL),
-                          template_size=kwargs.get("template_size", TEMPLATE_SIZE),
-                          window_searching=kwargs.get("window_search", WINDOW_SEARCH),
-                          nCores=kwargs.get("n_cores", N_CORES),
-                          nGroup=kwargs.get("n_group", N_GROUP),
-                          verbose=verbose)
+    return execute_process_image(img=img,
+                                 image_data=image_data,
+                                 image_ops=image_ops,
+                                 dark=dark,
+                                 flat=flat,
+                                 result_folder=result_folder,
+                                 pattern_path=pattern_path,
+                                 propagated_pattern=propagated_pattern,
+                                 propagated_patternDet=propagated_patternDet,
+                                 saving_path=saving_path,
+                                 crop=kwargs.get("crop", CROP),
+                                 img_transfer_matrix=kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
+                                 find_transferMatrix=False,
+                                 p_x=kwargs.get("pixel_size", PIXEL_SIZE),
+                                 det_res=kwargs.get("detector_resolution",DETECTOR_RESOLUTION),
+                                 energy=energy,
+                                 pattern_size=kwargs.get("pattern_size", PATTERN_SIZE),
+                                 pattern_thickness=kwargs.get("pattern_thickness", PATTERN_THICKNESS),
+                                 pattern_T=kwargs.get("pattern_transmission", PATTERN_TRANSMISSION),
+                                 d_prop=kwargs.get("propagation_distance", PROPAGATION_DISTANCE),
+                                 d_source_v=kwargs.get("source_distance_v", SOURCE_DISTANCE_V),
+                                 d_source_h=kwargs.get("source_distance_h", SOURCE_DISTANCE_H),
+                                 source_v=kwargs.get("source_size_v", SOURCE_V),
+                                 source_h=kwargs.get("source_size_h", SOURCE_H),
+                                 correct_scale=kwargs.get("correct_scale", CORRECT_SCALE),
+                                 show_alignFigure=kwargs.get("show_align_figure", SHOW_ALIGN_FIGURE),
+                                 d_source_recal=False,  # for mask generation only,
+                                 propagator=kwargs.get("propagator", PROPAGATOR),
+                                 cali_path=kwargs.get("calibration_path", CALIBRATION_PATH),
+                                 mode=kwargs.get("mode", MODE),
+                                 lineWidth=kwargs.get("line_width", LINE_WIDTH),
+                                 rebinning=kwargs.get("rebinning", REBINNING),
+                                 down_sampling=kwargs.get("down_sampling", DOWN_SAMPLING),
+                                 crop_boundary=kwargs.get("crop_boundary", CROP_BOUNDARY),
+                                 method=kwargs.get("method", METHOD),
+                                 GPU=kwargs.get("use_gpu", USE_GPU),
+                                 use_wavelet=kwargs.get("use_wavelet", USE_WAVELET),
+                                 wavelet_lv_cut=kwargs.get("wavelet_lv_cut", WAVELET_CUT),
+                                 n_iter=kwargs.get("n_iterations", N_ITERATIONS),
+                                 pyramid_level=kwargs.get("pyramid_level", PYRAMID_LEVEL),
+                                 template_size=kwargs.get("template_size", TEMPLATE_SIZE),
+                                 window_searching=kwargs.get("window_search", WINDOW_SEARCH),
+                                 nCores=kwargs.get("n_cores", N_CORES),
+                                 nGroup=kwargs.get("n_group", N_GROUP),
+                                 verbose=verbose)
     print("Image " + file_name_prefix + "_%05i.tif" % image_index + " processed")
 
 def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_directory, energy, image_index=1, **kwargs) -> [list, bool]:
@@ -410,7 +427,10 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
     flat = None
     img         = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     image_data  = kwargs.get("image_data", None)
-    image_ops   = kwargs.get("image_ops", [])
+    image_ops   = kwargs.get("image_ops", IMAGE_OPS)
+
+    if image_data is None: image_ops = image_ops.get("file", [])
+    else:                  image_ops = image_ops.get("stream", [])
 
     mask_directory  = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
     result_folder   = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])

@@ -53,6 +53,16 @@ from aps.common.scripts.script_data import ScriptData
 from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensorInitializationFile
 from aps.wavefront_analysis.absolute_phase import wavefront_analyzer as WavefrontAnalyzerModule
 
+def get_data_from_int_to_string(data_from : int):
+    if   data_from == 0: return "stream"
+    elif data_from == 1: return "file"
+    else: raise ValueError("Data From not recognized")
+
+def get_data_from_string_to_int(data_from : str):
+    if   data_from == "stream": return 0
+    elif data_from == "file":   return 1
+    else: raise ValueError("Data From not recognized")
+
 def generate_initialization_parameters_from_ini(ini: IniFacade):    
     # -----------------------------------------------------
     # Wavefront Sensor
@@ -156,13 +166,13 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
     # Here GUI specific ini
 
     wavefront_sensor_image_directory = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory", default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
-    save_result                      = ini.get_boolean_from_ini("Wavefront-Analyzer", "Save-Result", default=True)
+    save_images                      = ini.get_boolean_from_ini("Wavefront-Analyzer", "Save-Images", default=True)
     plot_raw_image                   = ini.get_boolean_from_ini("Wavefront-Analyzer", "Plot-Raw_image", default=True)
     data_from                        = ini.get_int_from_ini("Wavefront-Analyzer", "Data-From", default=1) # file
 
 
     return ScriptData(wavefront_sensor_image_directory=wavefront_sensor_image_directory,
-                      save_result=save_result,
+                      save_images=save_images,
                       plot_raw_image=plot_raw_image,
                       data_from=data_from,
                       wavefront_sensor_configuration=wavefront_sensor_configuration,
@@ -276,7 +286,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     # TBD
 
     ini.set_value_at_ini("Wavefront-Sensor", "Wavefront-Sensor-Image-Directory", initialization_parameters.get_parameter("wavefront_sensor_image_directory"))
-    ini.set_value_at_ini("Wavefront-Analyzer", "Save-Result", value=initialization_parameters.get_parameter("save_result"))
+    ini.set_value_at_ini("Wavefront-Analyzer", "Save-Images", value=initialization_parameters.get_parameter("save_images"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Plot-Raw_image", value=initialization_parameters.get_parameter("plot_raw_image"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Data-From", value=initialization_parameters.get_parameter("data_from"))
 

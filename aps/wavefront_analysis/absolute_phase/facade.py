@@ -56,6 +56,8 @@ MAX_THREADS = cpu_count() - 2
 
 class IWavefrontAnalyzer():
     @abc.abstractmethod
+    def get_current_setup(self) -> dict: raise NotImplementedError
+    @abc.abstractmethod
     def generate_simulated_mask(self, image_index_for_mask: int = 1, data_collection_directory: str = None, **kwargs) -> [list, bool]: raise NotImplementedError
     @abc.abstractmethod
     def get_wavefront_data(self, image_index: int, data_collection_directory: str = None, **kwargs) -> [ndarray, ndarray, ndarray]: raise NotImplementedError
