@@ -1,4 +1,7 @@
 import sys
+
+from aps.wavefront_analysis.absolute_phase.gui.main_absolute_phase import MainAbsolutePhase
+
 from aps.wavefront_analysis.absolute_phase.gui.wf_gui import run_gui
 
 
@@ -23,4 +26,5 @@ if __name__ == "__main__":
         show_help()
     else:
         if   sys.argv[1] =="AP": run_gui(sys.argv)
+        elif sys.argv[1] == MainAbsolutePhase.SCRIPT_ID: MainAbsolutePhase(sys_argv=sys.argv).run_script()
         else: show_help(error=True)

@@ -1053,6 +1053,7 @@ def execute_process_image(**arguments):
     arguments["show_alignFigure"]      = arguments.get("show_alignFigure", False) # show aligned figure or not
     arguments["d_source_recal"]        = arguments.get("d_source_recal", False) # recalculate the source distance or not. If so, will use the simple method to recalculate the source distance.
     arguments["propagator"]            = arguments.get("propagator", 'RS') # propagation method for near-field diffraction
+    arguments["estimation_method"]     = arguments.get("estimation_method", 'geometric') # propagation method for near-field diffraction
 
     # add for the WFS calibration
     """
@@ -1124,6 +1125,7 @@ def execute_process_image(**arguments):
         'correct_scale': args.correct_scale,  # if correct horizontal and vertical scales
         'showAlignFigure': args.show_alignFigure,  # if show aligned figure.
         'd_source_recal': args.d_source_recal,  # re-calculate the source distance or not, if so, use simple method to get the new source distance
+        'estimation_method': args.estimation_method,
     }
 
     para_XST = {
