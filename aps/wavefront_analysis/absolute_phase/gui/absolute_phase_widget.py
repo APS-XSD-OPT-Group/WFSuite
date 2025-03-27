@@ -225,7 +225,7 @@ class AbsolutePhaseWidget(GenericWidget):
         except:
             if sys.platform == 'darwin' : widget_height = min(750, geom.height()*0.95)
             else:                         widget_height = min(850, geom.height()*0.95)
-        self.setGeometry(QRect(10, 10, widget_width, widget_height))
+        self.setGeometry(QRect(10, 10, int(widget_width), int(widget_height)))
         self.setFixedWidth(int(widget_width))
         self.setFixedHeight(int(widget_height))
 
@@ -522,7 +522,9 @@ class AbsolutePhaseWidget(GenericWidget):
         self._wavefront_box = gui.widgetBox(self._out_tab_1, "")
         self._log_box       = gui.widgetBox(self._out_tab_2, "Log", width=tab_box.width() - 20, height=tab_box.height() - 40)
 
-        self._image_figure = Figure(figsize=(9.65, 5.9), constrained_layout=True)
+        if sys.platform == 'darwin':  self._image_figure = Figure(figsize=(9.65, 5.9), constrained_layout=True)
+        else:                         self._image_figure = Figure(figsize=(9.65, 6.9), constrained_layout=True)
+
         self._image_figure_canvas = FigureCanvas(self._image_figure)
         self._image_scroll = QScrollArea(self._image_box)
         self._image_scroll.setWidget(self._image_figure_canvas)
@@ -531,7 +533,8 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self._wf_tab_widget = gui.tabWidget(self._wavefront_box)
 
-        figsize = (9.4, 5.15)
+        if sys.platform == 'darwin':  figsize = (9.4, 5.15)
+        else:                         figsize = (9.4, 6.15) 
 
         self._wf_tab_0 = gui.createTabPage(self._wf_tab_widget, "At Detector")
         self._wf_tab_1 = gui.createTabPage(self._wf_tab_widget, "Back Propagated")
@@ -981,7 +984,11 @@ class AbsolutePhaseWidget(GenericWidget):
         axis.set_xlabel("Horizontal (mm)")
         axis.set_ylabel("Vertical (mm)")
         axis.set_aspect("equal")
-        axis.set_position([-0.1, 0.15, 1.0, 0.8])
+        
+        
+        if sys.platform == 'darwin':  axis.set_position([-0.1, 0.15, 1.0, 0.8])
+        else:                         axis.set_position([0.15, 0.15, 0.8, 0.8])
+        
         cbar = fig.colorbar(mappable=image, ax=axis, pad=0.03, aspect=30, shrink=0.6)
         cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
 
@@ -1171,7 +1178,8 @@ def plot_2D(fig, image, label, p_x, extent_data=None):
 
     fig.clear()
     im = fig.gca().imshow(image, interpolation='bilinear', extent=extent_data)
-    fig.gca().set_position([-0.175, 0.15, 1.0, 0.8])
+    if sys.platform == 'darwin':  fig.gca().set_position([-0.175, 0.15, 1.0, 0.8])
+    else:                         fig.gca().set_position([0.1, 0.15, 0.8, 0.8])
     fig.gca().set_xlabel('x ($\mu$m)', fontsize=22)
     fig.gca().set_ylabel('y ($\mu$m)', fontsize=22)
     cbar = fig.colorbar(mappable=im, ax=fig.gca())
