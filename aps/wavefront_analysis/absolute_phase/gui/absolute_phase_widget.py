@@ -248,10 +248,10 @@ class AbsolutePhaseWidget(GenericWidget):
         palette.setColor(QPalette.ButtonText, QColor('Dark Blue'))
         exit_button.setPalette(palette)
 
-        tab_widget = gui.tabWidget( self._main_box)
-        ws_tab     = gui.createTabPage(tab_widget, "Wavefront Sensor")
-        wa_tab     = gui.createTabPage(tab_widget, "Wavefront Analysis")
-        ex_tab     = gui.createTabPage(tab_widget, "Execution")
+        self._main_tab_widget = gui.tabWidget( self._main_box)
+        ws_tab     = gui.createTabPage(self._main_tab_widget, "Wavefront Sensor")
+        wa_tab     = gui.createTabPage(self._main_tab_widget, "Wavefront Analysis")
+        ex_tab     = gui.createTabPage(self._main_tab_widget, "Execution")
 
         labels_width_1 = 300
         labels_width_2 = 150
@@ -312,19 +312,19 @@ class AbsolutePhaseWidget(GenericWidget):
 
         gui.separator(self._wa_box)
 
-        tab_widget = gui.tabWidget(self._wa_box)
+        self._wa_tab_widget = gui.tabWidget(self._wa_box)
 
-        tab_1     = gui.createTabPage(tab_widget, "Analysis")
-        tab_2     = gui.createTabPage(tab_widget, "Back-Propagation ")
+        tab_1     = gui.createTabPage(self._wa_tab_widget, "Analysis")
+        tab_2     = gui.createTabPage(self._wa_tab_widget, "Back-Propagation")
 
-        tab_widget_1 = gui.tabWidget(tab_1)
-        tab_widget_2 = gui.tabWidget(tab_2)
+        self._wa_tab_widget_1 = gui.tabWidget(tab_1)
+        self._wa_tab_widget_2 = gui.tabWidget(tab_2)
 
-        wa_tab_1     = gui.createTabPage(tab_widget_1, "Analysis (1)")
-        wa_tab_2     = gui.createTabPage(tab_widget_1, "Analysis (2)")
-        wa_tab_5     = gui.createTabPage(tab_widget_1, "Analysis (3)")
-        wa_tab_3       = gui.createTabPage(tab_widget_2, "Back-Propagation (1)")
-        wa_tab_4       = gui.createTabPage(tab_widget_2, "Back-Propagation (2)")
+        wa_tab_1     = gui.createTabPage(self._wa_tab_widget_1, "Analysis (1)")
+        wa_tab_2     = gui.createTabPage(self._wa_tab_widget_1, "Analysis (2)")
+        wa_tab_5     = gui.createTabPage(self._wa_tab_widget_1, "Analysis (3)")
+        wa_tab_3     = gui.createTabPage(self._wa_tab_widget_2, "Back-Propagation (1)")
+        wa_tab_4     = gui.createTabPage(self._wa_tab_widget_2, "Back-Propagation (2)")
 
         wa_box_1 = gui.widgetBox(wa_tab_1, "Mask", width=self._wa_box.width()-25, height=170)
 
@@ -849,9 +849,9 @@ class AbsolutePhaseWidget(GenericWidget):
             self._collect_initialization_parameters(raise_errors=True)
             h_coord, v_coord, image, wavefront_at_detector_data, propagated_wavefront_data = self._take_shot_and_back_propagate(self._initialization_parameters)
 
-            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+            if bool(self.plot_raw_image): self.__plot_shot_image(h_coord, v_coord, image)
             self.__plot_wavefront_at_detector(wavefront_at_detector_data)
-            self.__plot_back_propagated_wavefront(propagated_wavefront_data)
+            if bool(self.scan_best_focus): self.__plot_back_propagated_wavefront(propagated_wavefront_data)
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
             if DEBUG_MODE: raise error
@@ -866,7 +866,7 @@ class AbsolutePhaseWidget(GenericWidget):
             self._collect_initialization_parameters(raise_errors=True)
             h_coord, v_coord, image = self._read_image_from_file(self._initialization_parameters)
 
-            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+            self.__plot_shot_image(h_coord, v_coord, image)
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
             if DEBUG_MODE: raise error
@@ -912,7 +912,30 @@ class AbsolutePhaseWidget(GenericWidget):
             propagated_wavefront_data = self._back_propagate_from_file(self._initialization_parameters)
 
             self.__plot_back_propagated_wavefront(propagated_wavefront_data)
-            if bool(self.scan_best_focus): self.__plot_longitudinal_profiles(propagated_wavefront_data)
+            if bool(self.scan_best_focus):
+                self.__plot_longitudinal_profiles(propagated_wavefront_data)
+
+                focus_z_position_x = propagated_wavefront_data["focus_z_position_x"]
+                focus_z_position_y = propagated_wavefront_data["focus_z_position_y"]
+
+                message = "Scan Best Focus Results:\n\n" + \
+                          f"Best Focus Position x: {focus_z_position_x}\n" + \
+                          f"Best Focus Position y: {focus_z_position_y}\n" + \
+                          f"\n\nDo you want to use these data as permanent phase shift for the method {self.method}?"
+
+                if ConfirmDialog.confirmed(self,
+                                           title="Scan Best Focus",
+                                           message=message,
+                                           height=250):
+                    self.delta_f_h = -round(focus_z_position_x, 6)
+                    self.delta_f_v = -round(focus_z_position_y, 6)
+                    self._set_delta_f()
+                    self.le_delta_f_h.setText(str(self.delta_f_h))
+                    self.le_delta_f_v.setText(str(self.delta_f_v))
+                    self._main_tab_widget.setCurrentIndex(1)
+                    self._wa_tab_widget.setCurrentIndex(1)
+                    self._wa_tab_widget_2.setCurrentIndex(0)
+
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
             if DEBUG_MODE: raise error
