@@ -111,6 +111,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self.save_images                      = initialization_parameters.get_parameter("save_images", True)
         self.plot_raw_image                   = initialization_parameters.get_parameter("plot_raw_image", True)
         self.data_from                        = initialization_parameters.get_parameter("data_from", 1)
+        self.bp_calibration_mode              = initialization_parameters.get_parameter("bp_calibration_mode", False)
 
         # -----------------------------------------------------
         # Wavefront Sensor
@@ -320,11 +321,11 @@ class AbsolutePhaseWidget(GenericWidget):
         self._wa_tab_widget_1 = gui.tabWidget(tab_1)
         self._wa_tab_widget_2 = gui.tabWidget(tab_2)
 
-        wa_tab_1     = gui.createTabPage(self._wa_tab_widget_1, "Analysis (1)")
-        wa_tab_2     = gui.createTabPage(self._wa_tab_widget_1, "Analysis (2)")
-        wa_tab_5     = gui.createTabPage(self._wa_tab_widget_1, "Analysis (3)")
-        wa_tab_3     = gui.createTabPage(self._wa_tab_widget_2, "Back-Propagation (1)")
-        wa_tab_4     = gui.createTabPage(self._wa_tab_widget_2, "Back-Propagation (2)")
+        wa_tab_1     = gui.createTabPage(self._wa_tab_widget_1, "Setup")
+        wa_tab_2     = gui.createTabPage(self._wa_tab_widget_1, "Calculation")
+        wa_tab_5     = gui.createTabPage(self._wa_tab_widget_1, "Runtime")
+        wa_tab_3     = gui.createTabPage(self._wa_tab_widget_2, "Propagation")
+        wa_tab_4     = gui.createTabPage(self._wa_tab_widget_2, "Best Focus")
 
         wa_box_1 = gui.widgetBox(wa_tab_1, "Mask", width=self._wa_box.width()-25, height=170)
 
@@ -433,24 +434,31 @@ class AbsolutePhaseWidget(GenericWidget):
 
         bp_box_3 = gui.widgetBox(wa_tab_4, "Best Focus", width=self._wa_box.width()-25, height=270)
 
-        gui.checkBox(bp_box_3, self, "scan_best_focus", "Scan Best Focus")
-        gui.checkBox(bp_box_3, self, "use_fit",         "Use Polynomial Fit")
-        gui.lineEdit(bp_box_3, self, "best_focus_from",   label="Besto Focus From (rms, fwhm)",   labelWidth=labels_width_1, orientation='horizontal', valueType=str)
+        gui.checkBox(bp_box_3, self, "scan_best_focus", "Scan Best Focus", callback=self._set_scan_best_focus)
 
-        self.kind_box_1_2 = gui.widgetBox(bp_box_3, "", width=bp_box_1.width()-20, height=50)
-        self.kind_box_2_2 = gui.widgetBox(bp_box_3, "", width=bp_box_1.width()-20, height=50)
+        self._bp_box_3_1 = gui.widgetBox(bp_box_3, "", width=bp_box_3.width()-20, height=210)
+
+        gui.checkBox(self._bp_box_3_1, self, "use_fit", "Use Polynomial Fit")
+        gui.lineEdit(self._bp_box_3_1, self, "best_focus_from",   label="Besto Focus From (rms, fwhm)",   labelWidth=labels_width_1, orientation='horizontal', valueType=str)
+
+        self.kind_box_1_2 = gui.widgetBox(self._bp_box_3_1, "", width=bp_box_3.width()-20, height=50)
+        self.kind_box_2_2 = gui.widgetBox(self._bp_box_3_1, "", width=bp_box_3.width()-20, height=50)
 
         gui.lineEdit(self.kind_box_1_2, self, "best_focus_scan_range",   label="Range [m] (start, stop, step)",   labelWidth=200, orientation='horizontal', valueType=str)
         gui.lineEdit(self.kind_box_2_2, self, "best_focus_scan_range_h", label="Range H [m] (start, stop, step)", labelWidth=200, orientation='horizontal', valueType=str)
         gui.lineEdit(self.kind_box_2_2, self, "best_focus_scan_range_v", label="Range V [m] (start, stop, step)", labelWidth=200, orientation='horizontal', valueType=str)
 
-        gui.lineEdit(bp_box_3, self, "rms_range_h", label="R.M.S. Range H [m] (start, stop)", labelWidth=220, orientation='horizontal', valueType=str)
-        gui.lineEdit(bp_box_3, self, "rms_range_v", label="R.M.S. Range V [m] (start, stop)", labelWidth=220, orientation='horizontal', valueType=str)
+        gui.lineEdit(self._bp_box_3_1, self, "rms_range_h", label="R.M.S. Range H [m] (start, stop)", labelWidth=220, orientation='horizontal', valueType=str)
+        gui.lineEdit(self._bp_box_3_1, self, "rms_range_v", label="R.M.S. Range V [m] (start, stop)", labelWidth=220, orientation='horizontal', valueType=str)
 
+        gui.checkBox(self._bp_box_3_1, self, "bp_calibration_mode", "Phase Shift Calibration")
+
+        self.bp_calibration_mode
         self._set_data_from()
         self._set_method()
         self._set_d_source_recal()
         self._set_kind()
+        self._set_scan_best_focus()
 
         #########################################################################################
         # Execution
@@ -637,6 +645,9 @@ class AbsolutePhaseWidget(GenericWidget):
             self.kind_box_2_1.setVisible(self.kind=="1D")
             self.kind_box_2_2.setVisible(self.kind=="1D")
 
+    def _set_scan_best_focus(self):
+        self._bp_box_3_1.setEnabled(bool(self.scan_best_focus))
+
     def _set_data_from(self):
         data_from = get_data_from_int_to_string(self.data_from)
 
@@ -774,6 +785,7 @@ class AbsolutePhaseWidget(GenericWidget):
         initialization_parameters.set_parameter("save_images",                      bool(self.save_images))
         initialization_parameters.set_parameter("plot_raw_image",                   bool(self.plot_raw_image))
         initialization_parameters.set_parameter("data_from",                        self.data_from)
+        initialization_parameters.set_parameter("bp_calibration_mode",              bool(self.bp_calibration_mode))
 
     def _close_callback(self):
         if ConfirmDialog.confirmed(self, "Confirm Exit?"):
@@ -807,7 +819,6 @@ class AbsolutePhaseWidget(GenericWidget):
         try:
             self._collect_initialization_parameters(raise_errors=True)
             h_coord, v_coord, image = self._take_shot(self._initialization_parameters)
-
             if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
@@ -820,8 +831,8 @@ class AbsolutePhaseWidget(GenericWidget):
         try:
             self._collect_initialization_parameters(raise_errors=True)
             h_coord, v_coord, image, image_transfer_matrix = self._take_shot_and_generate_mask(self._initialization_parameters)
-
             if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+            self._manage_generate_mask_result(image_transfer_matrix)
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
             if DEBUG_MODE: raise error
@@ -833,10 +844,8 @@ class AbsolutePhaseWidget(GenericWidget):
         try:
             self._collect_initialization_parameters(raise_errors=True)
             h_coord, v_coord, image, wavefront_at_detector_data = self._take_shot_and_process_image(self._initialization_parameters)
-
             if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
             self.__plot_wavefront_at_detector(wavefront_at_detector_data)
-
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
             if DEBUG_MODE: raise error
@@ -848,10 +857,9 @@ class AbsolutePhaseWidget(GenericWidget):
         try:
             self._collect_initialization_parameters(raise_errors=True)
             h_coord, v_coord, image, wavefront_at_detector_data, propagated_wavefront_data = self._take_shot_and_back_propagate(self._initialization_parameters)
-
             if bool(self.plot_raw_image): self.__plot_shot_image(h_coord, v_coord, image)
             self.__plot_wavefront_at_detector(wavefront_at_detector_data)
-            if bool(self.scan_best_focus): self.__plot_back_propagated_wavefront(propagated_wavefront_data)
+            self._manage_back_propagate_result(propagated_wavefront_data)
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
             if DEBUG_MODE: raise error
@@ -865,7 +873,6 @@ class AbsolutePhaseWidget(GenericWidget):
         try:
             self._collect_initialization_parameters(raise_errors=True)
             h_coord, v_coord, image = self._read_image_from_file(self._initialization_parameters)
-
             self.__plot_shot_image(h_coord, v_coord, image)
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
@@ -877,13 +884,8 @@ class AbsolutePhaseWidget(GenericWidget):
     def _generate_mask_from_file_callback(self):
         try:
             self._collect_initialization_parameters(raise_errors=True)
-
             image_transfer_matrix = self._generate_mask_from_file(self._initialization_parameters)
-
-            MessageDialog.message(self, title="Mask Generation", message=f"Image Transfer Matrix: {image_transfer_matrix}", type="information", width=500)
-
-            self.image_transfer_matrix = list_to_string(image_transfer_matrix)
-            self._le_itm.setText(self.image_transfer_matrix)
+            self._manage_generate_mask_result(image_transfer_matrix)
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
             if DEBUG_MODE: raise error
@@ -894,9 +896,7 @@ class AbsolutePhaseWidget(GenericWidget):
     def _process_image_from_file_callback(self):
         try:
             self._collect_initialization_parameters(raise_errors=True)
-
             wavefront_at_detector_data = self._process_image_from_file(self._initialization_parameters)
-
             self.__plot_wavefront_at_detector(wavefront_at_detector_data)
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
@@ -908,21 +908,36 @@ class AbsolutePhaseWidget(GenericWidget):
     def _back_propagate_from_file_callback(self):
         try:
             self._collect_initialization_parameters(raise_errors=True)
-
             propagated_wavefront_data = self._back_propagate_from_file(self._initialization_parameters)
+            self._manage_back_propagate_result(propagated_wavefront_data)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            if DEBUG_MODE: raise exception
 
-            self.__plot_back_propagated_wavefront(propagated_wavefront_data)
-            if bool(self.scan_best_focus):
-                self.__plot_longitudinal_profiles(propagated_wavefront_data)
+    def _manage_generate_mask_result(self, image_transfer_matrix):
+        MessageDialog.message(self, title="Mask Generation", message=f"Image Transfer Matrix: {image_transfer_matrix}", type="information", width=500)
 
-                focus_z_position_x = propagated_wavefront_data["focus_z_position_x"]
-                focus_z_position_y = propagated_wavefront_data["focus_z_position_y"]
+        self.image_transfer_matrix = list_to_string(image_transfer_matrix)
+        self._le_itm.setText(self.image_transfer_matrix)
 
-                message = "Scan Best Focus Results:\n\n" + \
-                          f"Best Focus Position x: {focus_z_position_x}\n" + \
-                          f"Best Focus Position y: {focus_z_position_y}\n" + \
-                          f"\n\nDo you want to use these data as permanent phase shift for the method {self.method}?"
+    def _manage_back_propagate_result(self, propagated_wavefront_data):
+        self.__plot_back_propagated_wavefront(propagated_wavefront_data)
 
+        if bool(self.scan_best_focus):
+            self.__plot_longitudinal_profiles(propagated_wavefront_data)
+
+            focus_z_position_x = propagated_wavefront_data["focus_z_position_x"]
+            focus_z_position_y = propagated_wavefront_data["focus_z_position_y"]
+
+            message = "Scan Best Focus Results:\n\n" + \
+                      f"Best Focus Position x: {focus_z_position_x}\n" + \
+                      f"Best Focus Position y: {focus_z_position_y}\n" + \
+                      f"\n\nDo you want to use these data as permanent phase shift for the method {self.method}?"
+
+            if bool(self.bp_calibration_mode):
                 if ConfirmDialog.confirmed(self,
                                            title="Scan Best Focus",
                                            message=message,
@@ -935,13 +950,6 @@ class AbsolutePhaseWidget(GenericWidget):
                     self._main_tab_widget.setCurrentIndex(1)
                     self._wa_tab_widget.setCurrentIndex(1)
                     self._wa_tab_widget_2.setCurrentIndex(0)
-
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
-            if DEBUG_MODE: raise exception
 
     @synchronized_method
     def analysis_completed(self):
@@ -973,9 +981,9 @@ class AbsolutePhaseWidget(GenericWidget):
         axis.set_xlabel("Horizontal (mm)")
         axis.set_ylabel("Vertical (mm)")
         axis.set_aspect("equal")
-
-        cbar = fig.colorbar(mappable=image, ax=axis, pad=0.01, aspect=30, shrink=0.6)
-        cbar.ax.text(0.5, 1.05, "pI", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
+        axis.set_position([-0.1, 0.15, 1.0, 0.8])
+        cbar = fig.colorbar(mappable=image, ax=axis, pad=0.03, aspect=30, shrink=0.6)
+        cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
 
         self._image_figure_canvas.draw()
 
@@ -1027,6 +1035,24 @@ class AbsolutePhaseWidget(GenericWidget):
         self._wf_tab_0_widget.setCurrentIndex(0)
 
     def __plot_back_propagated_wavefront(self, wavefront_data):
+        def add_text_2D(ax):
+            text = "Wavefront Properties:\n"
+            for prop, label in zip(["fwhm_x", "fwhm_y", "sigma_x", "sigma_y", "wf_position_x", "wf_position_y"],
+                                   ["fwhm(x)", "fwhm(y)", "rms(x)", "rms(y)", "shift(x)", "shift(y)"]):
+                text += "\n" + rf"{label:<8}: {wavefront_data[prop]*1e6 : 3.3f} $\mu$m"
+
+            ax.text(1.5, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="Courier",
+                    bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
+
+        def add_text_1D(ax, dir):
+            text = f"Direction {dir}:\n"
+            for prop, label in zip([f"fwhm_{dir}", f"sigma_{dir}", f"wf_position_{dir}"],
+                                   ["fwhm", "rms", "shift"]):
+                text += "\n" + rf"{label:<5}: {wavefront_data[prop] * 1e6 : 3.3f} $\mu$m"
+
+            ax.text(0.65, 0.8, text, color="black", alpha=0.9, fontsize=9, fontname="Courier",
+                    bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
+
         if wavefront_data['kind'] == '2D':
             intensity     = wavefront_data['intensity']
             intensity_x   = wavefront_data['integrated_intensity_x']
@@ -1041,27 +1067,24 @@ class AbsolutePhaseWidget(GenericWidget):
 
             fig = self._wf_int_prop_figure.figure
             fig.clear()
-
             def custom_formatter(x, pos): return f'{x:.2f}'
-
-            axis = fig.gca()
-            image = axis.pcolormesh(coords[0], coords[1], intensity.T, cmap=cmm.sunburst_r, rasterized=True)
-            axis.set_xlim(coords_orig[0][0], coords_orig[0][-1])
-            axis.set_ylim(coords_orig[1][0], coords_orig[1][-1])
-            axis.set_xticks(np.linspace(coords_orig[0][0], coords_orig[0][-1], 6, endpoint=True))
-            axis.set_yticks(np.linspace(coords_orig[1][0], coords_orig[1][-1], 6, endpoint=True))
-            axis.xaxis.set_major_formatter(FuncFormatter(custom_formatter))
-            axis.yaxis.set_major_formatter(FuncFormatter(custom_formatter))
-            axis.axhline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
-            axis.axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
-            axis.set_xlabel('x ($\mu$m)')
-            axis.set_ylabel('y ($\mu$m)')
-            axis.set_aspect("equal")
-            axis.set_position([-0.175, 0.15, 1.0, 0.8])
-
-            cbar = fig.colorbar(mappable=image, ax=axis, pad=0.03, aspect=30, shrink=0.6)
-            cbar.ax.text(0.5, 1.05, "counts", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
-
+            ax = fig.gca()
+            image = ax.pcolormesh(coords[0], coords[1], intensity.T, cmap=cmm.sunburst_r, rasterized=True)
+            ax.set_xlim(coords_orig[0][0], coords_orig[0][-1])
+            ax.set_ylim(coords_orig[1][0], coords_orig[1][-1])
+            ax.set_xticks(np.linspace(coords_orig[0][0], coords_orig[0][-1], 6, endpoint=True))
+            ax.set_yticks(np.linspace(coords_orig[1][0], coords_orig[1][-1], 6, endpoint=True))
+            ax.xaxis.set_major_formatter(FuncFormatter(custom_formatter))
+            ax.yaxis.set_major_formatter(FuncFormatter(custom_formatter))
+            ax.axhline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+            ax.axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+            ax.set_xlabel('x ($\mu$m)')
+            ax.set_ylabel('y ($\mu$m)')
+            ax.set_aspect("equal")
+            ax.set_position([-0.375, 0.15, 1.0, 0.8])
+            add_text_2D(ax)
+            cbar = fig.colorbar(mappable=image, ax=ax, pad=0.04, aspect=30, shrink=0.6)
+            cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
             self._wf_int_prop_figure_canvas.draw()
 
             axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords)
@@ -1069,7 +1092,8 @@ class AbsolutePhaseWidget(GenericWidget):
             axes[1].set_xlim(coords_orig[1][0], coords_orig[1][-1])
             axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
             axes[1].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
-
+            add_text_1D(axes[0], "x")
+            add_text_1D(axes[1], "y")
             self._wf_ipr_prop_figure_canvas.draw()
         elif wavefront_data['kind'] == '1D':
             intensity_x   = wavefront_data['intensity_x']
@@ -1089,7 +1113,8 @@ class AbsolutePhaseWidget(GenericWidget):
             axes[1].set_xlim(coords_orig[1][0], coords_orig[1][-1])
             axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
             axes[1].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
-
+            add_text_1D(axes[0], "x")
+            add_text_1D(axes[1], "y")
             self._wf_ipr_prop_figure_canvas.draw()
 
         self._out_tab_widget.setCurrentIndex(1)
@@ -1117,25 +1142,22 @@ class AbsolutePhaseWidget(GenericWidget):
             focus_z_position_x = profiles_data["propagation_distance_x"] + profiles_data["focus_z_position_x"]
             focus_z_position_y = profiles_data["propagation_distance_y"] + profiles_data["focus_z_position_y"]
 
+        def plot_ax(ax, dir, coord, size, size_fit, focus):
+            ax.plot(coord, 1e6 * size, marker='o', label=f"Size X")
+            if not size_fit is None:ax.plot(coord, 1e6 * size_fit, label=f"Size {dir} - FIT")
+            ax.set_xlabel(f'p. distance {dir} (m)', fontsize=22)
+            ax.set_ylabel(f"Size {dir} ($\mu$m)", fontsize=22)
+            ax.legend()
+            ax.grid(True)
+            ax.axvline(focus, color="gray", ls="--", linewidth=2, alpha=0.9)
+            ax.text(0.53, 0.85, f"{round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname="Courier",
+                    bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
+
         fig = self._wf_prof_figure
         fig.clear()
         axes = fig.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
-        axes[0].plot(coords[0], 1e6*bf_size_values_x,  marker='o', label=f"Size X")
-        if not bf_size_values_fit_x is None: axes[0].plot(coords[0], 1e6*bf_size_values_fit_x, label=f"Size X - FIT")
-        axes[0].set_xlabel('p. distance x (m)', fontsize=22)
-        axes[0].set_ylabel("Size X (um)", fontsize=22)
-        axes[0].legend()
-        axes[0].grid(True)
-        axes[0].axvline(focus_z_position_x, color="gray", ls="--", linewidth=2, alpha=0.9)
-
-        axes[1].plot(coords[1], 1e6*bf_size_values_y,  marker='o', label=f"Size Y")
-        if not bf_size_values_fit_y is None: axes[1].plot(coords[1], 1e6*bf_size_values_fit_y, label=f"Size Y - FIT")
-        axes[1].set_xlabel('p. distance y (m)', fontsize=22)
-        axes[1].set_ylabel("Size Y (um)", fontsize=22)
-        axes[1].legend()
-        axes[1].grid(True)
-        axes[1].axvline(focus_z_position_y, color="gray", ls="--", linewidth=2, alpha=0.9)
-
+        plot_ax(axes[0], "x", coords[0], bf_size_values_x, bf_size_values_fit_x, focus_z_position_x)
+        plot_ax(axes[1], "y", coords[1], bf_size_values_y, bf_size_values_fit_y, focus_z_position_y)
         fig.tight_layout()
 
         self._wf_prof_figure_canvas.draw()
