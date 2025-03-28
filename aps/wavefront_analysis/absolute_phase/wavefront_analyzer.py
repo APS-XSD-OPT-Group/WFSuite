@@ -356,10 +356,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     verbose      = kwargs.get("verbose", False)
     img          = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     image_data   = kwargs.get("image_data", None)
-    image_ops    = kwargs.get("image_ops", IMAGE_OPS)
-
-    if image_data is None: image_ops = image_ops.get("file", [])
-    else:                  image_ops = image_ops.get("stream", [])
+    image_ops    = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
 
     dark           = None
     flat           = None
@@ -427,10 +424,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
     flat = None
     img         = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     image_data  = kwargs.get("image_data", None)
-    image_ops   = kwargs.get("image_ops", IMAGE_OPS)
-
-    if image_data is None: image_ops = image_ops.get("file", [])
-    else:                  image_ops = image_ops.get("stream", [])
+    image_ops   = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
 
     mask_directory  = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
     result_folder   = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])
