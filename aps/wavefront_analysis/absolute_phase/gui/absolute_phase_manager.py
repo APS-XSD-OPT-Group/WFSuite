@@ -177,7 +177,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     def __take_shot(self, initialization_parameters: ScriptData, **kwargs):
         if self.__wavefront_sensor is None: raise EnvironmentError("Wavefront Sensor is not connected")
 
-        data_from, image_ops = self.__get_image_ops(initialization_parameters)
+        image_ops, data_from = self.__get_image_ops(initialization_parameters)
 
         try:
             self.__wavefront_sensor.collect_single_shot_image(index=1)
@@ -208,9 +208,10 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     def take_shot_and_generate_mask(self, initialization_parameters: ScriptData, **kwargs):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
         self.__check_wavefront_analyzer(initialization_parameters)
+        image_ops, _ = self.__get_image_ops(initialization_parameters)
 
         h_coord, v_coord, image            = self.__take_shot(initialization_parameters, **kwargs)
-        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image, image_ops=self.__get_image_ops(initialization_parameters))
+        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image, image_ops=image_ops)
 
         if not is_new_mask: raise ValueError("Simulated Mask is already present in the Wavefront Image Directory")
         else:               return h_coord, v_coord, image, image_transfer_matrix
@@ -218,11 +219,12 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     def take_shot_and_process_image(self, initialization_parameters: ScriptData, **kwargs):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
         self.__check_wavefront_analyzer(initialization_parameters)
+        image_ops, _ = self.__get_image_ops(initialization_parameters)
 
         h_coord, v_coord, image    = self.__take_shot(initialization_parameters, **kwargs)
         wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
                                                                              image_data=image,
-                                                                             image_ops=self.__get_image_ops(initialization_parameters),
+                                                                             image_ops=image_ops,
                                                                              save_images=initialization_parameters.get_parameter("save_result", True))
 
         return h_coord, v_coord, image, wavefront_at_detector_data
@@ -230,11 +232,12 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     def take_shot_and_back_propagate(self, initialization_parameters: ScriptData, **kwargs):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
         self.__check_wavefront_analyzer(initialization_parameters)
+        image_ops, _ = self.__get_image_ops(initialization_parameters)
 
         h_coord, v_coord, image    = self.__take_shot(initialization_parameters, **kwargs)
         wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
                                                                              image_data=image,
-                                                                             image_ops=self.__get_image_ops(initialization_parameters),
+                                                                             image_ops=image_ops,
                                                                              save_images=initialization_parameters.get_parameter("save_result", True))
         propagated_wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
                                                                                        show_figure=False,
@@ -246,14 +249,16 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     def read_image_from_file(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
         self.__check_wavefront_analyzer(initialization_parameters)
+        image_ops, _ = self.__get_image_ops(initialization_parameters, data_from="file")
 
-        return self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=self.__get_image_ops(initialization_parameters))
+        return self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=image_ops)
 
     def generate_mask_from_file(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
         self.__check_wavefront_analyzer(initialization_parameters)
+        image_ops, _ = self.__get_image_ops(initialization_parameters, data_from="file")
 
-        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1)
+        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1, image_ops=image_ops)
 
         if not is_new_mask: raise ValueError("Simulated Mask is already present in the Wavefront Image Directory")
         else:               return image_transfer_matrix
@@ -261,9 +266,11 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     def process_image_from_file(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
         self.__check_wavefront_analyzer(initialization_parameters)
+        image_ops, _ = self.__get_image_ops(initialization_parameters, data_from="file")
 
         # dict: mode, intensity (2D or array of 2x1D), phase (2D or None), line_phase, line_displace, line_curve (2x1D array)
         wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
+                                                                             image_ops=image_ops,
                                                                              save_images=initialization_parameters.get_parameter("save_result", True))
 
         return wavefront_at_detector_data
@@ -297,10 +304,10 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
 
         if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory, energy=energy)
 
-    def __get_image_ops(self, initialization_parameters):
+    def __get_image_ops(self, initialization_parameters, data_from=None):
         data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
 
-        data_from = get_data_from_int_to_string(initialization_parameters.get_parameter("data_from"))
+        data_from = data_from if not data_from is None else get_data_from_int_to_string(initialization_parameters.get_parameter("data_from"))
         image_ops = data_analysis_configuration["image_ops"][data_from]
 
-        return image_ops
+        return image_ops, data_from
