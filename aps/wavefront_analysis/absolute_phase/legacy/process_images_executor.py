@@ -1200,7 +1200,7 @@ def execute_process_image(**arguments):
 
     # =====================  start to find the pattern   ================================================
 
-    if args.image_data is None: I_img_raw = load_image(file_img)
+    if args.image_data is None: _, _, I_img_raw = apply_transformations(None, None, load_image(file_img), args.image_ops)
     else:                       _, _, I_img_raw = apply_transformations(None, None, args.image_data, args.image_ops)
 
     #I_img_raw = I_img_raw.T
