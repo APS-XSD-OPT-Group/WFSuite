@@ -174,21 +174,18 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
 
         sys.exit(0)
 
-    def take_shot(self, initialization_parameters: ScriptData, **kwargs):
+    def __take_shot(self, initialization_parameters: ScriptData, **kwargs):
         if self.__wavefront_sensor is None: raise EnvironmentError("Wavefront Sensor is not connected")
 
-        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
-        data_from = get_data_from_int_to_string(initialization_parameters.get_parameter("data_from"))
-        image_ops = data_analysis_configuration["image_ops"][data_from]
+        data_from, image_ops = self.__get_image_ops(initialization_parameters)
 
         try:
             self.__wavefront_sensor.collect_single_shot_image(index=1)
 
-            if data_from == "stream":
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
-                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
-            elif data_from == "file":
-                h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=image_ops)
+            if data_from == "stream": image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
+            elif data_from == "file": image, h_coord, v_coord = self.__wavefront_sensor.get_image_data(units="mm")
+
+            h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
 
             try:    self.__wavefront_sensor.save_status()
             except: pass
@@ -196,7 +193,6 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             except: pass
 
             return h_coord, v_coord, image
-
         except Exception as e:
             try:    self.__wavefront_sensor.save_status()
             except: pass
@@ -204,127 +200,58 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             except: pass
 
             raise e
+
+    def take_shot(self, initialization_parameters: ScriptData, **kwargs):
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        return self.__take_shot(initialization_parameters, **kwargs)
 
     def take_shot_and_generate_mask(self, initialization_parameters: ScriptData, **kwargs):
-        if self.__wavefront_sensor is None: raise EnvironmentError("Wavefront Sensor is not connected")
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        self.__check_wavefront_analyzer(initialization_parameters)
 
-        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
-        data_from = get_data_from_int_to_string(initialization_parameters.get_parameter("data_from"))
-        image_ops = data_analysis_configuration["image_ops"][data_from]
+        h_coord, v_coord, image            = self.__take_shot(initialization_parameters, **kwargs)
+        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image, image_ops=self.__get_image_ops(initialization_parameters))
 
-        try:
-            self.__wavefront_sensor.collect_single_shot_image(index=1)
-
-            # image ops will be manager by the legacy
-            if data_from == "stream": image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
-            elif data_from == "file": h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
-
-            try:    self.__wavefront_sensor.save_status()
-            except: pass
-            try:    self.__wavefront_sensor.end_collection()
-            except: pass
-
-            image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image,
-                                                                                                   image_ops=image_ops)
-
-            return h_coord, v_coord, image, image_transfer_matrix
-
-        except Exception as e:
-            try:    self.__wavefront_sensor.save_status()
-            except: pass
-            try:    self.__wavefront_sensor.end_collection()
-            except: pass
-
-            raise e
+        if not is_new_mask: raise ValueError("Simulated Mask is already present in the Wavefront Image Directory")
+        else:               return h_coord, v_coord, image, image_transfer_matrix
 
     def take_shot_and_process_image(self, initialization_parameters: ScriptData, **kwargs):
-        if self.__wavefront_sensor is None: raise EnvironmentError("Wavefront Sensor is not connected")
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        self.__check_wavefront_analyzer(initialization_parameters)
 
-        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
-        data_from = get_data_from_int_to_string(initialization_parameters.get_parameter("data_from"))
-        image_ops = data_analysis_configuration["image_ops"][data_from]
+        h_coord, v_coord, image    = self.__take_shot(initialization_parameters, **kwargs)
+        wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
+                                                                             image_data=image,
+                                                                             image_ops=self.__get_image_ops(initialization_parameters),
+                                                                             save_images=initialization_parameters.get_parameter("save_result", True))
 
-        try:
-            self.__wavefront_sensor.collect_single_shot_image(index=1)
-
-            # image ops will be manager by the legacy
-            if data_from == "stream": image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
-            elif data_from == "file": h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
-
-            try:    self.__wavefront_sensor.save_status()
-            except: pass
-            try:    self.__wavefront_sensor.end_collection()
-            except: pass
-
-            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
-                                                                                 image_data=image,
-                                                                                 image_ops=image_ops,
-                                                                                 save_images=initialization_parameters.get_parameter("save_result", True))
-
-            return h_coord, v_coord, image, wavefront_at_detector_data
-
-        except Exception as e:
-            try:    self.__wavefront_sensor.save_status()
-            except: pass
-            try:    self.__wavefront_sensor.end_collection()
-            except: pass
-
-            raise e
+        return h_coord, v_coord, image, wavefront_at_detector_data
 
     def take_shot_and_back_propagate(self, initialization_parameters: ScriptData, **kwargs):
-        if self.__wavefront_sensor is None: raise EnvironmentError("Wavefront Sensor is not connected")
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        self.__check_wavefront_analyzer(initialization_parameters)
 
-        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
-        data_from = get_data_from_int_to_string(initialization_parameters.get_parameter("data_from"))
-        image_ops = data_analysis_configuration["image_ops"][data_from]
+        h_coord, v_coord, image    = self.__take_shot(initialization_parameters, **kwargs)
+        wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
+                                                                             image_data=image,
+                                                                             image_ops=self.__get_image_ops(initialization_parameters),
+                                                                             save_images=initialization_parameters.get_parameter("save_result", True))
+        propagated_wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
+                                                                                       show_figure=False,
+                                                                                       save_result=True,
+                                                                                       verbose=True)
 
-        try:
-            self.__wavefront_sensor.collect_single_shot_image(index=1)
-
-            # image ops will be manager by the legacy
-            if data_from == "stream": image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
-            elif data_from == "file": h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm")
-
-            try:    self.__wavefront_sensor.save_status()
-            except: pass
-            try:    self.__wavefront_sensor.end_collection()
-            except: pass
-
-            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
-                                                                                 image_data=image,
-                                                                                 image_ops=image_ops,
-                                                                                 save_images=initialization_parameters.get_parameter("save_result", True))
-
-            propagated_wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
-                                                                                           show_figure=False,
-                                                                                           save_result=True,
-                                                                                           verbose=True)
-
-            return h_coord, v_coord, image, wavefront_at_detector_data, propagated_wavefront_data
-
-        except Exception as e:
-            try:    self.__wavefront_sensor.save_status()
-            except: pass
-            try:    self.__wavefront_sensor.end_collection()
-            except: pass
-
-            raise e
+        return h_coord, v_coord, image, wavefront_at_detector_data, propagated_wavefront_data
 
     def read_image_from_file(self, initialization_parameters: ScriptData):
-        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        self.__check_wavefront_analyzer(initialization_parameters)
 
-        self.__check_wavefront_analyzer(data_collection_directory=initialization_parameters.get_parameter("wavefront_sensor_image_directory"),
-                                        energy=data_analysis_configuration.get('energy'))
-
-        return self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=data_analysis_configuration["image_ops"]["file"])
+        return self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=self.__get_image_ops(initialization_parameters))
 
     def generate_mask_from_file(self, initialization_parameters: ScriptData):
-        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
-
-        self.__check_wavefront_analyzer(data_collection_directory=initialization_parameters.get_parameter("wavefront_sensor_image_directory"),
-                                        energy=data_analysis_configuration['energy'])
-
-        set_ini_from_initialization_parameters(initialization_parameters=initialization_parameters, ini=self.__ini) # all arguments are read from the Ini
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        self.__check_wavefront_analyzer(initialization_parameters)
 
         image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1)
 
@@ -332,12 +259,8 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         else:               return image_transfer_matrix
 
     def process_image_from_file(self, initialization_parameters: ScriptData):
-        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
-
-        self.__check_wavefront_analyzer(data_collection_directory=initialization_parameters.get_parameter("wavefront_sensor_image_directory"),
-                                        energy=data_analysis_configuration['energy'])
-
-        set_ini_from_initialization_parameters(initialization_parameters=initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        self.__check_wavefront_analyzer(initialization_parameters)
 
         # dict: mode, intensity (2D or array of 2x1D), phase (2D or None), line_phase, line_displace, line_curve (2x1D array)
         wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
@@ -346,14 +269,9 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         return wavefront_at_detector_data
 
     def back_propagate_from_file(self, initialization_parameters: ScriptData, **kwargs):
-        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        self.__check_wavefront_analyzer(initialization_parameters)
 
-        self.__check_wavefront_analyzer(data_collection_directory=initialization_parameters.get_parameter("wavefront_sensor_image_directory"),
-                                        energy=data_analysis_configuration['energy'])
-
-        set_ini_from_initialization_parameters(initialization_parameters=initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
-
-        # dict: PropagatedWavefront in legacy.back_propagation_executor
         propagated_wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
                                                                                        show_figure=False,
                                                                                        save_result=True,
@@ -365,7 +283,11 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     # PRIVATE METHODS
     # --------------------------------------------------------------------------------------
 
-    def __check_wavefront_analyzer(self, data_collection_directory, energy):
+    def __check_wavefront_analyzer(self, initialization_parameters: ScriptData):
+        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
+        data_collection_directory   = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
+        energy                      = data_analysis_configuration['energy']
+
         generate = False
         if self.__wavefront_analyzer is None:
             generate = True
@@ -374,3 +296,11 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             generate = current_setup['data_collection_directory'] != data_collection_directory or current_setup['energy'] != energy
 
         if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory, energy=energy)
+
+    def __get_image_ops(self, initialization_parameters):
+        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
+
+        data_from = get_data_from_int_to_string(initialization_parameters.get_parameter("data_from"))
+        image_ops = data_analysis_configuration["image_ops"][data_from]
+
+        return image_ops

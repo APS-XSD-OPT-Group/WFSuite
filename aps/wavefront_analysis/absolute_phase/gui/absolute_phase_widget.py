@@ -63,7 +63,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from cmasher import cm as cmm
 
 from PyQt5.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QScrollArea
-from PyQt5.QtCore import QRect, Qt
+from PyQt5.QtCore import QRect, Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
 
 from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager_initialization import get_data_from_int_to_string, get_data_from_string_to_int
@@ -71,6 +71,8 @@ from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager_initializa
 DEBUG_MODE = int(os.environ.get("DEBUG_MODE", 0)) == 1
 
 class AbsolutePhaseWidget(GenericWidget):
+    wavefront_sensor_changed = pyqtSignal()
+
     def __init__(self, parent, application_name=None, **kwargs):
         self._log_stream_widget             = kwargs["log_stream_widget"]
         self._working_directory             = kwargs["working_directory"]
@@ -93,12 +95,15 @@ class AbsolutePhaseWidget(GenericWidget):
         icons_path = os.path.join(os.path.dirname(__import__("aps.wavefront_analysis.absolute_phase.gui", fromlist=[""]).__file__), 'icons')
         self.__ws_pixmaps = {
             "red": QPixmap(os.path.join(icons_path, "red_light.png")).scaled(25, 25, Qt.KeepAspectRatio, Qt.SmoothTransformation),
-            "green": QPixmap(os.path.join(icons_path, "green_light.png")).scaled(25, 25, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            "green": QPixmap(os.path.join(icons_path, "green_light.png")).scaled(25, 25, Qt.KeepAspectRatio, Qt.SmoothTransformation),
+            "orange" : QPixmap(os.path.join(icons_path, "orange_light.png")).scaled(25, 25, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         }
 
         self.__is_wavefront_sensor_initialized = False
 
         super(AbsolutePhaseWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
+
+        self.wavefront_sensor_changed.connect(self._wavefront_sensor_changed)
 
         self.__is_init = True
 
@@ -276,37 +281,67 @@ class AbsolutePhaseWidget(GenericWidget):
 
         ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=300)
 
-        gui.checkBox(ws_box_1, self, "send_stop_command",      "Send Stop Command")
-        gui.checkBox(ws_box_1, self, "send_save_command",      "Send Save Command")
-        gui.checkBox(ws_box_1, self, "remove_image",           "Remove Image")
-        gui.checkBox(ws_box_1, self, "is_stream_available",    "Is Stream Available")
-        gui.checkBox(ws_box_1, self, "transpose_stream_image", "Transpose Stream Image")
+        ws_send_stop_command      = gui.checkBox(ws_box_1, self, "send_stop_command",      "Send Stop Command")
+        ws_send_save_command      = gui.checkBox(ws_box_1, self, "send_save_command",      "Send Save Command")
+        ws_remove_image           = gui.checkBox(ws_box_1, self, "remove_image",           "Remove Image")
+        ws_is_stream_available    = gui.checkBox(ws_box_1, self, "is_stream_available",    "Is Stream Available")
+        ws_transpose_stream_image = gui.checkBox(ws_box_1, self, "transpose_stream_image", "Transpose Stream Image")
+
         gui.separator(ws_box_1)
-        gui.lineEdit(ws_box_1, self, "wait_time",     "Wait Time [s]",         labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(ws_box_1, self, "exposure_time", "Exposure Time [s]",     labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(ws_box_1, self, "pause_after_shot", "Pause After Shot [s]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(ws_box_1, self, "pixel_format",  "Pixel Format",          labelWidth=labels_width_1, orientation='horizontal', valueType=int)
-        gui.lineEdit(ws_box_1, self, "index_digits",  "Digits on Image Index", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+
+        ws_wait_time        = gui.lineEdit(ws_box_1, self, "wait_time",     "Wait Time [s]",         labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        ws_exposure_time    = gui.lineEdit(ws_box_1, self, "exposure_time", "Exposure Time [s]",     labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        ws_pause_after_shot = gui.lineEdit(ws_box_1, self, "pause_after_shot", "Pause After Shot [s]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        ws_pixel_format     = gui.lineEdit(ws_box_1, self, "pixel_format",  "Pixel Format",          labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+        ws_index_digits     = gui.lineEdit(ws_box_1, self, "index_digits",  "Digits on Image Index", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
         ws_box_2 = gui.widgetBox(ws_tab_1, "Detector", width=self._ws_box.width()-15, height=100)
 
-        gui.lineEdit(ws_box_2, self, "pixel_size",          "Pixel Size [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(ws_box_2, self, "detector_resolution", "Resolution [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        ws_pixel_size          = gui.lineEdit(ws_box_2, self, "pixel_size",          "Pixel Size [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        ws_detector_resolution = gui.lineEdit(ws_box_2, self, "detector_resolution", "Resolution [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
 
         ws_box_3 = gui.widgetBox(ws_tab_2, "Epics", width=self._ws_box.width()-15, height=340)
 
-        gui.lineEdit(ws_box_3, self, "cam_pixel_format",      "Cam: Pixel Format",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "cam_acquire",           "Cam: Acquire",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "cam_exposure_time",     "Cam: Acquire Time",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "cam_image_mode",        "Cam: Image Mode",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "tiff_enable_callbacks", "Tiff: Enable Callbacks",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "tiff_filename",         "Tiff: File Name",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "tiff_filepath",         "Tiff: File Path",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "tiff_filenumber",       "Tiff: File Number",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "tiff_autosave",         "Tiff: Auto-Save",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "tiff_savefile",         "Tiff: Write File",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "tiff_autoincrement",    "Tiff: Auto-Increment",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
-        gui.lineEdit(ws_box_3, self, "pva_image",             "Pva Image",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_cam_pixel_format      = gui.lineEdit(ws_box_3, self, "cam_pixel_format",      "Cam: Pixel Format",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_cam_acquire           = gui.lineEdit(ws_box_3, self, "cam_acquire",           "Cam: Acquire",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_cam_exposure_time     = gui.lineEdit(ws_box_3, self, "cam_exposure_time",     "Cam: Acquire Time",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_cam_image_mode        = gui.lineEdit(ws_box_3, self, "cam_image_mode",        "Cam: Image Mode",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_tiff_enable_callback  = gui.lineEdit(ws_box_3, self, "tiff_enable_callbacks", "Tiff: Enable Callbacks",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_tiff_filename         = gui.lineEdit(ws_box_3, self, "tiff_filename",         "Tiff: File Name",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_tiff_filepath         = gui.lineEdit(ws_box_3, self, "tiff_filepath",         "Tiff: File Path",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_tiff_filenumber       = gui.lineEdit(ws_box_3, self, "tiff_filenumber",       "Tiff: File Number",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_tiff_autosave         = gui.lineEdit(ws_box_3, self, "tiff_autosave",         "Tiff: Auto-Save",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_tiff_savefile         = gui.lineEdit(ws_box_3, self, "tiff_savefile",         "Tiff: Write File",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_tiff_autoincrement    = gui.lineEdit(ws_box_3, self, "tiff_autoincrement",    "Tiff: Auto-Increment",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+        ws_pva_image             = gui.lineEdit(ws_box_3, self, "pva_image",             "Pva Image",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
+
+        def emit_wavefront_sensor_changed():
+            self.wavefront_sensor_changed.emit()
+
+        ws_send_stop_command.stateChanged.connect(emit_wavefront_sensor_changed)
+        ws_send_save_command.stateChanged.connect(emit_wavefront_sensor_changed)
+        ws_remove_image.stateChanged.connect(emit_wavefront_sensor_changed)
+        ws_is_stream_available.stateChanged.connect(emit_wavefront_sensor_changed)
+        ws_transpose_stream_image.stateChanged.connect(emit_wavefront_sensor_changed)
+        ws_wait_time.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_exposure_time.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_pause_after_shot.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_pixel_format.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_index_digits.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_pixel_size.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_detector_resolution.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_cam_pixel_format.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_cam_acquire.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_cam_exposure_time.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_cam_image_mode.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_tiff_enable_callback.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_tiff_filename.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_tiff_filepath.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_tiff_filenumber.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_tiff_autosave.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_tiff_savefile.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_tiff_autoincrement.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_pva_image.textChanged.connect(emit_wavefront_sensor_changed)
 
         #########################################################################################
         # WAVEFRONT ANALYSIS
@@ -455,7 +490,6 @@ class AbsolutePhaseWidget(GenericWidget):
 
         gui.checkBox(self._bp_box_3_1, self, "bp_calibration_mode", "Phase Shift Calibration")
 
-        self.bp_calibration_mode
         self._set_data_from()
         self._set_method()
         self._set_d_source_recal()
@@ -502,7 +536,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self._out_box     = gui.widgetBox(self, "", width=self.width() - main_box_width - 20, height=self.height() - 20, orientation="vertical")
         self._ws_dir_box  = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=50, orientation="horizontal")
 
-        gui.widgetLabel(self._ws_dir_box, "Wavefront Sensor  ")
+        self._ws_text  = gui.widgetLabel(self._ws_dir_box, "Wavefront Sensor  ")
         self._ws_label = gui.widgetLabel(self._ws_dir_box)
 
         self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Working Directory", labelWidth=120, orientation='horizontal', valueType=str)
@@ -816,8 +850,18 @@ class AbsolutePhaseWidget(GenericWidget):
         self._set_wavefront_sensor_icon()
 
     def _set_wavefront_sensor_icon(self):
-        color = "green" if self.__is_wavefront_sensor_initialized else "red"
-        self._ws_label.setPixmap(self.__ws_pixmaps[color])
+        if self.__is_wavefront_sensor_initialized:
+            self._ws_text.setText("Wavefront Sensor  \n(Connected)")
+            self._ws_label.setPixmap(self.__ws_pixmaps["green"])
+        else:
+            self._ws_text.setText("Wavefront Sensor  \n(NOT CONNECTED)")
+            self._ws_label.setPixmap(self.__ws_pixmaps["red"])
+
+
+    def _wavefront_sensor_changed(self):
+        if self.__is_wavefront_sensor_initialized:
+            self._ws_label.setPixmap(self.__ws_pixmaps["orange"])
+            self._ws_text.setText("Wavefront Sensor  \n(Reconnect if changed)")
 
     # Online -------------------------------------------
 
