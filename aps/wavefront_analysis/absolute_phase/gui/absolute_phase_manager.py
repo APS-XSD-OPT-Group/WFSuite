@@ -212,7 +212,8 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         return image_ops
 
     def take_shot(self, initialization_parameters: ScriptData, **kwargs):
-        return self.__take_shot(initialization_parameters)
+        h_coord, v_coord, image, _ = self.__take_shot(initialization_parameters)
+        return h_coord, v_coord, image
 
     def take_shot_and_generate_mask(self, initialization_parameters: ScriptData, **kwargs):
         h_coord, v_coord, image, image_ops = self.__take_shot(initialization_parameters)
