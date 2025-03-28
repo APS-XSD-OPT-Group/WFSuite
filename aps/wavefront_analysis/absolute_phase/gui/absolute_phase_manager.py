@@ -44,24 +44,15 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-import os
 import sys
-import copy
-
-import time
-import traceback
-from PyQt5.QtCore import QThread, pyqtSignal, QObject
+from PyQt5.QtCore import pyqtSignal, QObject
 
 from aps.common.scripts.generic_process_manager import GenericProcessManager
 from aps.common.widgets.context_widget import PlottingProperties, DefaultMainWindow
 from aps.common.plotter import get_registered_plotter_instance
 from aps.common.initializer import get_registered_ini_instance
-from aps.common.logger import get_registered_logger_instance, LoggerColor
+from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
-from aps.common.singleton import synchronized_method
-from aps.common.io.printout import date_now_str, time_now_str
-from aps.common.widgets.stream_proxy import StreamProxy
-from aps.common.utilities import energy_to_wavelength
 from aps.common.plot.image import apply_transformations
 
 from aps.wavefront_analysis.absolute_phase.factory import create_wavefront_analyzer
@@ -89,8 +80,7 @@ class IAbsolutePhaseManager(GenericProcessManager):
 def create_absolute_phase_manager(**kwargs): return _AbsolutePhaseManager(**kwargs)
 
 class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
-    interrupt         = pyqtSignal()
-    analysis_completed = pyqtSignal()
+    interrupt = pyqtSignal()
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -135,7 +125,6 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
                                                 back_propagate_from_file_method=self.back_propagate_from_file,
                                                 allows_saving=False,
                                                 **kwargs)
-            self.analysis_completed.connect(getattr(self.__plotter.get_plots_of_context(SHOW_ABSOLUTE_PHASE)[0], "analysis_completed"))
 
             self.__plotter.draw_context(SHOW_ABSOLUTE_PHASE, add_context_label=add_context_label, unique_id=None, **kwargs)
             self.__plotter.show_context_window(SHOW_ABSOLUTE_PHASE)
@@ -173,43 +162,6 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         if self.__plotter.is_active(): self.__plotter.get_context_container_widget(context_key=SHOW_ABSOLUTE_PHASE).parent().close()
 
         sys.exit(0)
-
-    def __take_shot(self, initialization_parameters: ScriptData):
-        if self.__wavefront_sensor is None: raise EnvironmentError("Wavefront Sensor is not connected")
-        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
-        self.__check_wavefront_analyzer(initialization_parameters)
-
-        image_ops, data_from = self.__get_image_ops(initialization_parameters)
-
-        try:
-            self.__wavefront_sensor.collect_single_shot_image(index=1)
-
-            if data_from == "stream":
-                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
-                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
-            elif data_from == "file":
-                h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=image_ops)
-
-            try:    self.__wavefront_sensor.save_status()
-            except: pass
-            try:    self.__wavefront_sensor.end_collection()
-            except: pass
-
-            return h_coord, v_coord, image, image_ops
-        except Exception as e:
-            try:    self.__wavefront_sensor.save_status()
-            except: pass
-            try:    self.__wavefront_sensor.end_collection()
-            except: pass
-
-            raise e
-
-    def __set_wavefront_ready(self, initialization_parameters: ScriptData):
-        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
-        self.__check_wavefront_analyzer(initialization_parameters)
-        image_ops, _ = self.__get_image_ops(initialization_parameters, data_from="file")
-
-        return image_ops
 
     def take_shot(self, initialization_parameters: ScriptData, **kwargs):
         h_coord, v_coord, image, _ = self.__take_shot(initialization_parameters)
@@ -276,14 +228,49 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     # PRIVATE METHODS
     # --------------------------------------------------------------------------------------
 
+    def __take_shot(self, initialization_parameters: ScriptData):
+        if self.__wavefront_sensor is None: raise EnvironmentError("Wavefront Sensor is not connected")
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        self.__check_wavefront_analyzer(initialization_parameters)
+
+        image_ops, data_from = self.__get_image_ops(initialization_parameters)
+
+        try:
+            self.__wavefront_sensor.collect_single_shot_image(index=1)
+
+            if data_from == "stream":
+                image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
+                h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
+            elif data_from == "file":
+                h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=image_ops)
+
+            try:    self.__wavefront_sensor.save_status()
+            except: pass
+            try:    self.__wavefront_sensor.end_collection()
+            except: pass
+
+            return h_coord, v_coord, image, image_ops
+        except Exception as e:
+            try:    self.__wavefront_sensor.save_status()
+            except: pass
+            try:    self.__wavefront_sensor.end_collection()
+            except: pass
+
+            raise e
+
+    def __set_wavefront_ready(self, initialization_parameters: ScriptData):
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        self.__check_wavefront_analyzer(initialization_parameters)
+        image_ops, _ = self.__get_image_ops(initialization_parameters, data_from="file")
+
+        return image_ops
+
     def __check_wavefront_analyzer(self, initialization_parameters: ScriptData):
         data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
         data_collection_directory   = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
         energy                      = data_analysis_configuration['energy']
 
-        generate = False
-        if self.__wavefront_analyzer is None:
-            generate = True
+        if self.__wavefront_analyzer is None: generate = True
         else:
             current_setup = self.__wavefront_analyzer.get_current_setup()
             generate = current_setup['data_collection_directory'] != data_collection_directory or current_setup['energy'] != energy

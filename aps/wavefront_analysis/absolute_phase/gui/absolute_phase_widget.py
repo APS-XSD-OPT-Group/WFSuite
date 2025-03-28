@@ -1001,9 +1001,8 @@ class AbsolutePhaseWidget(GenericWidget):
                     self._wa_tab_widget.setCurrentIndex(1)
                     self._wa_tab_widget_2.setCurrentIndex(0)
 
-    @synchronized_method
-    def analysis_completed(self):
-        pass
+    # ----------------------------------------------------
+    # PLOT METHODS
 
     def __plot_shot_image(self, h_coord, v_coord, image):
         data_2D = image
