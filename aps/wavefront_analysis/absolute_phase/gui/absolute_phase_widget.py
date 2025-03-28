@@ -1091,7 +1091,7 @@ class AbsolutePhaseWidget(GenericWidget):
             ax.set_ylabel('y ($\mu$m)')
             ax.set_aspect("equal")
             if sys.platform == 'darwin': ax.set_position([-0.375, 0.15, 1.0, 0.8])
-            else:                        ax.set_position([0.05, 0.15, 0.8, 0.8])
+            else:                        ax.set_position([-0.05, 0.15, 0.8, 0.8])
             add_text_2D(ax)
             cbar = fig.colorbar(mappable=image, ax=ax, pad=0.04, aspect=30, shrink=0.6)
             cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
