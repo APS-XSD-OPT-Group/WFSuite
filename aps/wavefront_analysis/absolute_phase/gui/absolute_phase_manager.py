@@ -256,7 +256,8 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             try:    self.__wavefront_sensor.end_collection()
             except: pass
 
-            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_data=image,
+            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
+                                                                                 image_data=image,
                                                                                  image_ops=image_ops,
                                                                                  save_images=initialization_parameters.get_parameter("save_result", True))
 
@@ -289,7 +290,8 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             try:    self.__wavefront_sensor.end_collection()
             except: pass
 
-            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_data=image,
+            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
+                                                                                 image_data=image,
                                                                                  image_ops=image_ops,
                                                                                  save_images=initialization_parameters.get_parameter("save_result", True))
 
@@ -359,7 +361,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
 
         return propagated_wavefront_data
 
-        # --------------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------------
     # PRIVATE METHODS
     # --------------------------------------------------------------------------------------
 
@@ -372,40 +374,3 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             generate = current_setup['data_collection_directory'] != data_collection_directory or current_setup['energy'] != energy
 
         if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory, energy=energy)
-
-    def __create_wofry_wavefront(self, process_image_result: dict, initialization_parameters: ScriptData):
-        wavefront_sensor_configuration = initialization_parameters.get_parameter("wavefront_sensor_configuration")
-        data_analysis_configuration    = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
-
-        wavelength = energy_to_wavelength(data_analysis_configuration.get('energy'))
-        pixel_size = wavefront_sensor_configuration.get('pixel_size')
-        mode       = data_analysis_configuration.get('mode')
-
-        intensity = process_image_result['intensity']
-        phase     = process_image_result['phase']
-
-        if mode == "area":
-            # FROM BACK-PROPAGATION LEGACY:
-            # XShi: This transpose is to convert to my personal preference, x is the first dimension, y is the second dimension,
-            #       it is against python tradition
-            intensity = intensity.T
-            intensity = intensity[:, ::-1]
-            phase = phase.T
-            phase = phase[:, ::-1]
-
-            return GenericWavefront2D.initialize_wavefront_from_arrays(x_array=np.linspace(-pixel_size * intensity.shape[0] / 2, pixel_size * intensity.shape[0] / 2, intensity.shape[0]),
-                                                                       y_array=np.linspace(-pixel_size * intensity.shape[1] / 2, pixel_size * intensity.shape[1] / 2, intensity.shape[1]),
-                                                                       z_array=np.sqrt(intensity) * np.exp(1j * phase),
-                                                                       wavelength=wavelength)
-        elif mode == "lineWidth":
-            int_x   = intensity[0]
-            int_y   = intensity[1]
-            phase_x = line_phase[0]
-            phase_y = line_phase[1]
-
-            return [GenericWavefront1D.initialize_wavefront_from_arrays(x_array=np.linspace(-pixel_size * int_x.shape[0] / 2, pixel_size * int_x.shape[0] / 2, int_x.shape[0]),
-                                                                        y_array=np.sqrt(int_x) * np.exp(1j * phase_x),
-                                                                        wavelength=wavelength),
-                    GenericWavefront1D.initialize_wavefront_from_arrays(x_array=np.linspace(-pixel_size * int_y.shape[0] / 2, pixel_size * int_y.shape[0] / 2, int_y.shape[0]),
-                                                                        y_array=np.sqrt(int_y) * np.exp(1j * phase_y),
-                                                                        wavelength=wavelength)]
