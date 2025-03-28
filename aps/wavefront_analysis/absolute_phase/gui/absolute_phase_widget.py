@@ -1053,7 +1053,7 @@ class AbsolutePhaseWidget(GenericWidget):
 
             if sys.platform == 'darwin': ax.text(1.5, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="Courier",
                                                  bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
-            else:                        ax.text(1.3, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="DejaVu",
+            else:                        ax.text(1.25, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="DejaVu Sans",
                                                  bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
         def add_text_1D(ax, dir):
@@ -1062,7 +1062,7 @@ class AbsolutePhaseWidget(GenericWidget):
                                    ["fwhm", "rms", "shift"]):
                 text += "\n" + rf"{label:<5}: {wavefront_data[prop] * 1e6 : 3.3f} $\mu$m"
 
-            ax.text(0.65, 0.8, text, color="black", alpha=0.9, fontsize=9, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu"),
+            ax.text(0.65, 0.8, text, color="black", alpha=0.9, fontsize=9, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
                     bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
         if wavefront_data['kind'] == '2D':
@@ -1094,7 +1094,7 @@ class AbsolutePhaseWidget(GenericWidget):
             ax.set_ylabel('y ($\mu$m)')
             ax.set_aspect("equal")
             if sys.platform == 'darwin': ax.set_position([-0.375, 0.15, 1.0, 0.8])
-            else:                        ax.set_position([ 0.0, 0.15, 0.8, 0.8])
+            else:                        ax.set_position([-0.02, 0.15, 0.8, 0.8])
             add_text_2D(ax)
             cbar = fig.colorbar(mappable=image, ax=ax, pad=0.04, aspect=30, shrink=0.6)
             cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
@@ -1164,7 +1164,7 @@ class AbsolutePhaseWidget(GenericWidget):
             ax.legend()
             ax.grid(True)
             ax.axvline(focus, color="gray", ls="--", linewidth=2, alpha=0.9)
-            ax.text(0.53, 0.85, f"{round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu"),
+            ax.text(0.53, 0.85, f"{round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
                     bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
         fig = self._wf_prof_figure
