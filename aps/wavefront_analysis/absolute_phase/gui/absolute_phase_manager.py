@@ -184,8 +184,6 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         try:
             self.__wavefront_sensor.collect_single_shot_image(index=1)
 
-            time.sleep(1.0)
-
             if data_from == "stream":
                 image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
                 h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)

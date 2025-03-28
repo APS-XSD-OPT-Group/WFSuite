@@ -123,6 +123,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self.remove_image = wavefront_sensor_configuration["remove_image"]
         self.wait_time = wavefront_sensor_configuration["wait_time"]
         self.exposure_time = wavefront_sensor_configuration["exposure_time"]
+        self.pause_after_shot = wavefront_sensor_configuration["pause_after_shot"]
         self.pixel_format = wavefront_sensor_configuration["pixel_format"]
         self.index_digits = wavefront_sensor_configuration["index_digits"]
         self.is_stream_available = wavefront_sensor_configuration["is_stream_available"]
@@ -273,7 +274,7 @@ class AbsolutePhaseWidget(GenericWidget):
         ws_tab_1     = gui.createTabPage(tab_widget, "Image Capture")
         ws_tab_2     = gui.createTabPage(tab_widget, "IOC")
 
-        ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=280)
+        ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=300)
 
         gui.checkBox(ws_box_1, self, "send_stop_command",      "Send Stop Command")
         gui.checkBox(ws_box_1, self, "send_save_command",      "Send Save Command")
@@ -283,6 +284,7 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.separator(ws_box_1)
         gui.lineEdit(ws_box_1, self, "wait_time",     "Wait Time [s]",         labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(ws_box_1, self, "exposure_time", "Exposure Time [s]",     labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        gui.lineEdit(ws_box_1, self, "pause_after_shot", "Pause After Shot [s]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(ws_box_1, self, "pixel_format",  "Pixel Format",          labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(ws_box_1, self, "index_digits",  "Digits on Image Index", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
@@ -694,6 +696,7 @@ class AbsolutePhaseWidget(GenericWidget):
         wavefront_sensor_configuration["remove_image"] = self.remove_image
         wavefront_sensor_configuration["wait_time"] = self.wait_time
         wavefront_sensor_configuration["exposure_time"] = self.exposure_time
+        wavefront_sensor_configuration["pause_after_shot"] = self.pause_after_shot
         wavefront_sensor_configuration["pixel_format"] = self.pixel_format
         wavefront_sensor_configuration["index_digits"] = self.index_digits
         wavefront_sensor_configuration["is_stream_available"] = self.is_stream_available

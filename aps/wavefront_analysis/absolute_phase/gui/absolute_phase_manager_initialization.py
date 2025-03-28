@@ -73,7 +73,8 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
         "remove_image" : WavefrontSensorInitializationFile.REMOVE_IMAGE, 
         "wait_time" : WavefrontSensorInitializationFile.WAIT_TIME, 
         "exposure_time" : WavefrontSensorInitializationFile.EXPOSURE_TIME, 
-        "pixel_format" : WavefrontSensorInitializationFile.PIXEL_FORMAT, 
+        "pause_after_shot" : WavefrontSensorInitializationFile.PAUSE_AFTER_SHOT,
+        "pixel_format" : WavefrontSensorInitializationFile.PIXEL_FORMAT,
         "index_digits" : WavefrontSensorInitializationFile.INDEX_DIGITS, 
         "is_stream_available" : WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE, 
         "transpose_stream_ima" : WavefrontSensorInitializationFile.TRANSPOSE_STREAM_IMAGE, 
@@ -190,6 +191,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     WavefrontSensorInitializationFile.REMOVE_IMAGE           = wavefront_sensor_configuration["remove_image"]
     WavefrontSensorInitializationFile.WAIT_TIME              = wavefront_sensor_configuration["wait_time"]
     WavefrontSensorInitializationFile.EXPOSURE_TIME          = wavefront_sensor_configuration["exposure_time"]
+    WavefrontSensorInitializationFile.PAUSE_AFTER_SHOT       = wavefront_sensor_configuration["pause_after_shot"]
     WavefrontSensorInitializationFile.PIXEL_FORMAT           = wavefront_sensor_configuration["pixel_format"]
     WavefrontSensorInitializationFile.INDEX_DIGITS           = wavefront_sensor_configuration["index_digits"]
     WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE    = wavefront_sensor_configuration["is_stream_available"]
