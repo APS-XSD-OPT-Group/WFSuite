@@ -1050,7 +1050,7 @@ class AbsolutePhaseWidget(GenericWidget):
 
             if sys.platform == 'darwin': ax.text(1.5, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="Courier",
                                                  bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
-            else:                        ax.text(1.3, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="Courier",
+            else:                        ax.text(1.1, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="Courier",
                                                  bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
         def add_text_1D(ax, dir):
@@ -1091,7 +1091,7 @@ class AbsolutePhaseWidget(GenericWidget):
             ax.set_ylabel('y ($\mu$m)')
             ax.set_aspect("equal")
             if sys.platform == 'darwin': ax.set_position([-0.375, 0.15, 1.0, 0.8])
-            else:                        ax.set_position([-0.175, 0.15, 0.8, 0.8])
+            else:                        ax.set_position([0.05, 0.15, 0.8, 0.8])
             add_text_2D(ax)
             cbar = fig.colorbar(mappable=image, ax=ax, pad=0.04, aspect=30, shrink=0.6)
             cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
