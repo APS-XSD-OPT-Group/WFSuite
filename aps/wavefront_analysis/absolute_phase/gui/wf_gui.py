@@ -20,7 +20,8 @@ except:
 def initialize(working_directory):
     measurement_directory = os.path.abspath(os.path.join(working_directory, "wf_images"))
 
-    wavefront_sensor   = create_wavefront_sensor(measurement_directory=measurement_directory)
+    try:    wavefront_sensor = create_wavefront_sensor(measurement_directory=measurement_directory)
+    except: wavefront_sensor = None
     wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=measurement_directory, energy=ENERGY)
 
     try:    wavefront_sensor.restore_status()
