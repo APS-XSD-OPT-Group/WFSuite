@@ -105,8 +105,6 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self.wavefront_sensor_changed.connect(self._wavefront_sensor_changed)
 
-        self.__is_init = True
-
     def _set_values_from_initialization_parameters(self):
         self.working_directory = self._working_directory
 
@@ -163,6 +161,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self.source_distance_v = data_analysis_configuration["source_distance_v"]
         self.source_distance_h = data_analysis_configuration["source_distance_h"]
         self.d_source_recal = data_analysis_configuration["d_source_recal"]
+        self.find_transfer_matrix = data_analysis_configuration["find_transfer_matrix"]
         self.crop = list_to_string(data_analysis_configuration["crop"])
         self.estimation_method = data_analysis_configuration["estimation_method"]
         self.propagator = data_analysis_configuration["propagator"]
@@ -398,22 +397,23 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(wa_box_7, self, "n_group", label="Number of Threads", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.checkBox(wa_box_7, self, "use_gpu",      "Use GPUs")
 
-        wa_box_4 = gui.widgetBox(wa_tab_5, "Output", width=self._wa_box.width()-25, height=120)
+        wa_box_4 = gui.widgetBox(wa_tab_5, "Output", width=self._wa_box.width()-25, height=90)
 
         gui.checkBox(wa_box_4, self, "show_align_figure",  "Show Align Figure")
         gui.checkBox(wa_box_4, self, "correct_scale",      "Correct Scale")
-        self._le_itm = gui.lineEdit(wa_box_4, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
-        self._le_itm.setReadOnly(True)
-        font = QFont(self._le_itm.font())
-        font.setBold(True)
-        font.setItalic(False)
-        self._le_itm.setFont(font)
-        self._le_itm.setStyleSheet("QLineEdit {color : darkgreen; background : rgb(243, 240, 160)}")
+        #self._le_itm.setReadOnly(True)
+        #font = QFont(self._le_itm.font())
+        #font.setBold(True)
+        #font.setItalic(False)
+        #self._le_itm.setFont(font)
+        #self._le_itm.setStyleSheet("QLineEdit {color : darkgreen; background : rgb(243, 240, 160)}")
 
-        wa_box_5 = gui.widgetBox(wa_tab_2, "Simulated Mask", width=self._wa_box.width()-25, height=90)
+        wa_box_5 = gui.widgetBox(wa_tab_2, "Simulated Mask", width=self._wa_box.width()-25, height=140)
 
         gui.checkBox(wa_box_5, self, "d_source_recal",  "Source Distance Recalculation", callback=self._set_d_source_recal)
         self.le_estimation_method = gui.lineEdit(wa_box_5, self, "estimation_method", "Method", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
+        gui.checkBox(wa_box_5, self, "find_transfer_matrix",  "Find Transfer Matrix")
+        self._le_itm = gui.lineEdit(wa_box_5, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=380)
 
@@ -768,6 +768,7 @@ class AbsolutePhaseWidget(GenericWidget):
         data_analysis_configuration["source_distance_v"] = self.source_distance_v
         data_analysis_configuration["source_distance_h"] = self.source_distance_h
         data_analysis_configuration["d_source_recal"] = self.d_source_recal
+        data_analysis_configuration["find_transfer_matrix"] = self.find_transfer_matrix
         data_analysis_configuration["crop"] = string_to_list(self.crop, int)
         data_analysis_configuration["estimation_method"] = self.estimation_method
         data_analysis_configuration["propagator"] = self.propagator

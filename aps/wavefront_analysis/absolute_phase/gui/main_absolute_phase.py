@@ -80,7 +80,7 @@ class MainAbsolutePhase(GenericQTScript):
         # %% Initialization parameters
         # ==========================================================================
 
-        absolute_phase_manager.show_absolute_phase_manager()
+        absolute_phase_manager.activate_absolute_phase_manager(**args)
 
         # ==========================================================================
         # %% Final Operations
@@ -92,10 +92,11 @@ class MainAbsolutePhase(GenericQTScript):
 
         plotter.raise_context_window(context_key=SHOW_ABSOLUTE_PHASE)
 
-        get_registered_qt_application_instance().run_qt_application()
+        if plotter.is_active(): get_registered_qt_application_instance().run_qt_application()
 
     def _parse_additional_sys_argument(self, sys_argument, args):
-        if "-m" == sys_argument[:2]: args["LOG_POOL"] = int(sys_argument[2:])
+        if "-m" == sys_argument[:2]:   args["LOG_POOL"] = int(sys_argument[2:])
+        elif "-a" == sys_argument[:2]: args["ACTION"]   = sys_argument[2:]
 
     def _help_additional_parameters(self):
         help = "  -m<use multiple loggers>\n"

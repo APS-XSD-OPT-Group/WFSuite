@@ -85,6 +85,8 @@ SOURCE_DISTANCE_V     = ini_file.get_float_from_ini(  section="Source", key="Sou
 SOURCE_DISTANCE_H     = ini_file.get_float_from_ini(  section="Source", key="Source-Distance-H", default=1.5)
 
 D_SOURCE_RECAL        = ini_file.get_boolean_from_ini(section="Execution", key="Source-Distance-Recalculation", default=True)
+FIND_TRANSFER_MATRIX  = ini_file.get_boolean_from_ini(section="Execution", key="Find-Transfer-Matrix",          default=True)
+IMAGE_TRANSFER_MATRIX = ini_file.get_list_from_ini(   section="Execution", key="Image-Transfer-Matrix",         default=[0, 1, 0], type=int)
 CROP                  = ini_file.get_list_from_ini(   section="Execution", key="Crop",                          default=[-1], type=int)
 ESTIMATION_METHOD     = ini_file.get_string_from_ini( section="Execution", key="Estimation-Method",             default='simple_speckle')
 PROPAGATOR            = ini_file.get_string_from_ini( section="Execution", key="Propagator",                    default='RS')
@@ -134,7 +136,6 @@ BEST_FOCUS_SCAN_RANGE   = ini_file.get_list_from_ini(   section="Back-Propagatio
 BEST_FOCUS_SCAN_RANGE_V = ini_file.get_list_from_ini(   section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V", default=[-0.001, 0.001, 0.0001], type=float)
 BEST_FOCUS_SCAN_RANGE_H = ini_file.get_list_from_ini(   section="Back-Propagation", key="1D, Best-Focus-Scan-Range-H", default=[-0.001, 0.001, 0.0001], type=float)
 
-IMAGE_TRANSFER_MATRIX = ini_file.get_list_from_ini(   section="Output", key="Image-Transfer-Matrix", default=[0, 1, 0], type=int)
 SHOW_ALIGN_FIGURE     = ini_file.get_boolean_from_ini(section="Output", key="Show-Align-Figure",     default=False)
 CORRECT_SCALE         = ini_file.get_boolean_from_ini(section="Output", key="Correct-Scale",         default=False)
 
@@ -152,6 +153,8 @@ def store():
     ini_file.set_value_at_ini(section="Source", key="Source-Distance-H",    value=SOURCE_DISTANCE_H)
 
     ini_file.set_value_at_ini(section="Execution", key="Source-Distance-Recalculation", value=D_SOURCE_RECAL)
+    ini_file.set_value_at_ini(section="Execution", key="Find-Transfer-Matrix",          value=FIND_TRANSFER_MATRIX)
+    ini_file.set_list_at_ini( section="Execution", key="Image-Transfer-Matrix",         values_list=IMAGE_TRANSFER_MATRIX)
     ini_file.set_list_at_ini( section="Execution", key="Crop",                          values_list=CROP)
     ini_file.set_value_at_ini(section="Execution", key="Estimation-Method",             value=ESTIMATION_METHOD)
     ini_file.set_value_at_ini(section="Execution", key="Propagator",                    value=PROPAGATOR)
@@ -170,8 +173,8 @@ def store():
     ini_file.set_value_at_ini(section="Back-Propagation", key="2D, Propagation-Distance",   value=DISTANCE)
     ini_file.set_value_at_ini(section="Back-Propagation", key="1D, Propagation-Distance-V", value=DISTANCE_V)
     ini_file.set_value_at_ini(section="Back-Propagation", key="1D, Propagation-Distance-H", value=DISTANCE_H)
-    ini_file.set_dict_at_ini(section="Back-Propagation",  key="Delta-F-V",                  values_dict=DELTA_F_V)
-    ini_file.set_dict_at_ini(section="Back-Propagation",  key="Delta-F-H",                  values_dict=DELTA_F_H)
+    ini_file.set_dict_at_ini( section="Back-Propagation", key="Delta-F-V",                  values_dict=DELTA_F_V)
+    ini_file.set_dict_at_ini( section="Back-Propagation", key="Delta-F-H",                  values_dict=DELTA_F_H)
     ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-V",                values_list=RMS_RANGE_V)
     ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-H",                values_list=RMS_RANGE_H)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Scan-Best-Focus",            value=SCAN_BEST_FOCUS)
@@ -199,7 +202,6 @@ def store():
     ini_file.set_value_at_ini(section="Reconstruction", key="N-Cores",        value=N_CORES)
     ini_file.set_value_at_ini(section="Reconstruction", key="N-Group",        value=N_GROUP)
 
-    ini_file.set_list_at_ini( section="Output", key="Image-Transfer-Matrix", values_list=IMAGE_TRANSFER_MATRIX)
     ini_file.set_value_at_ini(section="Output", key="Show-Align-Figure",     value=SHOW_ALIGN_FIGURE)
     ini_file.set_value_at_ini(section="Output", key="Correct-Scale",         value=CORRECT_SCALE)
 
@@ -261,14 +263,14 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
         if mode == ProcessingMode.LIVE:
             for file in os.listdir(data_collection_directory):
                 if pathlib.Path(file).suffix == ".tif" and self.__file_name_prefix in file:
-                    self.process_image(image_index=int(file.split('.tif')[0][-5:]), verbose=kwargs.get("verbose", False))
+                    self.process_image(image_index=int(file.split('.tif')[0][-INDEX_DIGITS:]), verbose=kwargs.get("verbose", False))
         else:
             os.environ["CUDA_VISIBLE_DEVICES"] = "{}".format(1)
 
             self.__active_threads = [None] * n_threads
 
             for i in range(n_threads):
-                self.__active_threads[i] = ProcessingThread(thread_id=i + 1,
+                self.__active_threads[i] = ProcessingThread(thread_id=i+1,
                                                             data_collection_directory=data_collection_directory,
                                                             file_name_prefix=self.__file_name_prefix,
                                                             simulated_mask_directory=self.__simulated_mask_directory,
@@ -295,6 +297,8 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
                                         image_index=image_index,
                                         **kwargs)
 
+from aps.common.singleton import synchronized_method
+
 class ProcessingThread(Thread):
     def __init__(self, thread_id, 
                  data_collection_directory, 
@@ -310,28 +314,31 @@ class ProcessingThread(Thread):
         self.__energy                    = energy
         self.__kwargs                    = kwargs
 
+    @synchronized_method
+    def check_new_data(self, images_list):
+        image_indexes = []
+        result_folder_list = glob.glob(os.path.join(os.path.dirname(images_list[0]), '*'))
+        result_folder_list = [os.path.basename(f) for f in result_folder_list]
+
+        for image in images_list:
+            image_directory = os.path.basename(image).split('.tif')[0]
+            if image_directory in result_folder_list:
+                continue
+            else:
+                image_indexes.append(int(image_directory[-INDEX_DIGITS:]))
+        return image_indexes
+
     def run(self):
-        def check_new_data(images_list):
-            image_indexes      = []
-            result_folder_list = glob.glob(os.path.join(os.path.dirname(images_list[0]), '*'))
-            result_folder_list = [os.path.basename(f) for f in result_folder_list]
-
-            for image in images_list:
-                image_directory = os.path.basename(image).split('.tif')[0]
-                if image_directory in result_folder_list: continue
-                else: image_indexes.append(int(image_directory[-5:]))
-            return image_indexes
-
         max_waiting_cycles = 60
         waiting_cycles     = 0
 
         while waiting_cycles < max_waiting_cycles:
-            images_list   = glob.glob(os.path.join(self.__data_collection_directory, self.__file_name_prefix + '_*.tif'), recursive=False)
+            images_list = glob.glob(os.path.join(self.__data_collection_directory, self.__file_name_prefix + '_*.tif'), recursive=False)
             if len(images_list) == 0:
                 waiting_cycles += 1
                 print('Thread #' + str(self.__thread_id) + ' waiting for 1s for new data....')
             else:
-                image_indexes = check_new_data(images_list)
+                image_indexes = self.check_new_data(images_list)
 
                 if len(image_indexes) == 0:
                     waiting_cycles += 1
@@ -345,7 +352,7 @@ class ProcessingThread(Thread):
                                                                           self.__file_name_prefix,
                                                                           self.__simulated_mask_directory,
                                                                           self.__energy,
-                                                                          image_index
+                                                                          image_index,
                                                                           **self.__kwargs)
             time.sleep(1)
 
@@ -381,7 +388,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
                                  saving_path=saving_path,
                                  crop=kwargs.get("crop", CROP),
                                  img_transfer_matrix=kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
-                                 find_transferMatrix=False,
+                                 find_transferMatrix=False, # always false for just processing images
                                  p_x=kwargs.get("pixel_size", PIXEL_SIZE),
                                  det_res=kwargs.get("detector_resolution",DETECTOR_RESOLUTION),
                                  energy=energy,
@@ -449,7 +456,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
                               saving_path=saving_path,
                               crop=kwargs.get("crop", CROP),
                               img_transfer_matrix=None,
-                              find_transferMatrix=True,
+                              find_transferMatrix=FIND_TRANSFER_MATRIX,
                               p_x=kwargs.get("pixel_size", PIXEL_SIZE),
                               det_res=kwargs.get("detector_resolution", DETECTOR_RESOLUTION),
                               energy=energy,

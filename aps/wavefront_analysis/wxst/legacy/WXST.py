@@ -55,8 +55,6 @@ def save_figure(image_pair, path='./', p_x=1, extention='.tif'):
                 each_pair[1].shape[0] / 2 * p_x *1e6
             ])
             plt.figure()
-            # plt.imshow(img, cmap=cm.get_cmap('gist_gray'), interpolation='bilinear',
-            #         extent=extent_data*1e6)
             plt.imshow(each_pair[1],
                         interpolation='bilinear',
                         extent=extent_data)
@@ -69,8 +67,7 @@ def save_figure(image_pair, path='./', p_x=1, extention='.tif'):
             cbar = plt.colorbar()
             cbar.set_label(each_pair[2], rotation=90, fontsize=20)
             plt.tight_layout()
-            plt.savefig(os.path.join(path, each_pair[0] + extention),
-                        dpi=150)
+            plt.savefig(os.path.join(path, each_pair[0] + extention), dpi=150)
             plt.close()
 
 def save_figure_1D(image_pair, path='./', p_x=1):
@@ -92,8 +89,7 @@ def save_figure_1D(image_pair, path='./', p_x=1):
             plt.xlabel('x ($\mu$m)', fontsize=22)
         plt.ylabel(each_pair[2], fontsize=22)
         plt.tight_layout()
-        plt.savefig(os.path.join(path, each_pair[0] + '.png'),
-                    dpi=150)
+        plt.savefig(os.path.join(path, each_pair[0] + '.png'), dpi=150)
         plt.close()
 
 def save_data(data, path_folder='./', overwrite=True):
@@ -117,11 +113,7 @@ def save_data(data, path_folder='./', overwrite=True):
                                         result_filename + '.json')):
                 kk += 1
                 result_filename =  result_filename + '_{}'.format(kk)
-        # # change data type to float32 to save storage
-        # dtype_change32 = lambda x: np.float32(x)
-        # dtype_change16 = lambda x: np.float16(x)
-        write_h5(
-            path_folder, result_filename, data)
+        write_h5(path_folder, result_filename, data)
 
 def filter_erosion(image, val_thresh, filt_sz=2):
     
@@ -901,6 +893,8 @@ class WXST:
 
 
 
+''' 
+# LEGACY CODE THAT MUST NOT BE CALLED
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         import cv2  # here to avoid conflict with PyQt5
@@ -1021,11 +1015,11 @@ if __name__ == "__main__":
     #                                    img_data,
     #                                    N_window=cal_half_window)
 
-    if not os.path.exists(Folder_result):
-        os.makedirs(Folder_result)
+    if not os.path.exists(Folder_result): os.makedirs(Folder_result)
+
     sample_transmission = img_data / (np.abs(ref_data)+1)
-    plt.imsave(os.path.join(Folder_result, 'transmission.png'),
-               sample_transmission)
+
+    plt.imsave(os.path.join(Folder_result, 'transmission.png'), sample_transmission)
 
     WXST_solver.run()
     displace_y, displace_x = WXST_solver.displace
@@ -1068,6 +1062,7 @@ if __name__ == "__main__":
     prColor('mean curvature: {}y    {}x'.format(1/np.mean(curve_y), 1/np.mean(curve_x)), 'cyan')
 
     line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
+
     plt.figure(figsize=(10,4))
     plt.subplot(121)
     plt.plot(line_curve[0], 'k')
@@ -1100,5 +1095,14 @@ if __name__ == "__main__":
                             ['line_curve_y', line_curve_filter[0], '[1/m]'],
                             ['line_curve_x', line_curve_filter[1], '[1/m]']], path=Folder_result, p_x=p_x)
 
-    save_data({'displace_x': displace_x, 'displace_y': displace_y, 'phase': phase, 
-                    'line_phase_y': line_phase[0], 'line_displace_y': line_displace[0], 'line_curve_y': line_curve_filter[0], 'line_phase_x': line_phase[1], 'line_displace_x': line_displace[1], 'line_curve_x': line_curve_filter[1]}, Folder_result, p_x)
+    save_data({'displace_x': displace_x,
+               'displace_y': displace_y,
+               'phase': phase,
+               'line_phase_y': line_phase[0],
+               'line_displace_y': line_displace[0],
+               'line_curve_y': line_curve_filter[0],
+               'line_phase_x': line_phase[1],
+               'line_displace_x': line_displace[1],
+               'line_curve_x': line_curve_filter[1]},
+              Folder_result, p_x)
+'''

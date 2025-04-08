@@ -70,6 +70,9 @@ from aps.wavefront_analysis.common.legacy.utils import fft2, ifft2
 
 from matplotlib import pyplot as plt
 
+import threading
+lock = threading.Lock()
+
 # Disable
 def blockPrint():
     sys.stdout = open(os.devnull, 'w')
@@ -240,20 +243,10 @@ class pattern_search:
         # I_pattern = rescale(I_pattern, scale)
         size_origin = I_pattern.shape
         I_pattern = cv2.resize(I_pattern, (int(I_pattern.shape[0] * scale), int(I_pattern.shape[1] * scale)), interpolation=cv2.INTER_NEAREST)
-        # I_pattern = cv2.resize(I_pattern, (int(I_pattern.shape[0]*scale), int(I_pattern.shape[1]*scale)))
-        # I_pattern = snd.zoom(I_pattern, scale, order=0)
-        # I_pattern = np.repeat(np.repeat(I_pattern, int(scale), axis=0),
-        #                       int(scale),
-        #                       axis=1)
         # the pixel size after repeating expanding the matrix. Should be noted that, use nearest or linear or other interplation induces extra artifacts in the propgated pattern. So use this int pixel size for propagation and then scale the propgated pattern with the correct scales
-        # p_x_prop = self.pattern_pixel / int(scale)
         p_x_prop = self.pattern_pixel / scale
 
-        print(
-            'scale pattern {} to size of P{} from size of {}, pixel size for propagation: {}'.
-            format(scale, I_pattern.shape, size_origin, p_x_prop))
-        # plt.imshow(I_pattern)
-        # plt.show()
+        print('scale pattern {} to size of P{} from size of {}, pixel size for propagation: {}'.format(scale, I_pattern.shape, size_origin, p_x_prop))
         # propagation
         # generate the spherical phase offset induced by the source distance.
         phase_complex, _ = self.spherical_wavefront(I_pattern.shape, [self.source_distance_v, self.source_distance_h], p_x_prop, wavelength=self.c_w)
@@ -312,32 +305,35 @@ class pattern_search:
                 I_img, I_pattern, img_transfer)
             corr_list.append(corr_math)
 
-            plt.figure(figsize=(12, 5))
-            plt.subplot(121)
-            plt.imshow(img_small, cmap='gray')
-            plt.colorbar()
-            plt.title('Matched pattern')
-            plt.subplot(122)
-            plt.imshow(template, cmap='gray')
-            plt.colorbar()
-            plt.title('Raw image')
-            plt.savefig(
-                os.path.join(
-                    result_folder,
-                    'img_transfer_{}_{}_{}_center_{}x_{}y.png'.format(
-                        img_transfer[0], img_transfer[1], img_transfer[2],
-                        pos_center[0], pos_center[1])))
-            plt.close()
+            with lock:
+                plt.figure(figsize=(12, 5))
+                plt.subplot(121)
+                plt.imshow(img_small, cmap='gray')
+                plt.colorbar()
+                plt.title('Matched pattern')
+                plt.subplot(122)
+                plt.imshow(template, cmap='gray')
+                plt.colorbar()
+                plt.title('Raw image')
+                plt.savefig(
+                    os.path.join(
+                        result_folder,
+                        'img_transfer_{}_{}_{}_center_{}x_{}y.png'.format(
+                            img_transfer[0], img_transfer[1], img_transfer[2],
+                            pos_center[0], pos_center[1])))
+                plt.close()
 
-        plt.figure()
-        ax = plt.axes()
-        plt.plot(corr_list, '-*')
-        ax.set_xticks([0, 1, 2, 3, 4, 5, 6, 7])
-        ax.set_xticklabels(
-            ['000', '001', '010', '100', '011', '101', '110', '111'])
-        plt.ylabel('correlation coefficient')
-        plt.savefig(os.path.join(result_folder, 'corr_list.png'))
-        plt.close()
+
+        with lock:
+            plt.figure()
+            ax = plt.axes()
+            plt.plot(corr_list, '-*')
+            ax.set_xticks([0, 1, 2, 3, 4, 5, 6, 7])
+            ax.set_xticklabels(
+                ['000', '001', '010', '100', '011', '101', '110', '111'])
+            plt.ylabel('correlation coefficient')
+            plt.savefig(os.path.join(result_folder, 'corr_list.png'))
+            plt.close()
 
         num_trans = corr_list.index(max(corr_list))
         prColor('max corr {} at {}'.format(corr_list[num_trans],
@@ -523,13 +519,9 @@ class pattern_search:
         # scale and rotate back
 
         if self.correct_scale:
-            I_pattern_matched = clipped_zoom(I_pattern_matched,
-                                             (1 / sy, 1 / sx))
-            I_pattern_det = clipped_zoom(I_pattern_det,
-                                         (1 / sy, 1 / sx))
+            I_pattern_matched = clipped_zoom(I_pattern_matched, (1 / sy, 1 / sx))
+            I_pattern_det = clipped_zoom(I_pattern_det, (1 / sy, 1 / sx))
             prColor('correct scale', 'cyan')
-        # I_pattern_matched = cv2_clipped_zoom(I_pattern_matched, zoom_factor=(1/sy, 1/sx))
-        # I_pattern_matched = cv2.resize(I_pattern_matched, (n, m), fx=1/sx, fy=1/sy, interpolation = cv2.INTER_LINEAR)
 
         I_pattern_matched = snd.rotate(I_pattern_matched,
                                        rot_cita / np.pi * 180,
@@ -538,7 +530,6 @@ class pattern_search:
                                    rot_cita / np.pi * 180,
                                    reshape=False)
         prColor('correct rotation', 'cyan')
-        # I_pattern_matched = I_pattern_matched[int(I_pattern_matched.shape[0]//2-m//2): int(I_pattern_matched.shape[0]//2-m//2+m),int(I_pattern_matched.shape[1]//2-n//2): int(I_pattern_matched.shape[1]//2-n//2+n)]
 
         # check alignment again
         prColor('find translation and check first alignment', 'cyan')
@@ -555,34 +546,24 @@ class pattern_search:
         prColor('correct translation', 'cyan')
         I_pattern_matched = image_translation(I_pattern_matched, [-ty, -tx])
         I_pattern_det = image_translation(I_pattern_det, [-ty, -tx])
-        # print(I_pattern_det.shape)
         # check alignment again
         template = I_img[(int(m / 2) - 100):(int(m / 2) + 100),
                    (int(n / 2) - 100):(int(n / 2) + 100)]
         img_small = I_pattern_matched[(int(m / 2) - 100):(int(m / 2) + 100),
                     (int(n / 2) - 100):(int(n / 2) + 100)]
         prColor('check final alignment', 'cyan')
-        # warp_matrix, img_aligned, [sx, sy], rot_cita, shear, [
-        #    tx, ty
-        # ] = self.find_transfer_matrix(template, img_small)
 
         if self.show_alignFigure:
-            plt.figure()
-            plt.subplot(121)
-            plt.imshow(template)
-            plt.title('center of measured image')
-            plt.subplot(122)
-            plt.imshow(img_aligned)
-            plt.title('aligned simulated image')
+            with lock:
+                plt.figure()
+                plt.subplot(121)
+                plt.imshow(template)
+                plt.title('center of measured image')
+                plt.subplot(122)
+                plt.imshow(img_aligned)
+                plt.title('aligned simulated image')
 
-            plt.show()
-
-        # XSHI added to save matched pattern
-        # import h5py
-        # file_path_results = os.path.join(args.result_folder, 'patternmatch.hdf5')
-        # with h5py.File(file_path_results, 'w') as h5file:
-        #    h5file.create_dataset('template', data=template)
-        #    h5file.create_dataset('img_aligned', data=img_aligned)
+                plt.show()
 
         # estimate the source distance based on the matched pattern scales
         d_source_x = self.d_propagation / (
@@ -593,9 +574,7 @@ class pattern_search:
                 self.source_distance_v * self.scale[0] - 1)
 
         self.d_source_est = [d_source_y, d_source_x]
-        prColor(
-            'estimated source distance: {}y, {}x'.format(
-                d_source_y, d_source_x), 'green')
+        prColor('estimated source distance: {}y, {}x'.format(d_source_y, d_source_x), 'green')
         self.d_source_est = [d_source_y, d_source_x]
         prColor('generating displacement offset from simulation parameters.', 'green')
         _, phase_spherical = self.spherical_wavefront(I_pattern_det.shape, [self.source_distance_v, self.source_distance_h], self.p_x, wavelength=self.c_w)
@@ -609,26 +588,6 @@ class pattern_search:
         print(1 / np.mean(curve_x[100:-100, 100:-100]), 1 / np.mean(curve_y[100:-100, 100:-100]))
 
         return I_pattern_det.astype(np.float32), displace_x_offset.astype(np.float32), displace_y_offset.astype(np.float32)
-
-        # plt.figure()
-        # plt.subplot(321)
-        # plt.imshow(I_img[0:100, 0:100])
-        # plt.subplot(322)
-        # plt.imshow(I_pattern_matched[0:100, 0:100])
-
-        # plt.subplot(323)
-        # plt.imshow(I_img[0:100, -100:-1])
-
-        # plt.subplot(324)
-        # plt.imshow(I_pattern_matched[0:100, -100:-1])
-
-        # plt.subplot(325)
-        # plt.imshow(I_img[m//2-100: m//2+100, n//2-100:n//2+100])
-
-        # plt.subplot(326)
-        # plt.imshow(I_pattern_matched[m//2-100: m//2+100, n//2-100:n//2+100])
-
-        # plt.show()
 
 def normalize(v):
     return (v - np.amin(v)) / (np.amax(v) - np.amin(v))
@@ -1473,43 +1432,44 @@ def execute_process_image(**arguments):
         line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
 
         if args.save_images:
-            plt.figure(figsize=(10, 8))
-            plt.subplot(221)
-            plt.imshow(displace_fine[0])
-            plt.colorbar()
-            plt.title('fine displace y')
-            plt.subplot(222)
-            plt.imshow(displace_fine[1])
-            plt.colorbar()
-            plt.title('fine displace x')
-            plt.subplot(223)
-            plt.imshow(displace_y)
-            plt.colorbar()
-            plt.title('displace y')
-            plt.subplot(224)
-            plt.imshow(displace_x)
-            plt.colorbar()
-            plt.title('displace x')
-            plt.savefig(os.path.join(args.result_folder, 'displace_fine.png'), dpi=150)
-            plt.close()
+            with lock:
+                plt.figure(figsize=(10, 8))
+                plt.subplot(221)
+                plt.imshow(displace_fine[0])
+                plt.colorbar()
+                plt.title('fine displace y')
+                plt.subplot(222)
+                plt.imshow(displace_fine[1])
+                plt.colorbar()
+                plt.title('fine displace x')
+                plt.subplot(223)
+                plt.imshow(displace_y)
+                plt.colorbar()
+                plt.title('displace y')
+                plt.subplot(224)
+                plt.imshow(displace_x)
+                plt.colorbar()
+                plt.title('displace x')
+                plt.savefig(os.path.join(args.result_folder, 'displace_fine.png'), dpi=150)
+                plt.close()
 
-            plt.figure(figsize=(10, 4))
-            plt.subplot(121)
-            plt.plot(line_curve[0], 'k')
-            plt.plot(line_curve_filter[0], 'r')
-            plt.xlabel('[px]')
-            plt.ylabel('[1/m]')
-            plt.grid()
-            plt.title('vertical curvature')
-            plt.subplot(122)
-            plt.plot(line_curve[1], 'k')
-            plt.plot(line_curve_filter[1], 'r')
-            plt.xlabel('[px]')
-            plt.ylabel('[1/m]')
-            plt.grid()
-            plt.title('horizontal curvature')
-            plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
-            plt.close()
+                plt.figure(figsize=(10, 4))
+                plt.subplot(121)
+                plt.plot(line_curve[0], 'k')
+                plt.plot(line_curve_filter[0], 'r')
+                plt.xlabel('[px]')
+                plt.ylabel('[1/m]')
+                plt.grid()
+                plt.title('vertical curvature')
+                plt.subplot(122)
+                plt.plot(line_curve[1], 'k')
+                plt.plot(line_curve_filter[1], 'r')
+                plt.xlabel('[px]')
+                plt.ylabel('[1/m]')
+                plt.grid()
+                plt.title('horizontal curvature')
+                plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
+                plt.close()
 
         write_json(result_path=args.result_folder,
                    file_name='result',
@@ -1521,24 +1481,25 @@ def execute_process_image(**arguments):
                                                 os.path.join(para_pattern['saving_path'], 'result.json'))
 
         if args.save_images:
-            save_figure(image_pair=[['displace_x', displace_x, '[px]'],
-                                    ['displace_y', displace_y, '[px]'],
-                                    ['curve_y', curve_y, '[1/m]'],
-                                    ['curve_x', curve_x, '[1/m]'],
-                                    ['phase', phase, '[rad]'],
-                                    ['flat', flat, 'intensity'],
-                                    ['displace_x_fine', displace_fine[1], '[px]'],
-                                    ['displace_y_fine', displace_fine[0], '[px]']],
-                        path=args.result_folder,
-                        p_x=para_simulation['p_x'],
-                        extention='.png')
-            save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
-                                       ['line_phase_x', line_phase[1], '[rad]'],
-                                       ['line_displace_y', line_displace[0], '[px]'],
-                                       ['line_phase_y', line_phase[0], '[rad]'],
-                                       ['line_curve_y', line_curve_filter[0], '[1/m]'],
-                                       ['line_curve_x', line_curve_filter[1], '[1/m]']],
-                           path=args.result_folder, p_x=para_simulation['p_x'])
+            with lock:
+                save_figure(image_pair=[['displace_x', displace_x, '[px]'],
+                                        ['displace_y', displace_y, '[px]'],
+                                        ['curve_y', curve_y, '[1/m]'],
+                                        ['curve_x', curve_x, '[1/m]'],
+                                        ['phase', phase, '[rad]'],
+                                        ['flat', flat, 'intensity'],
+                                        ['displace_x_fine', displace_fine[1], '[px]'],
+                                        ['displace_y_fine', displace_fine[0], '[px]']],
+                            path=args.result_folder,
+                            p_x=para_simulation['p_x'],
+                            extention='.png')
+                save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
+                                           ['line_phase_x', line_phase[1], '[rad]'],
+                                           ['line_displace_y', line_displace[0], '[px]'],
+                                           ['line_phase_y', line_phase[0], '[rad]'],
+                                           ['line_curve_y', line_curve_filter[0], '[1/m]'],
+                                           ['line_curve_x', line_curve_filter[1], '[1/m]']],
+                               path=args.result_folder, p_x=para_simulation['p_x'])
         save_data(data={'intensity': intensity,
                         'displace_x': displace_x,
                         'displace_y': displace_y,
@@ -1607,12 +1568,13 @@ def execute_process_image(**arguments):
         prColor('mean source distance: {}y    {}x'.format(avg_source_d_y, avg_source_d_x), 'cyan')
 
         if args.save_images:
-            save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
-                                       ['line_phase_x', line_phase[1], '[rad]'],
-                                       ['line_displace_y', line_displace[0], '[px]'],
-                                       ['line_phase_y', line_phase[0], '[rad]'],
-                                       ['line_curve_y', line_curve_filter[0], '[1/m]'],
-                                       ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
+            with lock:
+                save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
+                                           ['line_phase_x', line_phase[1], '[rad]'],
+                                           ['line_displace_y', line_displace[0], '[px]'],
+                                           ['line_phase_y', line_phase[0], '[rad]'],
+                                           ['line_curve_y', line_curve_filter[0], '[1/m]'],
+                                           ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
         write_json(result_path=args.result_folder,
                    file_name='result',
                    data_dict={'avg_source_d_x': float(avg_source_d_x),

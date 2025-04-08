@@ -56,6 +56,8 @@ from aps.common.scripts.script_data import ScriptData
 from aps.common.plot.image import apply_transformations
 
 from aps.wavefront_analysis.absolute_phase.factory import create_wavefront_analyzer
+from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import ProcessingMode
+
 from aps.wavefront_analysis.driver.factory import create_wavefront_sensor
 
 from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager_initialization import generate_initialization_parameters_from_ini, set_ini_from_initialization_parameters, get_data_from_int_to_string
@@ -67,7 +69,7 @@ INITIALIZATION_PARAMETERS_KEY  = APPLICATION_NAME + " Manager: Initialization"
 SHOW_ABSOLUTE_PHASE            = APPLICATION_NAME + " Manager: Show Manager"
 
 class IAbsolutePhaseManager(GenericProcessManager):
-    def show_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs): raise NotImplementedError()
+    def activate_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs): raise NotImplementedError()
     def take_shot(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
     def take_shot_and_generate_mask(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
     def take_shot_and_process_image(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
@@ -98,7 +100,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         self.__logger  = get_registered_logger_instance(application_name=APPLICATION_NAME)
         self.__ini     = get_registered_ini_instance(application_name=APPLICATION_NAME)
 
-    def show_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs):
+    def activate_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs):
         initialization_parameters = generate_initialization_parameters_from_ini(ini=self.__ini)
 
         if self.__plotter.is_active():
@@ -129,7 +131,25 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             self.__plotter.draw_context(SHOW_ABSOLUTE_PHASE, add_context_label=add_context_label, unique_id=None, **kwargs)
             self.__plotter.show_context_window(SHOW_ABSOLUTE_PHASE)
         else:
-            raise ValueError("This manager cannot operate without a gui, yet")
+            action = kwargs.get("ACTION", None)
+
+            if action is None: raise ValueError("Batch Mode without specified action ( use -a<ACTION>)")
+
+            if "PIS" == str(action).upper():
+                self.__check_wavefront_analyzer(initialization_parameters)
+                image_ops, _ = self.__get_image_ops(initialization_parameters, data_from="file")
+
+                wavefront_analyzer_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")
+                data_analysis_configuration = wavefront_analyzer_configuration["data_analysis"]
+
+                self.__wavefront_analyzer.process_images(mode=ProcessingMode.BATCH,
+                                                         n_threads=data_analysis_configuration.get("n_cores"),
+                                                         image_ops=image_ops,
+                                                         save_images=initialization_parameters.get_parameter("save_result", True))
+            else:
+                raise ValueError(f"Batch Mode: action not recognized {action}")
+
+            print("REQUESTED ACTION: ", action)
 
     def connect_wavefront_sensor(self, initialization_parameters: ScriptData):
         if not self.__wavefront_sensor is None:

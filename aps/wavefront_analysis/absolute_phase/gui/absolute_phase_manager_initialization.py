@@ -110,6 +110,7 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
             "source_distance_v" : WavefrontAnalyzerModule.SOURCE_DISTANCE_V,
             "source_distance_h" : WavefrontAnalyzerModule.SOURCE_DISTANCE_H,
             "d_source_recal" : WavefrontAnalyzerModule.D_SOURCE_RECAL,
+            "find_transfer_matrix" : WavefrontAnalyzerModule.FIND_TRANSFER_MATRIX,
             "crop" : WavefrontAnalyzerModule.CROP,
             "estimation_method" : WavefrontAnalyzerModule.ESTIMATION_METHOD,
             "propagator" : WavefrontAnalyzerModule.PROPAGATOR,
@@ -166,16 +167,19 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
 
     # Here GUI specific ini
 
-    wavefront_sensor_image_directory = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory", default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
+    wavefront_sensor_image_directory       = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory", default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
+    wavefront_sensor_image_directory_batch = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory-Batch", default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
     save_images                      = ini.get_boolean_from_ini("Wavefront-Analyzer", "Save-Images", default=True)
     plot_raw_image                   = ini.get_boolean_from_ini("Wavefront-Analyzer", "Plot-Raw_image", default=True)
     data_from                        = ini.get_int_from_ini("Wavefront-Analyzer", "Data-From", default=1) # file
     bp_calibration_mode              = ini.get_boolean_from_ini("Wavefront-Analyzer", "BP-Calibration-Mode", default=False)
 
     return ScriptData(wavefront_sensor_image_directory=wavefront_sensor_image_directory,
+                      wavefront_sensor_image_directory_batch=wavefront_sensor_image_directory_batch,
                       save_images=save_images,
                       plot_raw_image=plot_raw_image,
                       data_from=data_from,
+                      bp_calibration_mode=bp_calibration_mode,
                       wavefront_sensor_configuration=wavefront_sensor_configuration,
                       wavefront_analyzer_configuration=wavefront_analyzer_configuration)
 
@@ -231,7 +235,8 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     WavefrontAnalyzerModule.SOURCE_DISTANCE_V = data_analysis_configuration["source_distance_v"]     
     WavefrontAnalyzerModule.SOURCE_DISTANCE_H = data_analysis_configuration["source_distance_h"]     
     WavefrontAnalyzerModule.D_SOURCE_RECAL = data_analysis_configuration["d_source_recal"]        
-    WavefrontAnalyzerModule.CROP = data_analysis_configuration["crop"]                  
+    WavefrontAnalyzerModule.FIND_TRANSFER_MATRIX = data_analysis_configuration["find_transfer_matrix"]
+    WavefrontAnalyzerModule.CROP = data_analysis_configuration["crop"]
     WavefrontAnalyzerModule.ESTIMATION_METHOD = data_analysis_configuration["estimation_method"]     
     WavefrontAnalyzerModule.PROPAGATOR = data_analysis_configuration["propagator"]            
     WavefrontAnalyzerModule.IMAGE_OPS = data_analysis_configuration["image_ops"]             
@@ -288,6 +293,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     # TBD
 
     ini.set_value_at_ini("Wavefront-Sensor", "Wavefront-Sensor-Image-Directory", initialization_parameters.get_parameter("wavefront_sensor_image_directory"))
+    ini.set_value_at_ini("Wavefront-Sensor", "Wavefront-Sensor-Image-Directory-Batch", initialization_parameters.get_parameter("wavefront_sensor_image_directory_batch"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Save-Images", value=initialization_parameters.get_parameter("save_images"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Plot-Raw_image", value=initialization_parameters.get_parameter("plot_raw_image"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Data-From", value=initialization_parameters.get_parameter("data_from"))
