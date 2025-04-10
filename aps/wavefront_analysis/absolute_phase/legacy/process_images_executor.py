@@ -67,6 +67,7 @@ from aps.wavefront_analysis.spinnet.legacy.SPINNet_estimate import SPINNet_estim
 from aps.wavefront_analysis.absolute_phase.legacy.diffraction_process import prop_TF_2d
 from aps.wavefront_analysis.common.legacy.gui_func import crop_gui
 from aps.wavefront_analysis.common.legacy.utils import fft2, ifft2
+from aps.wavefront_analysis.common.legacy.func import read_h5
 
 from matplotlib import pyplot as plt
 
@@ -94,8 +95,7 @@ class pattern_search:
             self.pattern_transmission = 0.613
             self.energy = 20e3
             delta_mask = self.get_delta(self.energy)
-            self.c_w = sc.value(
-                'inverse meter-electron volt relationship') / self.energy
+            self.c_w = sc.value('inverse meter-electron volt relationship') / self.energy
             self.pattern_phase = 1.5e-6 * delta_mask / self.c_w * 2 * np.pi
             self.d_propagation = 462e-3
             # 28ID
@@ -288,8 +288,7 @@ class pattern_search:
         I_det = self.PSF_detector(self.det_res, self.p_x, I_prop)
         I_coh = self.PSF_coherence(sigma_h, sigma_v, self.p_x, I_det)
 
-        return I_coh.astype(np.float32), I_det.astype(
-            np.float32), I_prop.astype(np.float32)
+        return I_coh.astype(np.float32), I_det.astype(np.float32), I_prop.astype(np.float32)
 
     def img_transfer_search(self, I_img, I_pattern, result_folder):
         '''
@@ -357,8 +356,6 @@ class pattern_search:
                                col_start:col_end]) * 255
         I_img_norm = I_img_norm.astype(np.float32)
 
-        # I_img_norm = self.image_transfer(I_img_norm, img_transfer[0], img_transfer[1], img_transfer[2])
-
         # find pattern matching postion, coarse searching
         meth = 'cv2.TM_CCOEFF'
 
@@ -384,12 +381,8 @@ class pattern_search:
             top_left = max_loc
         bottom_right = (top_left[0] + n_template_col,
                         top_left[1] + n_template_row)
-        # print(top_left, bottom_right)
         img_small = I_pattern_reshape[top_left[1]:bottom_right[1],
                     top_left[0]:bottom_right[0]]
-
-        # corr_match = np.corrcoef(normalize_std(img_small), normalize_std(template))[0,1]
-        # print('correlation coeffcient: {}'.format(corr_match))
 
         corr_match = np.amax(
             ssignal.correlate2d(img_small,
@@ -400,8 +393,7 @@ class pattern_search:
 
         x_center = int((top_left[0] + bottom_right[0]) / 2)
         y_center = int((top_left[1] + bottom_right[1]) / 2)
-        print('center of pattern position: {} x; {} y'.format(
-            x_center, y_center))
+        print('center of pattern position: {} x; {} y'.format(x_center, y_center))
         return [x_center, y_center], corr_match, img_small, template
 
     def find_transfer_matrix(self, im1, im2):
@@ -451,9 +443,6 @@ class pattern_search:
         print('sx: {}; sy: {}; rot: {}; shear: {}; tx: {}; ty: {}'.format(
             sx, sy, rot_cita / np.pi * 180, shear, tx, ty))
 
-        # # Use warpAffine for Translation, Euclidean and Affine
-        # im2_aligned = cv2.warpAffine(im2, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
-
         # apply scale to the image
         im2_aligned = snd.affine_transform(im2,
                                            warp_matrix,
@@ -461,7 +450,6 @@ class pattern_search:
                                            output=None,
                                            order=3,
                                            mode='constant')
-        # print(im2_aligned.shape)
 
         return warp_matrix, im2_aligned, [sx, sy], rot_cita, shear, [tx, ty]
 
@@ -1348,7 +1336,6 @@ def execute_process_image(**arguments):
     """
     if args.cali_path is not None:
         prColor('load calibration data from file: {}'.format(args.cali_path), 'green')
-        from aps.wavefront_analysis.common.legacy.func import read_h5
 
         dx_cali = boundary_crop(read_h5(args.cali_path, 'dx'))
         dy_cali = boundary_crop(read_h5(args.cali_path, 'dy'))
