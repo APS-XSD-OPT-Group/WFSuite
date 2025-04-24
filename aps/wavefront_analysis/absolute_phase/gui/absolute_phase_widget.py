@@ -401,12 +401,6 @@ class AbsolutePhaseWidget(GenericWidget):
 
         gui.checkBox(wa_box_4, self, "show_align_figure",  "Show Align Figure")
         gui.checkBox(wa_box_4, self, "correct_scale",      "Correct Scale")
-        #self._le_itm.setReadOnly(True)
-        #font = QFont(self._le_itm.font())
-        #font.setBold(True)
-        #font.setItalic(False)
-        #self._le_itm.setFont(font)
-        #self._le_itm.setStyleSheet("QLineEdit {color : darkgreen; background : rgb(243, 240, 160)}")
 
         wa_box_5 = gui.widgetBox(wa_tab_2, "Simulated Mask", width=self._wa_box.width()-25, height=140)
 
@@ -507,7 +501,7 @@ class AbsolutePhaseWidget(GenericWidget):
         ex_box_1 = gui.widgetBox(self._ex_box , "Online",            width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
         ex_box_2 = gui.widgetBox(self._ex_box , "Offline (no W.S.)", width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
 
-        ws_button = gui.button(ex_box_0, None, "Connect Wavefront Sensor", callback=self._connect_wavefront_sensor_callback, width=ex_box_0.width()-20, height=60)
+        ws_button = gui.button(ex_box_0, None, "Reconnect Wavefront Sensor", callback=self._connect_wavefront_sensor_callback, width=ex_box_0.width()-20, height=60)
         font = QFont(ws_button.font())
         font.setBold(True)
         font.setItalic(False)
