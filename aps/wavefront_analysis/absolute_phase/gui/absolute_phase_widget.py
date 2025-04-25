@@ -837,10 +837,10 @@ class AbsolutePhaseWidget(GenericWidget):
             self.__is_wavefront_sensor_initialized = True
         except ValueError as error:
             self.__is_wavefront_sensor_initialized = False
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
         except Exception as exception:
             self.__is_wavefront_sensor_initialized = False
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
 
         self._set_wavefront_sensor_icon()
 
@@ -866,10 +866,10 @@ class AbsolutePhaseWidget(GenericWidget):
             h_coord, v_coord, image = self._take_shot(self._initialization_parameters)
             if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
         except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise error
         except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
             if DEBUG_MODE: raise exception
 
     def _take_shot_and_generate_mask_callback(self):
@@ -879,10 +879,10 @@ class AbsolutePhaseWidget(GenericWidget):
             if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
             self._manage_generate_mask_result(image_transfer_matrix)
         except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise error
         except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
             if DEBUG_MODE: raise exception
 
     def _take_shot_and_process_image_callback(self):
@@ -892,10 +892,10 @@ class AbsolutePhaseWidget(GenericWidget):
             if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
             self.__plot_wavefront_at_detector(wavefront_at_detector_data)
         except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise error
         except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
             if DEBUG_MODE: raise exception
 
     def _take_shot_and_back_propagate_callback(self):
@@ -906,10 +906,10 @@ class AbsolutePhaseWidget(GenericWidget):
             self.__plot_wavefront_at_detector(wavefront_at_detector_data)
             self._manage_back_propagate_result(propagated_wavefront_data)
         except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise error
         except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
             if DEBUG_MODE: raise exception
 
     # Offline -------------------------------------------
@@ -920,10 +920,10 @@ class AbsolutePhaseWidget(GenericWidget):
             h_coord, v_coord, image = self._read_image_from_file(self._initialization_parameters)
             self.__plot_shot_image(h_coord, v_coord, image)
         except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise error
         except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
             if DEBUG_MODE: raise exception
 
     def _generate_mask_from_file_callback(self):
@@ -932,10 +932,10 @@ class AbsolutePhaseWidget(GenericWidget):
             image_transfer_matrix = self._generate_mask_from_file(self._initialization_parameters)
             self._manage_generate_mask_result(image_transfer_matrix)
         except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise error
         except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
             if DEBUG_MODE: raise exception
 
     def _process_image_from_file_callback(self):
@@ -944,10 +944,10 @@ class AbsolutePhaseWidget(GenericWidget):
             wavefront_at_detector_data = self._process_image_from_file(self._initialization_parameters)
             self.__plot_wavefront_at_detector(wavefront_at_detector_data)
         except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise error
         except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
             if DEBUG_MODE: raise exception
 
     def _back_propagate_from_file_callback(self):
@@ -956,10 +956,10 @@ class AbsolutePhaseWidget(GenericWidget):
             propagated_wavefront_data = self._back_propagate_from_file(self._initialization_parameters)
             self._manage_back_propagate_result(propagated_wavefront_data)
         except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=error.args[0], type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise error
         except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=exception.args[0], type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
             if DEBUG_MODE: raise exception
 
     def _manage_generate_mask_result(self, image_transfer_matrix):
