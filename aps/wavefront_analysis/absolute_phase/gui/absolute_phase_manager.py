@@ -45,6 +45,8 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
 import sys
+
+import numpy as np
 from PyQt5.QtCore import pyqtSignal, QObject
 
 from aps.common.scripts.generic_process_manager import GenericProcessManager
@@ -261,8 +263,12 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             if data_from == "stream":
                 image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
                 h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
+
+                index_digits = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
+                np.savez(image, f"stream_image_%0{index_digits}i.npz" % 1)
             elif data_from == "file":
                 h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=image_ops)
+
 
             try:    self.__wavefront_sensor.save_status()
             except: pass

@@ -1175,12 +1175,16 @@ def execute_process_image(**arguments):
 
     if args.dark is None: dark = np.zeros(I_img_raw.shape)
     else:
-        dark = load_image(args.dark)
+        if str(args.dark).lower().endswith("npz"): dark = np.load(args.dark)
+        else:                                      dark = load_image(args.dark)
+
         if args.rebinning > 1: _, _, dark = rebin_2D(None, None, dark, args.rebinning, exact=True)
 
     if args.flat is None: flat = snd.uniform_filter(I_img_raw, size = 10 * (args.pattern_size / args.p_x))  # XSHI Feb 2024 change from 5 to 10
     else:
-        flat = load_image(args.flat)
+        if str(args.dark).lower().endswith("npz"): flat = np.load(args.flat)
+        else:                                      flat = load_image(args.flat)
+
         if args.rebinning > 1: _, _, flat = rebin_2D(None, None, flat, args.rebinning, exact=True)
 
     if len(args.crop) == 4:
