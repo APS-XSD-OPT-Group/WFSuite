@@ -44,6 +44,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
+import json
+import os.path
 import sys
 
 import numpy as np
@@ -219,21 +221,36 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         return h_coord, v_coord, image, wavefront_at_detector_data, propagated_wavefront_data
 
     def read_image_from_file(self, initialization_parameters: ScriptData):
-        image_ops = self.__set_wavefront_ready(initialization_parameters)
-        return self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=image_ops)
+        image_ops, data_from = self.__set_wavefront_ready(initialization_parameters)
+
+        if data_from == "stream": return self.__load_stream_image(initialization_parameters)
+        elif data_from == "file": return self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=image_ops)
 
     def generate_mask_from_file(self, initialization_parameters: ScriptData):
-        image_ops = self.__set_wavefront_ready(initialization_parameters)
-        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1, image_ops=image_ops)
+        image_ops, data_from = self.__set_wavefront_ready(initialization_parameters)
+
+        if data_from == "stream":
+            _, _, image = self.__load_stream_image(initialization_parameters)
+            image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image, image_ops=image_ops)
+        elif data_from == "file":
+            image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1, image_ops=image_ops)
 
         if not is_new_mask: raise ValueError("Simulated Mask is already present in the Wavefront Image Directory")
         else:               return image_transfer_matrix
 
     def process_image_from_file(self, initialization_parameters: ScriptData):
-        image_ops = self.__set_wavefront_ready(initialization_parameters)
-        wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
-                                                                             image_ops=image_ops,
-                                                                             save_images=initialization_parameters.get_parameter("save_result", True))
+        image_ops, data_from = self.__set_wavefront_ready(initialization_parameters)
+
+        if data_from == "stream":
+            _, _, image = self.__load_stream_image(initialization_parameters)
+            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
+                                                                                 image_data=image,
+                                                                                 image_ops=image_ops,
+                                                                                 save_images=initialization_parameters.get_parameter("save_result", True))
+        else:
+            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
+                                                                                 image_ops=image_ops,
+                                                                                 save_images=initialization_parameters.get_parameter("save_result", True))
 
         return wavefront_at_detector_data
 
@@ -264,8 +281,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
                 image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
                 h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
 
-                index_digits = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
-                np.savez(image, f"stream_image_%0{index_digits}i.npz" % 1)
+                self.__save_stream_image(h_coord, v_coord, image, initialization_parameters)
             elif data_from == "file":
                 h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=image_ops)
 
@@ -287,9 +303,9 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     def __set_wavefront_ready(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
         self.__check_wavefront_analyzer(initialization_parameters)
-        image_ops, _ = self.__get_image_ops(initialization_parameters, data_from="file")
+        image_ops, data_from = self.__get_image_ops(initialization_parameters)
 
-        return image_ops
+        return image_ops, data_from
 
     def __check_wavefront_analyzer(self, initialization_parameters: ScriptData):
         data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
@@ -310,3 +326,28 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         image_ops = data_analysis_configuration["image_ops"][data_from]
 
         return image_ops, data_from
+
+    def __save_stream_image(self, h_coord, v_coord, image, initialization_parameters):
+        index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
+        data_collection_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
+
+        data_dict = {"h_coord" : {"array" : h_coord.tolist(), "shape" : h_coord.shape, "dtype" : str(h_coord.dtype)}, 
+                     "v_coord" : {"array" : v_coord.tolist(), "shape" : v_coord.shape, "dtype" : str(v_coord.dtype)},
+                     "image"   : {"array" : image.flatten().tolist(), "shape" : image.shape, "dtype" : str(image.dtype)}}
+
+        with open(os.path.join(data_collection_directory, f"stream_image_%0{index_digits}i.json" % 1), "w") as f: json.dump(data_dict, f)
+
+    def __load_stream_image(self, initialization_parameters):
+        index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
+        data_collection_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
+
+        with open(os.path.join(data_collection_directory, f"stream_image_%0{index_digits}i.json" % 1), 'r') as f: data_dict = json.load(f)
+
+        h_coord = np.array(data_dict["h_coord"]["array"], dtype=data_dict["h_coord"]['dtype'])
+        h_coord = h_coord.reshape(data_dict["h_coord"]["shape"])
+        v_coord = np.array(data_dict["v_coord"]["array"], dtype=data_dict["v_coord"]['dtype'])
+        v_coord = v_coord.reshape(data_dict["v_coord"]["shape"])
+        image = np.array(data_dict["image"]["array"], dtype=data_dict["image"]['dtype'])
+        image = image.reshape(data_dict["image"]["shape"])
+
+        return h_coord, v_coord, image

@@ -49,6 +49,7 @@
     2022/5/11
     by Zhi Qiao
 '''
+import json
 import copy
 import os
 import sys
@@ -1173,17 +1174,25 @@ def execute_process_image(**arguments):
         para_simulation['det_size'] = [int(I_img_raw.shape[0]), int(I_img_raw.shape[1])]
         para_simulation['p_x']      = args.p_x
 
+    def load_stream_image(self, file_name):
+        with open(file_name, 'r') as f: data_dict = json.load(f)
+
+        image = np.array(data_dict["image"]["array"], dtype=data_dict["image"]['dtype'])
+        image = image.reshape(data_dict["image"]["shape"])
+
+        return image
+
     if args.dark is None: dark = np.zeros(I_img_raw.shape)
     else:
-        if str(args.dark).lower().endswith("npz"): dark = np.load(args.dark)
-        else:                                      dark = load_image(args.dark)
+        if str(args.dark).lower().endswith("json"): dark = load_stream_image(args.dark)
+        else:                                       dark = load_image(args.dark)
 
         if args.rebinning > 1: _, _, dark = rebin_2D(None, None, dark, args.rebinning, exact=True)
 
     if args.flat is None: flat = snd.uniform_filter(I_img_raw, size = 10 * (args.pattern_size / args.p_x))  # XSHI Feb 2024 change from 5 to 10
     else:
-        if str(args.dark).lower().endswith("npz"): flat = np.load(args.flat)
-        else:                                      flat = load_image(args.flat)
+        if str(args.dark).lower().endswith("json"): flat = load_stream_image(args.flat)
+        else:                                       flat = load_image(args.flat)
 
         if args.rebinning > 1: _, _, flat = rebin_2D(None, None, flat, args.rebinning, exact=True)
 
