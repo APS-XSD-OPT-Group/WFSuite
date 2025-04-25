@@ -92,6 +92,9 @@ ESTIMATION_METHOD     = ini_file.get_string_from_ini( section="Execution", key="
 PROPAGATOR            = ini_file.get_string_from_ini( section="Execution", key="Propagator",                    default='RS')
 IMAGE_OPS             = ini_file.get_dict_from_ini(   section="Execution", key="Image-Ops",                     default={"file" : [], "stream" :["T", "FH", "FV"]}, type=str)
 
+
+DARK                  = ini_file.get_string_from_ini( section="Reconstruction", key="Dark",  default=None)
+FLAT                  = ini_file.get_string_from_ini( section="Reconstruction", key="Flat",  default=None)
 CALIBRATION_PATH      = ini_file.get_string_from_ini( section="Reconstruction", key="Calibration-Path",  default=None)
 MODE                  = ini_file.get_string_from_ini( section="Reconstruction", key="Mode",              default='centralLine')
 LINE_WIDTH            = ini_file.get_int_from_ini(    section="Reconstruction", key="Line-Width",        default=10)
@@ -186,6 +189,8 @@ def store():
     ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V",    values_list=BEST_FOCUS_SCAN_RANGE_V)
     ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-H",    values_list=BEST_FOCUS_SCAN_RANGE_H)
 
+    ini_file.set_value_at_ini(section="Reconstruction", key="Dark",           value=DARK)
+    ini_file.set_value_at_ini(section="Reconstruction", key="Flat",           value=FLAT)
     ini_file.set_value_at_ini(section="Reconstruction", key="Mode",           value=MODE)
     ini_file.set_value_at_ini(section="Reconstruction", key="Line-Width",     value=LINE_WIDTH)
     ini_file.set_value_at_ini(section="Reconstruction", key="Rebinning",      value=REBINNING)
@@ -365,8 +370,8 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     image_data   = kwargs.get("image_data", None)
     image_ops    = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
 
-    dark           = None
-    flat           = None
+    dark           = None if DARK is None else os.path.join(data_collection_directory, DARK)
+    flat           = None if FLAT is None else os.path.join(data_collection_directory, FLAT)
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
     result_folder  = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])
 
@@ -427,8 +432,8 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
     index_digits = kwargs.get("index_digits", INDEX_DIGITS)
     verbose      = kwargs.get("verbose", False)
 
-    dark = None
-    flat = None
+    dark           = None if DARK is None else os.path.join(data_collection_directory, DARK)
+    flat           = None if FLAT is None else os.path.join(data_collection_directory, FLAT)
     img         = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     image_data  = kwargs.get("image_data", None)
     image_ops   = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
