@@ -720,11 +720,13 @@ def __scan_best_focus_2D(fresnel_propagator,
 
     smallest_size_x  = np.inf
     best_distance_x  = 0
+    best_distance_index_x = 0
     best_intensity_x = None
     size_values_x    = []
 
     smallest_size_y  = np.inf
     best_distance_y  = 0
+    best_distance_index_y = 0
     best_intensity_y = None
     size_values_y    = []
 
@@ -735,7 +737,9 @@ def __scan_best_focus_2D(fresnel_propagator,
     x_coordinates = None
     y_coordinates = None
 
-    for distance in propagation_distances:
+    for index in range(len(propagation_distances)):
+        distance = propagation_distances[index]
+
         sigma_x, \
         fwhm_x, \
         sigma_y, \
@@ -773,21 +777,26 @@ def __scan_best_focus_2D(fresnel_propagator,
             smallest_size_x  = size_x
             best_distance_x  = distance
             best_intensity_x = intensity_wofry
+            best_distance_index_x = index
 
         if size_y < smallest_size_y:
             smallest_size_y  = size_y
             best_distance_y  = distance
             best_intensity_y = intensity_wofry
+            best_distance_index_y = index
 
     size_values_x         = np.array(size_values_x)
     size_values_y         = np.array(size_values_y)
     propagation_distances = np.array(propagation_distances)
 
     if use_fit:
-        try:    best_distance_x_fit, smallest_size_x_fit, spline_x = __get_scan_fit(propagation_distances, size_values_x)
+        bounds_x = [propagation_distances[max(0, best_distance_index_x-2), min(best_distance_index_x+2, len(propagation_distances)-1)]]
+        bounds_y = [propagation_distances[max(0, best_distance_index_y-2), min(best_distance_index_y+2, len(propagation_distances)-1)]]
+
+        try:    best_distance_x_fit, smallest_size_x_fit, spline_x = __get_scan_fit(bounds_x, size_values_x)
         except: best_distance_x_fit, smallest_size_x_fit, spline_x = best_distance_x, smallest_size_x, None
 
-        try:    best_distance_y_fit, smallest_size_y_fit, spline_y = __get_scan_fit(propagation_distances, size_values_y)
+        try:    best_distance_y_fit, smallest_size_y_fit, spline_y = __get_scan_fit(bounds_y, size_values_y)
         except: best_distance_y_fit, smallest_size_y_fit, spline_y = best_distance_y, smallest_size_y, None
     else:
         best_distance_x_fit, smallest_size_x_fit, spline_x = best_distance_x, smallest_size_x, None
