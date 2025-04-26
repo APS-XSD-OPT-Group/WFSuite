@@ -692,9 +692,9 @@ def execute_back_propagation(**arguments) -> dict:
         raise ValueError(f"Propagation kind not recognized: {args.kind}")
 
 
-def __get_scan_fit(coordinates, size_values):
+def __get_scan_fit(coordinates, size_values, indexes):
     spline = CubicSpline(coordinates, size_values)
-    best_distance_fit = fminbound(spline, coordinates[0], coordinates[-1])
+    best_distance_fit = fminbound(spline, coordinates[indexes[0]], coordinates[indexes[1]])
     smallest_size_fit = spline(best_distance_fit)
 
     return best_distance_fit, smallest_size_fit, spline
@@ -790,13 +790,13 @@ def __scan_best_focus_2D(fresnel_propagator,
     propagation_distances = np.array(propagation_distances)
 
     if use_fit:
-        bounds_x = [propagation_distances[max(0, best_distance_index_x-2), min(best_distance_index_x+2, len(propagation_distances)-1)]]
-        bounds_y = [propagation_distances[max(0, best_distance_index_y-2), min(best_distance_index_y+2, len(propagation_distances)-1)]]
+        indexes_x = [max(0, best_distance_index_x-2), min(best_distance_index_x+2, len(propagation_distances)-1)]
+        indexes_y = [max(0, best_distance_index_y-2), min(best_distance_index_y+2, len(propagation_distances)-1)]
 
-        try:    best_distance_x_fit, smallest_size_x_fit, spline_x = __get_scan_fit(bounds_x, size_values_x)
+        try:    best_distance_x_fit, smallest_size_x_fit, spline_x = __get_scan_fit(propagation_distances, size_values_x, indexes_x)
         except: best_distance_x_fit, smallest_size_x_fit, spline_x = best_distance_x, smallest_size_x, None
 
-        try:    best_distance_y_fit, smallest_size_y_fit, spline_y = __get_scan_fit(bounds_y, size_values_y)
+        try:    best_distance_y_fit, smallest_size_y_fit, spline_y = __get_scan_fit(propagation_distances, size_values_y, indexes_y)
         except: best_distance_y_fit, smallest_size_y_fit, spline_y = best_distance_y, smallest_size_y, None
     else:
         best_distance_x_fit, smallest_size_x_fit, spline_x = best_distance_x, smallest_size_x, None
@@ -906,13 +906,15 @@ def __scan_best_focus_1D(fresnel_propagator,
 
     smallest_size  = np.inf
     best_distance  = 0
+    best_distance_index = 0
     best_intensity = None
     size_values    = []
 
     intensities = []
     coordinates = None
 
-    for distance in propagation_distances:
+    for index in range(len(propagation_distances)):
+        distance = propagation_distances[index]
         sigma, fwhm, intensity_wofry, coordinates = __propagate_1D(fresnel_propagator,
                                                                    initial_wavefront,
                                                                    magnification,
@@ -931,12 +933,15 @@ def __scan_best_focus_1D(fresnel_propagator,
             smallest_size  = size
             best_distance  = distance
             best_intensity = intensity_wofry
+            best_distance_index = index
 
     size_values           = np.array(size_values)
     propagation_distances = np.array(propagation_distances)
 
     if use_fit:
-        try:    best_distance_fit, smallest_size_fit, spline = __get_scan_fit(propagation_distances, size_values)
+        indexes = [max(0, best_distance_index - 2), min(best_distance_index + 2, len(propagation_distances) - 1)]
+
+        try:    best_distance_fit, smallest_size_fit, spline = __get_scan_fit(propagation_distances, size_values, indexes)
         except: best_distance_fit, smallest_size_fit, spline = best_distance, smallest_size, None
     else:
         best_distance_fit, smallest_size_fit, spline = best_distance, smallest_size, None
