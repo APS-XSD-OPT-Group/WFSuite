@@ -173,6 +173,7 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
     plot_raw_image                   = ini.get_boolean_from_ini("Wavefront-Analyzer", "Plot-Raw_image", default=True)
     data_from                        = ini.get_int_from_ini("Wavefront-Analyzer", "Data-From", default=1) # file
     bp_calibration_mode              = ini.get_boolean_from_ini("Wavefront-Analyzer", "BP-Calibration-Mode", default=False)
+    bp_plot_shift                    = ini.get_boolean_from_ini("Wavefront-Analyzer", "BP-Plot-Shift", default=True)
 
     return ScriptData(wavefront_sensor_image_directory=wavefront_sensor_image_directory,
                       wavefront_sensor_image_directory_batch=wavefront_sensor_image_directory_batch,
@@ -180,6 +181,7 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
                       plot_raw_image=plot_raw_image,
                       data_from=data_from,
                       bp_calibration_mode=bp_calibration_mode,
+                      bp_plot_shift=bp_plot_shift,
                       wavefront_sensor_configuration=wavefront_sensor_configuration,
                       wavefront_analyzer_configuration=wavefront_analyzer_configuration)
 
@@ -298,5 +300,6 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     ini.set_value_at_ini("Wavefront-Analyzer", "Plot-Raw_image", value=initialization_parameters.get_parameter("plot_raw_image"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Data-From", value=initialization_parameters.get_parameter("data_from"))
     ini.set_value_at_ini("Wavefront-Analyzer", "BP-Calibration-Mode", value=initialization_parameters.get_parameter("bp_calibration_mode"))
+    ini.set_value_at_ini("Wavefront-Analyzer", "BP-Plot-Shift", value=initialization_parameters.get_parameter("bp_plot_shift"))
 
     ini.push()

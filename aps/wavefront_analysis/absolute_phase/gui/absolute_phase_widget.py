@@ -115,6 +115,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self.plot_raw_image                   = initialization_parameters.get_parameter("plot_raw_image", True)
         self.data_from                        = initialization_parameters.get_parameter("data_from", 1)
         self.bp_calibration_mode              = initialization_parameters.get_parameter("bp_calibration_mode", False)
+        self.bp_plot_shift                    = initialization_parameters.get_parameter("bp_plot_shift", True)
 
         # -----------------------------------------------------
         # Wavefront Sensor
@@ -462,6 +463,8 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(bp_box_2, self, "crop_shift_h", label="Crop Shift H", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(bp_box_2, self, "crop_v",       label="Crop V", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(bp_box_2, self, "crop_shift_v", label="Crop Shift V", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+
+        gui.checkBox(bp_box_2, self, "bp_plot_shift", "Add shift on plots")
 
         bp_box_3 = gui.widgetBox(wa_tab_4, "Best Focus", width=self._wa_box.width()-25, height=270)
 
@@ -821,6 +824,7 @@ class AbsolutePhaseWidget(GenericWidget):
         initialization_parameters.set_parameter("plot_raw_image",                   bool(self.plot_raw_image))
         initialization_parameters.set_parameter("data_from",                        self.data_from)
         initialization_parameters.set_parameter("bp_calibration_mode",              bool(self.bp_calibration_mode))
+        initialization_parameters.set_parameter("bp_plot_shift",                    bool(self.bp_plot_shift))
 
     def _close_callback(self):
         if ConfirmDialog.confirmed(self, "Confirm Exit?"):
@@ -1119,11 +1123,13 @@ class AbsolutePhaseWidget(GenericWidget):
             fig.clear()
             def custom_formatter(x, pos): return f'{x:.2f}'
             ax = fig.gca()
-            image = ax.pcolormesh(coords[0], coords[1], intensity.T, cmap=cmm.sunburst_r, rasterized=True)
+            if self.bp_plot_shift: image = ax.pcolormesh(coords[0], coords[1], intensity.T, cmap=cmm.sunburst_r, rasterized=True)
+            else:                  image = ax.pcolormesh(coords_orig[0], coords_orig[1], intensity.T, cmap=cmm.sunburst_r, rasterized=True)
             ax.set_xlim(coords_orig[0][0], coords_orig[0][-1])
             ax.set_ylim(coords_orig[1][0], coords_orig[1][-1])
             ax.set_xticks(np.linspace(coords_orig[0][0], coords_orig[0][-1], 6, endpoint=True))
             ax.set_yticks(np.linspace(coords_orig[1][0], coords_orig[1][-1], 6, endpoint=True))
+
             ax.xaxis.set_major_formatter(FuncFormatter(custom_formatter))
             ax.yaxis.set_major_formatter(FuncFormatter(custom_formatter))
             ax.axhline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
@@ -1138,7 +1144,8 @@ class AbsolutePhaseWidget(GenericWidget):
             cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
             self._wf_int_prop_figure_canvas.draw()
 
-            axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords)
+            if self.bp_plot_shift: axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords)
+            else:                  axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords_orig)
             axes[0].set_xlim(coords_orig[0][0], coords_orig[0][-1])
             axes[1].set_xlim(coords_orig[1][0], coords_orig[1][-1])
             axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
@@ -1160,7 +1167,8 @@ class AbsolutePhaseWidget(GenericWidget):
             self._wf_int_prop_figure.figure.clear()
             self._wf_int_prop_figure_canvas.draw()
 
-            axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords)
+            if self.bp_plot_shift: axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords)
+            else:                  axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords_orig)
             axes[0].set_xlim(coords_orig[0][0], coords_orig[0][-1])
             axes[1].set_xlim(coords_orig[1][0], coords_orig[1][-1])
             axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
