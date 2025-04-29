@@ -212,7 +212,6 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
 
         return h_coord, v_coord, image
 
-
     def take_shot_and_generate_mask(self, initialization_parameters: ScriptData, **kwargs):
         h_coord, v_coord, image, image_ops = self.__take_shot(initialization_parameters)
         image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image, image_ops=image_ops)
