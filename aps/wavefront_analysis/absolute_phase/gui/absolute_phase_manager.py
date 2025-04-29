@@ -205,9 +205,8 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             flat_path = os.path.join(data_collection_directory, f"flat_stream_image_%0{index_digits}i.json" % 1)
         else:
             file_path = self.__wavefront_sensor.get_image_file_path(image_index=1)
-            directory = os.path.dirname(file_path)
-            file_name = os.path.basename(file_path)
-            flat_path = os.path.join(directory, "flat_" + file_name)
+            flat_path = os.path.join(os.path.dirname(file_path), "flat_" + os.path.basename(file_path))
+
         os.replace(file_path, flat_path)
 
         return h_coord, v_coord, image
