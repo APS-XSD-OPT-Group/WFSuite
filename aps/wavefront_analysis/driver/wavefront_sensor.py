@@ -45,7 +45,7 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
 import numpy as np
-from aps.common.driver.beamline.generic_camera import GenericCamera, CameraInitializationFile, get_default_file_name_prefix as __gdfnp, get_image_data as __gid
+from aps.common.driver.beamline.generic_camera import GenericCamera, CameraInitializationFile, get_default_file_name_prefix as __gdfnp, get_image_data as __gid, get_image_file_path as __gifp
 
 WAVEFRONT_SENSOR_STATUS_FILE = "wavefront_sensor_status.pkl"
 
@@ -71,6 +71,12 @@ def get_image_data(measurement_directory, file_name_prefix, image_index: int, **
                  file_name_prefix=file_name_prefix,
                  image_index=image_index,
                  configuration_file=WavefrontSensorInitializationFile, **kwargs)
+
+def get_image_file_path(measurement_directory, file_name_prefix, image_index: int, **kwargs) -> str:
+    return __gifp(measurement_directory=measurement_directory,
+                  file_name_prefix=file_name_prefix,
+                  image_index=image_index,
+                  configuration_file=WavefrontSensorInitializationFile, **kwargs)
 
 class WavefrontSensor(GenericCamera):
     def __init__(self,

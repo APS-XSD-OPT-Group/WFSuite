@@ -75,6 +75,7 @@ SHOW_ABSOLUTE_PHASE            = APPLICATION_NAME + " Manager: Show Manager"
 class IAbsolutePhaseManager(GenericProcessManager):
     def activate_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs): raise NotImplementedError()
     def take_shot(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
+    def take_shot_as_flat_image(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
     def take_shot_and_generate_mask(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
     def take_shot_and_process_image(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
     def take_shot_and_back_propagate(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
@@ -122,6 +123,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
                                                 connect_wavefront_sensor_method=self.connect_wavefront_sensor,
                                                 close_method=self.close,
                                                 take_shot_method=self.take_shot,
+                                                take_shot_as_flat_image_method=self.take_shot_as_flat_image,
                                                 take_shot_and_generate_mask_method = self.take_shot_and_generate_mask,
                                                 take_shot_and_process_image_method = self.take_shot_and_process_image,
                                                 take_shot_and_back_propagate_method = self.take_shot_and_back_propagate,
@@ -190,6 +192,26 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     def take_shot(self, initialization_parameters: ScriptData, **kwargs):
         h_coord, v_coord, image, _ = self.__take_shot(initialization_parameters)
         return h_coord, v_coord, image
+
+    def take_shot_as_flat_image(self, initialization_parameters: ScriptData, **kwargs):
+        h_coord, v_coord, image, _ = self.__take_shot(initialization_parameters)
+        _, data_from = self.__get_image_ops(initialization_parameters)
+
+        if data_from == "stream":
+            index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
+            data_collection_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
+
+            file_path = os.path.join(data_collection_directory, f"stream_image_%0{index_digits}i.json" % 1)
+            flat_path = os.path.join(data_collection_directory, f"flat_stream_image_%0{index_digits}i.json" % 1)
+        else:
+            file_path = self.__wavefront_sensor.get_image_file_path(image_index=1)
+            directory = os.path.dirname(file_path)
+            file_name = os.path.basename(file_path)
+            flat_path = os.path.join(directory, "flat_" + file_name)
+        os.replace(file_path, flat_path)
+
+        return h_coord, v_coord, image
+
 
     def take_shot_and_generate_mask(self, initialization_parameters: ScriptData, **kwargs):
         h_coord, v_coord, image, image_ops = self.__take_shot(initialization_parameters)

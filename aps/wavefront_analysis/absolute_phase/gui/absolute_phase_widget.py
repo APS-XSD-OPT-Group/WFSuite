@@ -82,6 +82,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self._connect_wavefront_sensor      = kwargs["connect_wavefront_sensor_method"]
         self._close                         = kwargs["close_method"]
         self._take_shot                     = kwargs["take_shot_method"]
+        self._take_shot_as_flat_image       = kwargs["take_shot_as_flat_image_method"]
         self._take_shot_and_generate_mask   = kwargs["take_shot_and_generate_mask_method"]
         self._take_shot_and_process_image   = kwargs["take_shot_and_process_image_method"]
         self._take_shot_and_back_propagate  = kwargs["take_shot_and_back_propagate_method"]
@@ -515,11 +516,14 @@ class AbsolutePhaseWidget(GenericWidget):
         ws_button.setPalette(palette)
 
         gui.button(ex_box_1, None, "Take Shot",                    callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
+        gui.button(ex_box_1, None, "Take Shot As Flat Image",      callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
+        gui.separator(ex_box_1)
         gui.button(ex_box_1, None, "Take Shot and Generate Mask",  callback=self._take_shot_and_generate_mask_callback, width=ex_box_1.width()-20, height=35)
         gui.button(ex_box_1, None, "Take Shot and Process Image",  callback=self._take_shot_and_process_image_callback, width=ex_box_1.width()-20, height=35)
         gui.button(ex_box_1, None, "Take Shot and Back-Propagate", callback=self._take_shot_and_back_propagate_callback, width=ex_box_1.width()-20, height=35)
 
         gui.button(ex_box_2, None, "Read Image From File",     callback=self._read_image_from_file_callback, width=ex_box_2.width()-20, height=35)
+        gui.separator(ex_box_2)
         gui.button(ex_box_2, None, "Generate Mask From File",  callback=self._generate_mask_from_file_callback, width=ex_box_2.width()-20, height=35)
         gui.button(ex_box_2, None, "Process Image From File",  callback=self._process_image_from_file_callback, width=ex_box_2.width()-20, height=35)
         gui.button(ex_box_2, None, "Back-Propagate From File", callback=self._back_propagate_from_file_callback, width=ex_box_2.width()-20, height=35)
@@ -868,6 +872,18 @@ class AbsolutePhaseWidget(GenericWidget):
         try:
             self._collect_initialization_parameters(raise_errors=True)
             h_coord, v_coord, image = self._take_shot(self._initialization_parameters)
+            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+            if DEBUG_MODE: raise error
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+            if DEBUG_MODE: raise exception
+
+    def _take_shot_as_flat_image_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+            h_coord, v_coord, image = self._take_shot_as_flat_image(self._initialization_parameters)
             if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
         except ValueError as error:
             MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
