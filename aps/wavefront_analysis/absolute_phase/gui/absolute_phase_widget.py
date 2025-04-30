@@ -1265,11 +1265,11 @@ class AbsolutePhaseWidget(GenericWidget):
         self._wf_prof_figure_canvas.draw()
 
         # BF Profiles
-        def add_text_1D(ax, dir, size, focus):
+        def add_text_1D(ax, dir, size, focus, vpos=0.8):
             text = f"Direction {dir}:\n"
             text += "\n" + rf"{best_focus_from:<5}: {size: 3.3f} $\mu$m"
             text += "\n" + rf"{'at':<5}: {round(focus, 5)} m"
-            ax.text(0.65, 0.8, text, color="black", alpha=0.9, fontsize=9, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
+            ax.text(0.65, vpos, text, color="black", alpha=0.9, fontsize=9, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
                     bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
         if profiles_data['kind'] == '2D':
@@ -1295,39 +1295,56 @@ class AbsolutePhaseWidget(GenericWidget):
         add_text_1D(axes[1], "y", best_size_value_y, focus_z_position_y)
         self._wf_prof_figure_2_canvas.draw()
 
+        # Propagation planes
+
         for i in range(planes_x.shape[1]): planes_x[:, i] = intensities_x[i]
         for i in range(planes_y.shape[1]): planes_y[:, i] = intensities_y[i]
 
         self._wf_prof_figure_3.clear()
 
-        def plot_ax_plane(ax, dir, planes, extent_data, best_size, focus, sizes, distances):
-            im = ax.imshow(planes, interpolation='bilinear', extent=extent_data)
+        def plot_ax_plane(ax, ax_prof, dir, planes, extent_data, best_size, focus, sizes, distances, coords, profiles):
+            ax.imshow(planes, interpolation='bilinear', extent=extent_data)
             ax.set_xlabel(f"p. distance {dir} (m)", fontsize=22)
             ax.set_ylabel(f"{dir} ($\mu$m)", fontsize=22)
             ax.set_aspect('auto')
             ax.axvline(focus, color="gray", ls="--", linewidth=2, alpha=0.9)
-            ax.text(0.53, 0.85, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
+            ax.text(0.53, 0.81, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
                          bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
+            index = np.abs(distances - focus).argmin()
+            ax_prof.plot(coords, profiles[index], 'k')
+            ax_prof.set_xlim(coords[0], coords[-1])
+            add_text_1D(ax_prof, dir, best_size, focus, vpos=0.7)
+
+
             line = ax.axvline(focus, color="gray", ls="--", linewidth=1, alpha=0.9, visible=False)
-            text = ax.text(0.53, 0.65, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="darkred", alpha=0.9, fontsize=9, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
+            text = ax.text(0.5, 0.6, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="darkred", alpha=0.9, fontsize=9, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
                            bbox=dict(facecolor="yellow", edgecolor="darkred", alpha=0.7), transform=ax.transAxes, visible=False)
+
+
 
             def onclick(event):
                 # Check if the click is inside the axes
                 if event.inaxes == ax and event.xdata is not None:
                     x = event.xdata
                     index = np.abs(distances - x).argmin()
+
                     line.set_xdata([distances[index]])
                     text.set_text(f"{best_focus_from} {round(sizes[index], 3)} $\mu$m\nat {round(distances[index], 5)} m")
                     line.set_visible(True)
                     text.set_visible(True)
-                    text.set_position((min((index + 1)/len(sizes), 0.7), 0.65))
+                    text.set_position((min((index + 1)/len(sizes), 0.7), 0.6))
+
+                    ax_prof.clear()
+                    ax_prof.plot(coords, profiles[index], 'k')
+                    ax_prof.set_xlim(coords[0], coords[-1])
+                    add_text_1D(ax_prof, dir, sizes[index], distances[index], vpos=0.7)
+
                     self._wf_prof_figure_3.canvas.draw_idle()
 
             self._wf_prof_figure_3.canvas.mpl_connect('button_press_event', onclick)
 
-        axes = self._wf_prof_figure_3.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
+        axes = self._wf_prof_figure_3.subplots(nrows=2, ncols=2, sharex=False, sharey=False)
         extent_data_x = np.array([
             bf_propagation_distances_x[0],
             bf_propagation_distances_x[-1],
@@ -1338,8 +1355,8 @@ class AbsolutePhaseWidget(GenericWidget):
             bf_propagation_distances_y[-1],
             y_coordinates[0],
             y_coordinates[-1]])
-        plot_ax_plane(axes[0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x, bf_size_values_x, bf_propagation_distances_x)
-        plot_ax_plane(axes[1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y, bf_size_values_y, bf_propagation_distances_y)
+        plot_ax_plane(axes[1][0], axes[0][0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x, bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x)
+        plot_ax_plane(axes[1][1], axes[0][1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y, bf_size_values_y, bf_propagation_distances_y, y_coordinates, intensities_y)
 
         self._wf_prof_figure_3.tight_layout()
         self._wf_prof_figure_3_canvas.draw()
