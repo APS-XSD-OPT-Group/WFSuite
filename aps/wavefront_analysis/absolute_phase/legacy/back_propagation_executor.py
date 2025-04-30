@@ -817,7 +817,7 @@ def execute_back_propagation(**arguments) -> dict:
 def __get_scan_fit(coordinates, size_values, indexes):
     spline = CubicSpline(coordinates, size_values)
     best_distance_fit = fminbound(spline, coordinates[indexes[0]], coordinates[indexes[1]])
-    smallest_size_fit = spline(best_distance_fit)[0]
+    smallest_size_fit = spline(best_distance_fit)
 
     return best_distance_fit, smallest_size_fit, spline
 
