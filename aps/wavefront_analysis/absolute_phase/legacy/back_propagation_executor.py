@@ -247,7 +247,10 @@ class PropagatedWavefront:
                 wf.create_dataset('intensity_y', data=self.intensity_y)
 
             wf.attrs["scan_best_focus"] = self.scan_best_focus
+
             if self.scan_best_focus:
+                wf = h5file.create_group("best_focus_scan")
+
                 wf.attrs["scan_best_focus_from"]      = self.scan_best_focus_from
                 wf.attrs["bf_propagation_distance_x"] = self.bf_propagation_distance_x
                 wf.attrs["bf_propagation_distance_y"] = self.bf_propagation_distance_y

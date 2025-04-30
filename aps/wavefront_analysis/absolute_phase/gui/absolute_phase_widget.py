@@ -1245,7 +1245,7 @@ class AbsolutePhaseWidget(GenericWidget):
             coords                      = [bf_propagation_distances_x, bf_propagation_distances_y]
 
         def plot_ax(ax, dir, coord, size, size_fit, best_size, focus):
-            ax.plot(coord, size, marker='o', label=f"Size X")
+            ax.plot(coord, size, marker='o', label=f"Size {dir}")
             if not size_fit is None:ax.plot(coord, size_fit, label=f"Size {dir} - FIT")
             ax.set_xlabel(f'p. distance {dir} (m)', fontsize=22)
             ax.set_ylabel(f"Size {dir} ($\mu$m)", fontsize=22)
@@ -1277,16 +1277,14 @@ class AbsolutePhaseWidget(GenericWidget):
             intensity_y   = profiles_data['bf_integrated_intensity_y']
             intensities_x = profiles_data['bf_integrated_intensities_x']
             intensities_y = profiles_data['bf_integrated_intensities_y']
-            planes_x      = np.zeros((len(intensity_x), len(bf_propagation_distances)))
-            planes_y      = np.zeros((len(intensity_y), len(bf_propagation_distances)))
-
         elif profiles_data['kind'] == '1D':
             intensity_x   = profiles_data['bf_intensity_x']
             intensity_y   = profiles_data['bf_intensity_y']
             intensities_x = profiles_data['bf_intensities_x']
             intensities_y = profiles_data['bf_intensities_y']
-            planes_x      = np.zeros((len(intensity_x), len(bf_propagation_distances_x)))
-            planes_y      = np.zeros((len(intensity_y), len(bf_propagation_distances_y)))
+
+        planes_x      = np.zeros((len(intensity_x), len(bf_propagation_distances_x)))
+        planes_y      = np.zeros((len(intensity_y), len(bf_propagation_distances_y)))
 
         axes = plot_1D(self._wf_prof_figure_2.figure, intensity_x, intensity_y, "[counts]", None, coords=[x_coordinates, y_coordinates])
         axes[0].set_xlim(x_coordinates[0], x_coordinates[-1])
@@ -1302,8 +1300,8 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self._wf_prof_figure_3.clear()
 
-        def plot_ax_plane(ax, dir, planes, extent_data, best_size, focus):
-            ax.imshow(planes, interpolation='bilinear', extent=extent_data)
+        def plot_ax_plane(ax, dir, planes, extent_data, best_size, focus, sizes, distances):
+            im = ax.imshow(planes, interpolation='bilinear', extent=extent_data)
             ax.set_xlabel(f"p. distance {dir} (m)", fontsize=22)
             ax.set_ylabel(f"{dir} ($\mu$m)", fontsize=22)
             ax.set_aspect('auto')
@@ -1311,24 +1309,23 @@ class AbsolutePhaseWidget(GenericWidget):
             ax.text(0.53, 0.85, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
                          bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
-        '''
-        im = ax.imshow(data, cmap='viridis')
+            line = ax.axvline(focus, color="gray", ls="--", linewidth=1, alpha=0.9, visible=False)
+            text = ax.text(0.53, 0.65, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="darkred", alpha=0.9, fontsize=9, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
+                           bbox=dict(facecolor="yellow", edgecolor="darkred", alpha=0.7), transform=ax.transAxes, visible=False)
 
-        # Initialize the vertical line (None at first)
-        vertical_line = ax.axvline(x=0, color='red', linewidth=1, visible=False)
-        
-        # Define the event handler
-        def onclick(event):
-            # Check if the click is inside the axes
-            if event.inaxes == ax and event.xdata is not None:
-                x = event.xdata
-                vertical_line.set_xdata(x)
-                vertical_line.set_visible(True)
-                fig.canvas.draw_idle()
-        
-        # Connect the click event to the handler
-        fig.canvas.mpl_connect('button_press_event', onclick)
-        '''
+            def onclick(event):
+                # Check if the click is inside the axes
+                if event.inaxes == ax and event.xdata is not None:
+                    x = event.xdata
+                    index = np.abs(distances - x).argmin()
+                    line.set_xdata([distances[index]])
+                    text.set_text(f"{best_focus_from} {round(sizes[index], 3)} $\mu$m\nat {round(distances[index], 5)} m")
+                    line.set_visible(True)
+                    text.set_visible(True)
+                    text.set_position((min((index + 1)/len(sizes), 0.7), 0.65))
+                    self._wf_prof_figure_3.canvas.draw_idle()
+
+            self._wf_prof_figure_3.canvas.mpl_connect('button_press_event', onclick)
 
         axes = self._wf_prof_figure_3.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
         extent_data_x = np.array([
@@ -1341,8 +1338,8 @@ class AbsolutePhaseWidget(GenericWidget):
             bf_propagation_distances_y[-1],
             y_coordinates[0],
             y_coordinates[-1]])
-        plot_ax_plane(axes[0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x)
-        plot_ax_plane(axes[1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y)
+        plot_ax_plane(axes[0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x, bf_size_values_x, bf_propagation_distances_x)
+        plot_ax_plane(axes[1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y, bf_size_values_y, bf_propagation_distances_y)
 
         self._wf_prof_figure_3.tight_layout()
         self._wf_prof_figure_3_canvas.draw()
