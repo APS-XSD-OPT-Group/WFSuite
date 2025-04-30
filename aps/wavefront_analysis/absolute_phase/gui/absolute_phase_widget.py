@@ -1311,6 +1311,25 @@ class AbsolutePhaseWidget(GenericWidget):
             ax.text(0.53, 0.85, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
                          bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
+        '''
+        im = ax.imshow(data, cmap='viridis')
+
+        # Initialize the vertical line (None at first)
+        vertical_line = ax.axvline(x=0, color='red', linewidth=1, visible=False)
+        
+        # Define the event handler
+        def onclick(event):
+            # Check if the click is inside the axes
+            if event.inaxes == ax and event.xdata is not None:
+                x = event.xdata
+                vertical_line.set_xdata(x)
+                vertical_line.set_visible(True)
+                fig.canvas.draw_idle()
+        
+        # Connect the click event to the handler
+        fig.canvas.mpl_connect('button_press_event', onclick)
+        '''
+
         axes = self._wf_prof_figure_3.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
         extent_data_x = np.array([
             bf_propagation_distances_x[0],
