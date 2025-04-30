@@ -47,6 +47,7 @@
 import json
 import os.path
 import sys
+import shutil
 
 import numpy as np
 from PyQt5.QtCore import pyqtSignal, QObject
@@ -207,7 +208,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             file_path = self.__wavefront_sensor.get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index=1)
             flat_path = os.path.join(os.path.dirname(file_path), "flat_" + os.path.basename(file_path))
 
-        os.replace(file_path, flat_path)
+        shutil.copyfile(file_path, flat_path)
 
         return h_coord, v_coord, image
 
