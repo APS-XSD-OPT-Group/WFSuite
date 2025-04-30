@@ -652,10 +652,30 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self._wf_prof_figure = Figure(figsize=figsize, constrained_layout=True)
         self._wf_prof_figure_canvas = FigureCanvas(self._wf_prof_figure)
-        self._wf_prof_scroll = QScrollArea(self._wf_box_2_0)
-        self._wf_prof_scroll.setWidget(self._wf_prof_figure_canvas)
+        wf_prof_scroll = QScrollArea(self._wf_box_2_0)
+        wf_prof_scroll.setWidget(self._wf_prof_figure_canvas)
         self._wf_box_2_0.layout().addWidget(NavigationToolbar(self._wf_prof_figure_canvas, self))
-        self._wf_box_2_0.layout().addWidget(self._wf_prof_scroll)
+        self._wf_box_2_0.layout().addWidget(wf_prof_scroll)
+
+        self._wf_tab_2_1 = gui.createTabPage(self._wf_tab_2_widget, "Best Focus Profiles")
+        self._wf_box_2_1 = gui.widgetBox(self._wf_tab_2_1, "")
+
+        self._wf_prof_figure_2 = Figure(figsize=figsize, constrained_layout=True)
+        self._wf_prof_figure_2_canvas = FigureCanvas(self._wf_prof_figure_2)
+        wf_prof_scroll = QScrollArea(self._wf_box_2_1)
+        wf_prof_scroll.setWidget(self._wf_prof_figure_2_canvas)
+        self._wf_box_2_1.layout().addWidget(NavigationToolbar(self._wf_prof_figure_2_canvas, self))
+        self._wf_box_2_1.layout().addWidget(wf_prof_scroll)
+
+        self._wf_tab_2_2 = gui.createTabPage(self._wf_tab_2_widget, "Best Focus Planes")
+        self._wf_box_2_2 = gui.widgetBox(self._wf_tab_2_2, "")
+
+        self._wf_prof_figure_3 = Figure(figsize=figsize, constrained_layout=True)
+        self._wf_prof_figure_3_canvas = FigureCanvas(self._wf_prof_figure_3)
+        wf_prof_scroll = QScrollArea(self._wf_box_2_2)
+        wf_prof_scroll.setWidget(self._wf_prof_figure_3_canvas)
+        self._wf_box_2_2.layout().addWidget(NavigationToolbar(self._wf_prof_figure_3_canvas, self))
+        self._wf_box_2_2.layout().addWidget(wf_prof_scroll)
 
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignCenter)
@@ -994,15 +1014,15 @@ class AbsolutePhaseWidget(GenericWidget):
         if bool(self.scan_best_focus):
             self.__plot_longitudinal_profiles(propagated_wavefront_data)
 
-            focus_z_position_x = propagated_wavefront_data["focus_z_position_x"]
-            focus_z_position_y = propagated_wavefront_data["focus_z_position_y"]
-
-            message = "Scan Best Focus Results:\n\n" + \
-                      f"Best Focus Position x: {focus_z_position_x}\n" + \
-                      f"Best Focus Position y: {focus_z_position_y}\n" + \
-                      f"\n\nDo you want to use these data as permanent phase shift for the method {self.method}?"
-
             if bool(self.bp_calibration_mode):
+                focus_z_position_x = propagated_wavefront_data["focus_z_position_x"]
+                focus_z_position_y = propagated_wavefront_data["focus_z_position_y"]
+
+                message = "Scan Best Focus Results:\n\n" + \
+                          f"Best Focus Position x: {focus_z_position_x}\n" + \
+                          f"Best Focus Position y: {focus_z_position_y}\n" + \
+                          f"\n\nDo you want to use these data as permanent phase shift for the method {self.method}?"
+
                 if ConfirmDialog.confirmed(self,
                                            title="Scan Best Focus",
                                            message=message,
@@ -1198,45 +1218,116 @@ class AbsolutePhaseWidget(GenericWidget):
         self._wf_tab_1_widget.setCurrentIndex(0)
 
     def __plot_longitudinal_profiles(self, profiles_data):
-        bf_size_values_x     = profiles_data['bf_size_values_x']
+        x_coordinates = 1e6 * profiles_data['coordinates_x']
+        y_coordinates = 1e6 * profiles_data['coordinates_y']
+
+        bf_size_values_x     = 1e6 * profiles_data['bf_size_values_x']
         bf_size_values_fit_x = profiles_data.get('bf_size_values_fit_x', None)
-        bf_size_values_y     = profiles_data['bf_size_values_y']
+        bf_size_values_fit_x = 1e6 * bf_size_values_fit_x if not bf_size_values_fit_x is None else None
+        bf_size_values_y     = 1e6 * profiles_data['bf_size_values_y']
         bf_size_values_fit_y = profiles_data.get('bf_size_values_fit_y', None)
+        bf_size_values_fit_y = 1e6 * bf_size_values_fit_y if not bf_size_values_fit_y is None else None
+
+        focus_z_position_x = profiles_data["bf_propagation_distance_x"]
+        focus_z_position_y = profiles_data["bf_propagation_distance_y"]
+        best_size_value_x  = 1e6 * profiles_data["bf_size_value_x"]
+        best_size_value_y  = 1e6 * profiles_data["bf_size_value_y"]
+        best_focus_from    = profiles_data["scan_best_focus_from"]
 
         if profiles_data['kind'] == '2D':
             bf_propagation_distances  = profiles_data['bf_propagation_distances']
-            coords = [bf_propagation_distances, bf_propagation_distances]
-
-            focus_z_position_x = profiles_data["propagation_distance"] + profiles_data["focus_z_position_x"]
-            focus_z_position_y = profiles_data["propagation_distance"] + profiles_data["focus_z_position_y"]
-
+            bf_propagation_distances_x = bf_propagation_distances
+            bf_propagation_distances_y = bf_propagation_distances
+            coords                    = [bf_propagation_distances, bf_propagation_distances]
         elif profiles_data['kind'] == '1D':
             bf_propagation_distances_x  = profiles_data['bf_propagation_distances_x']
             bf_propagation_distances_y  = profiles_data['bf_propagation_distances_y']
-            coords = [bf_propagation_distances_x, bf_propagation_distances_y]
+            coords                      = [bf_propagation_distances_x, bf_propagation_distances_y]
 
-            focus_z_position_x = profiles_data["propagation_distance_x"] + profiles_data["focus_z_position_x"]
-            focus_z_position_y = profiles_data["propagation_distance_y"] + profiles_data["focus_z_position_y"]
-
-        def plot_ax(ax, dir, coord, size, size_fit, focus):
-            ax.plot(coord, 1e6 * size, marker='o', label=f"Size X")
-            if not size_fit is None:ax.plot(coord, 1e6 * size_fit, label=f"Size {dir} - FIT")
+        def plot_ax(ax, dir, coord, size, size_fit, best_size, focus):
+            ax.plot(coord, size, marker='o', label=f"Size X")
+            if not size_fit is None:ax.plot(coord, size_fit, label=f"Size {dir} - FIT")
             ax.set_xlabel(f'p. distance {dir} (m)', fontsize=22)
             ax.set_ylabel(f"Size {dir} ($\mu$m)", fontsize=22)
             ax.legend()
             ax.grid(True)
             ax.axvline(focus, color="gray", ls="--", linewidth=2, alpha=0.9)
-            ax.text(0.53, 0.85, f"{round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
+            ax.text(0.53, 0.85, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
                     bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
         fig = self._wf_prof_figure
         fig.clear()
         axes = fig.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
-        plot_ax(axes[0], "x", coords[0], bf_size_values_x, bf_size_values_fit_x, focus_z_position_x)
-        plot_ax(axes[1], "y", coords[1], bf_size_values_y, bf_size_values_fit_y, focus_z_position_y)
+        plot_ax(axes[0], "x", coords[0], bf_size_values_x, bf_size_values_fit_x, best_size_value_x, focus_z_position_x)
+        plot_ax(axes[1], "y", coords[1], bf_size_values_y, bf_size_values_fit_y, best_size_value_y, focus_z_position_y)
         fig.tight_layout()
 
         self._wf_prof_figure_canvas.draw()
+
+        # BF Profiles
+        def add_text_1D(ax, dir, size, focus):
+            text = f"Direction {dir}:\n"
+            text += "\n" + rf"{best_focus_from:<5}: {size: 3.3f} $\mu$m"
+            text += "\n" + rf"{'at':<5}: {round(focus, 5)} m"
+            ax.text(0.65, 0.8, text, color="black", alpha=0.9, fontsize=9, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
+                    bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
+
+        if profiles_data['kind'] == '2D':
+            intensity_x   = profiles_data['bf_integrated_intensity_x']
+            intensity_y   = profiles_data['bf_integrated_intensity_y']
+            intensities_x = profiles_data['bf_integrated_intensities_x']
+            intensities_y = profiles_data['bf_integrated_intensities_y']
+            planes_x      = np.zeros((len(intensity_x), len(bf_propagation_distances)))
+            planes_y      = np.zeros((len(intensity_y), len(bf_propagation_distances)))
+
+        elif profiles_data['kind'] == '1D':
+            intensity_x   = profiles_data['bf_intensity_x']
+            intensity_y   = profiles_data['bf_intensity_y']
+            intensities_x = profiles_data['bf_intensities_x']
+            intensities_y = profiles_data['bf_intensities_y']
+            planes_x      = np.zeros((len(intensity_x), len(bf_propagation_distances_x)))
+            planes_y      = np.zeros((len(intensity_y), len(bf_propagation_distances_y)))
+
+        axes = plot_1D(self._wf_prof_figure_2.figure, intensity_x, intensity_y, "[counts]", None, coords=[x_coordinates, y_coordinates])
+        axes[0].set_xlim(x_coordinates[0], x_coordinates[-1])
+        axes[1].set_xlim(y_coordinates[0], y_coordinates[-1])
+        axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+        axes[1].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
+        add_text_1D(axes[0], "x", best_size_value_x, focus_z_position_x)
+        add_text_1D(axes[1], "y", best_size_value_y, focus_z_position_y)
+        self._wf_prof_figure_2_canvas.draw()
+
+        for i in range(planes_x.shape[1]): planes_x[:, i] = intensities_x[i]
+        for i in range(planes_y.shape[1]): planes_y[:, i] = intensities_y[i]
+
+        self._wf_prof_figure_3.clear()
+
+        def plot_ax_plane(ax, dir, planes, extent_data, best_size, focus):
+            ax.imshow(planes, interpolation='bilinear', extent=extent_data)
+            ax.set_xlabel(f"p. distance {dir} (m)", fontsize=22)
+            ax.set_ylabel(f"{dir} ($\mu$m)", fontsize=22)
+            ax.set_aspect('auto')
+            ax.axvline(focus, color="gray", ls="--", linewidth=2, alpha=0.9)
+            ax.text(0.53, 0.85, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="blue", alpha=0.9, fontsize=11, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
+                         bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
+
+        axes = self._wf_prof_figure_3.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
+        extent_data_x = np.array([
+            bf_propagation_distances_x[0],
+            bf_propagation_distances_x[-1],
+            x_coordinates[0],
+            x_coordinates[-1]])
+        extent_data_y = np.array([
+            bf_propagation_distances_y[0],
+            bf_propagation_distances_y[-1],
+            y_coordinates[0],
+            y_coordinates[-1]])
+        plot_ax_plane(axes[0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x)
+        plot_ax_plane(axes[1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y)
+
+        self._wf_prof_figure_3.tight_layout()
+        self._wf_prof_figure_3_canvas.draw()
+
 
 def plot_2D(fig, image, label, p_x, extent_data=None):
     extent_data = np.array([
