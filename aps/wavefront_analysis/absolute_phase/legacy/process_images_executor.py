@@ -63,7 +63,9 @@ import scipy.signal as ssignal
 from aps.wavefront_analysis.common.legacy.func import prColor, load_image, slop_tracking, write_json, auto_crop, image_align
 from aps.wavefront_analysis.common.legacy.integration import frankotchellappa
 from aps.wavefront_analysis.wxst.legacy.WXST import WXST, save_data, save_figure, save_figure_1D
-from aps.wavefront_analysis.spinnet.legacy.SPINNet_estimate import SPINNet_estimate
+from aps.wavefront_analysis.spinnet.legacy.SPINNet_estimate import SPINNet_estimate as SPINNet_estimate_legacy
+from aps.wavefront_analysis.spinnet.speckle_displacement.SPINNet_estimate import SPINNet_estimate as SPINNet_estimate_sd
+
 
 from aps.wavefront_analysis.absolute_phase.legacy.diffraction_process import prop_TF_2d
 from aps.wavefront_analysis.common.legacy.gui_func import crop_gui
@@ -764,7 +766,7 @@ def speckle_tracking(ref, img, para_XST, displace_offset):
                          para_XST['crop_boundary'][0]:-para_XST['crop_boundary'][0],
                          para_XST['crop_boundary'][1]:-para_XST['crop_boundary'][1]]
 
-    elif para_XST['method'] == 'SPINNet':
+    elif para_XST['method'] in ['SPINNet', 'SPINNetSD']:
         trained_model  = para_XST['trained_model']
         setting_path   = para_XST['setting_path']
 
@@ -781,7 +783,8 @@ def speckle_tracking(ref, img, para_XST, displace_offset):
         img = np.clip(img, 0, I_minMax)
         ref = np.clip(ref, 0, I_minMax)
 
-        displace_y, displace_x = SPINNet_estimate(ref, img, trained_model, setting_path, device=device)
+        if para_XST['method'] == 'SPINNet': displace_y, displace_x = SPINNet_estimate_legacy(ref, img, trained_model, setting_path, device=device)
+        else:                               displace_y, displace_x = SPINNet_estimate_sd(ref, img, trained_model, setting_path, device=device)
 
         # down-sample or not
         if para_XST['down_sampling'] != 1:
@@ -859,7 +862,7 @@ def speckle_tracking(ref, img, para_XST, displace_offset):
         displace_x_list = []
 
         for n, (p_img, p_ref) in enumerate(zip(patches_img, patches_ref_aligned)):
-            displace_y_patch, displace_x_patch = SPINNet_estimate(p_ref, p_img, trained_model, setting_path, device=device)
+            displace_y_patch, displace_x_patch = SPINNet_estimate_legacy(p_ref, p_img, trained_model, setting_path, device=device)
             print(displacement_patches[n])
             displace_y_list.append(displace_y_patch - displacement_patches[n][0])
             displace_x_list.append(displace_x_patch - displacement_patches[n][1])
@@ -1070,10 +1073,20 @@ def execute_process_image(**arguments):
     arguments["method"]           = arguments.get("method", 'WXST') # speckle tracking method. simple: slope-tracking, fast but less accurate; WXST: wavelet speckle tracking.
 
     import aps.wavefront_analysis.spinnet.phase_only as spinnet_module
-    default_trained_folder = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__), "trained_model/Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining/"))
+    default_trained_folder_legacy = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__), "trained_model/Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining/"))
 
-    arguments["trained_model"]    = arguments.get("trained_model", os.path.join(default_trained_folder, 'training_model_002000.pt'))
-    arguments["setting_path"]     = arguments.get("setting_path", os.path.join(default_trained_folder, 'setting_002000.json'))
+    import aps.wavefront_analysis.spinnet.phase_only as spinnet_module
+    default_trained_folder_sd = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__), "trained_model/SpeckleDisplacementNet_05-01_12hr_mirror_10k_EdgePad_Beta_2-5_04_18_2025/"))
+
+    if arguments['method'] in ['SPINNet', 'SPINNet_split']:
+        arguments["trained_model"]    = arguments.get("trained_model", os.path.join(default_trained_folder_legacy, 'training_model_002000.pt'))
+        arguments["setting_path"]     = arguments.get("setting_path", os.path.join(default_trained_folder_legacy, 'setting_002000.json'))
+    elif arguments['method'] == 'SPINNetSD':
+        arguments["trained_model"]    = arguments.get("trained_model", os.path.join(default_trained_folder_sd, 'best_model_epoch_3268_Val_0.00448.pt'))
+        arguments["setting_path"]     = arguments.get("setting_path", os.path.join(default_trained_folder_sd, 'training_results.json'))
+    else:
+        arguments["trained_model"] = ""
+        arguments["setting_path"]  = ""
 
     arguments["GPU"]              = arguments.get("GPU", False) # Use GPU or not. GPU can be 2 times faster. But multi-resolution process is disabled.
     arguments["use_wavelet"]      = arguments.get("use_wavelet", False) # use wavelet transform or not.

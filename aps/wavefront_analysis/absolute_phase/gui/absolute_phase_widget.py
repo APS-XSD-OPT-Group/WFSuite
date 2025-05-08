@@ -417,7 +417,7 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(wa_box_6, self, "line_width", label="Line Width", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(wa_box_6, self, "rebinning", label="Image Rebinning Factor", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(wa_box_6, self, "down_sampling", label="Down Sampling", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(wa_box_6, self, "method", label="Method (WXST, SPINNet, simple)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_method)
+        gui.lineEdit(wa_box_6, self, "method", label="Method (WXST, SPINNet, SPINNetSD, simple)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_method)
         gui.checkBox(wa_box_6, self, "use_wavelet",  "Use Wavelets")
 
         gui.lineEdit(wa_box_6, self, "wavelet_cut", label="Wavelet Cut", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
@@ -720,15 +720,15 @@ class AbsolutePhaseWidget(GenericWidget):
         self._image_ops[data_from] = string_to_list(self.image_ops, str)
 
     def _set_method(self):
-        if not self.method in ["WXST", "SPINNet", "simple"]: MessageDialog.message(self, title="Input Error", message="Method must be 'WXST', 'SPINNet' or 'simple'", type="critical", width=500)
+        if not self.method in ["WXST", "SPINNet", "SPINNetSD", "simple"]: MessageDialog.message(self, title="Input Error", message="Method must be 'WXST', 'SPINNet', 'SPINNetSD' or 'simple'", type="critical", width=500)
         else:
-            self.delta_f_h = self._delta_f_h[self.method]
-            self.delta_f_v = self._delta_f_v[self.method]
+            self.delta_f_h = self._delta_f_v.get(self.method, 0.0)
+            self.delta_f_v = self._delta_f_h.get(self.method, 0.0)
             self.le_delta_f_h.setText(str(self.delta_f_h))
             self.le_delta_f_v.setText(str(self.delta_f_v))
 
     def _set_delta_f(self):
-        if not self.method in ["WXST", "SPINNet", "simple"]: MessageDialog.message(self, title="Input Error", message="Method must be 'WXST', 'SPINNet' or 'simple'", type="critical", width=500)
+        if not self.method in ["WXST", "SPINNet", "SPINNetSD", "simple"]: MessageDialog.message(self, title="Input Error", message="Method must be 'WXST', 'SPINNet', 'SPINNetSD' or 'simple'", type="critical", width=500)
         else:
             self._delta_f_h[self.method] = self.delta_f_h
             self._delta_f_v[self.method] = self.delta_f_v

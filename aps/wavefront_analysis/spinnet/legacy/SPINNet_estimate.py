@@ -18,7 +18,6 @@ import h5py
 import sys
 
 from aps.wavefront_analysis.spinnet.legacy.DS_network import Network, MODULE_PATH
-
 # Insert the absolute path to the directory containing the DS_network module to the system path
 sys.path.insert(0, MODULE_PATH)
 
