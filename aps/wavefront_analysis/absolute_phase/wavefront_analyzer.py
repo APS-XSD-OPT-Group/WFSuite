@@ -92,7 +92,6 @@ ESTIMATION_METHOD     = ini_file.get_string_from_ini( section="Execution", key="
 PROPAGATOR            = ini_file.get_string_from_ini( section="Execution", key="Propagator",                    default='RS')
 IMAGE_OPS             = ini_file.get_dict_from_ini(   section="Execution", key="Image-Ops",                     default={"file" : [], "stream" :["T", "FH", "FV"]}, type=str)
 
-
 DARK                  = ini_file.get_string_from_ini( section="Reconstruction", key="Dark",  default=None)
 FLAT                  = ini_file.get_string_from_ini( section="Reconstruction", key="Flat",  default=None)
 CALIBRATION_PATH      = ini_file.get_string_from_ini( section="Reconstruction", key="Calibration-Path",  default=None)
@@ -101,6 +100,11 @@ LINE_WIDTH            = ini_file.get_int_from_ini(    section="Reconstruction", 
 REBINNING             = ini_file.get_float_from_ini(  section="Reconstruction", key="Rebinning",         default=1.0)
 DOWN_SAMPLING         = ini_file.get_float_from_ini(  section="Reconstruction", key="Down-Sampling",     default=1.0)
 METHOD                = ini_file.get_string_from_ini( section="Reconstruction", key="Method",            default='WXST')
+
+SPINNET_CONFIGURATION = ini_file.get_dict_from_ini(   section="Reconstruction", key="SPINNet-Configuration",
+                                                      default={"SPINNet" :   {"type": "PO", "folder": "Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining",       "model" : "training_model_002000.pt",          "setting" : "setting_002000.json"},
+                                                               "SPINNetSD" : {"type": "PO", "folder": "SpeckleDisplacementNet_05-01_12hr_mirror_10k_EdgePad_Beta_2-5_04_18_2025", "model" : "best_model_epoch_3268_Val_0.00448.pt", "setting" : "training_results.json"}}, type=str)
+
 USE_GPU               = ini_file.get_boolean_from_ini(section="Reconstruction", key="Use-Gpu",           default=False)
 USE_WAVELET           = ini_file.get_boolean_from_ini(section="Reconstruction", key="Use-Wavelet",       default=False)
 WAVELET_CUT           = ini_file.get_int_from_ini(    section="Reconstruction", key="Wavelet-Cut",       default=2)
@@ -196,6 +200,7 @@ def store():
     ini_file.set_value_at_ini(section="Reconstruction", key="Rebinning",      value=REBINNING)
     ini_file.set_value_at_ini(section="Reconstruction", key="Down-Sampling",  value=DOWN_SAMPLING)
     ini_file.set_value_at_ini(section="Reconstruction", key="Method",         value=METHOD)
+    ini_file.set_dict_at_ini( section="Reconstruction", key="SPINNet-Configuration", values_dict=SPINNET_CONFIGURATION)
     ini_file.set_value_at_ini(section="Reconstruction", key="Use-Gpu",        value=USE_GPU)
     ini_file.set_value_at_ini(section="Reconstruction", key="Use-Wavelet",    value=USE_WAVELET)
     ini_file.set_value_at_ini(section="Reconstruction", key="Wavelet-Cut",    value=WAVELET_CUT)
@@ -381,6 +386,13 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     propagated_patternDet = os.path.join(mask_directory, 'propagated_patternDet.npz')
     saving_path           = mask_directory
 
+    method = kwargs.get("method", METHOD)
+    spinnet_configuration = kwargs.get("spinnet_configuration", SPINNET_CONFIGURATION).get(method, {})
+    trained_model_type    = spinnet_configuration.get("type", "")
+    trained_model_folder  = spinnet_configuration.get("folder", "")
+    trained_model         = spinnet_configuration.get("model", "")
+    setting_path          = spinnet_configuration.get("setting", "")
+
     return execute_process_image(img=img,
                                  image_data=image_data,
                                  image_ops=image_ops,
@@ -416,6 +428,10 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
                                  down_sampling=kwargs.get("down_sampling", DOWN_SAMPLING),
                                  crop_boundary=kwargs.get("crop_boundary", CROP_BOUNDARY),
                                  method=kwargs.get("method", METHOD),
+                                 trained_model_type=trained_model_type,
+                                 trained_model_folder=trained_model_folder,
+                                 trained_model=trained_model,
+                                 setting_path=setting_path,
                                  GPU=kwargs.get("use_gpu", USE_GPU),
                                  use_wavelet=kwargs.get("use_wavelet", USE_WAVELET),
                                  wavelet_lv_cut=kwargs.get("wavelet_lv_cut", WAVELET_CUT),

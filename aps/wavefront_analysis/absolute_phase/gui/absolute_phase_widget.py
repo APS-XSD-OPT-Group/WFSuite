@@ -984,10 +984,10 @@ class AbsolutePhaseWidget(GenericWidget):
             wavefront_at_detector_data = self._process_image_from_file(self._initialization_parameters)
             self.__plot_wavefront_at_detector(wavefront_at_detector_data)
         except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+            MessageDialog.message(self, title="Input Error", message=str(error), type="critical", width=500)
             if DEBUG_MODE: raise error
         except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception), type="critical", height=400, width=700)
             if DEBUG_MODE: raise exception
 
     def _back_propagate_from_file_callback(self):

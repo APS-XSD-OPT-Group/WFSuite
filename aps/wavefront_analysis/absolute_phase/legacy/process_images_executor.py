@@ -767,8 +767,15 @@ def speckle_tracking(ref, img, para_XST, displace_offset):
                          para_XST['crop_boundary'][1]:-para_XST['crop_boundary'][1]]
 
     elif para_XST['method'] in ['SPINNet', 'SPINNetSD']:
-        trained_model  = para_XST['trained_model']
-        setting_path   = para_XST['setting_path']
+        if para_XST['trained_model_type'] == 'PO':
+            import aps.wavefront_analysis.spinnet.phase_only as spinnet_module
+            spinnet_folder = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__),  "trained_model"))
+        else:
+            import aps.wavefront_analysis.spinnet.phase_and_T as spinnet_module
+            spinnet_folder = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__),  "trained_model"))
+
+        trained_model = os.path.join(spinnet_folder, para_XST['trained_model_folder'], para_XST['trained_model'])
+        setting_path = os.path.join(spinnet_folder, para_XST['trained_model_folder'], para_XST['setting_path'])
 
         device = 'cuda' if para_XST['GPU'] else 'cpu'
 
@@ -823,8 +830,15 @@ def speckle_tracking(ref, img, para_XST, displace_offset):
         # from func import image_align
         # use SPINNet to find displacement accurately
         # here is the best model
-        trained_model  = para_XST['trained_model']
-        setting_path   = para_XST['setting_path']
+        if para_XST['trained_model_type'] == 'PO':
+            import aps.wavefront_analysis.spinnet.phase_only as spinnet_module
+            spinnet_folder = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__),  "trained_model"))
+        else:
+            import aps.wavefront_analysis.spinnet.phase_and_T as spinnet_module
+            spinnet_folder = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__),  "trained_model"))
+
+        trained_model = os.path.join(spinnet_folder, para_XST['trained_model_folder'], para_XST['trained_model'])
+        setting_path  = os.path.join(spinnet_folder, para_XST['trained_model_folder'], para_XST['setting_path'])
 
         device = 'cuda' if para_XST['GPU'] else 'cpu'
 
@@ -1071,23 +1085,10 @@ def execute_process_image(**arguments):
     arguments["rebinning"]        = arguments.get("rebinning", 1) # rebin original image and size
     arguments["crop_boundary"]    = arguments.get("crop_boundary", -1) # crop the differential phase boundary. -1 will use the searching window. 0 means no cropping
     arguments["method"]           = arguments.get("method", 'WXST') # speckle tracking method. simple: slope-tracking, fast but less accurate; WXST: wavelet speckle tracking.
-
-    import aps.wavefront_analysis.spinnet.phase_only as spinnet_module
-    default_trained_folder_legacy = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__), "trained_model/Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining/"))
-
-    import aps.wavefront_analysis.spinnet.phase_only as spinnet_module
-    default_trained_folder_sd = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__), "trained_model/SpeckleDisplacementNet_05-01_12hr_mirror_10k_EdgePad_Beta_2-5_04_18_2025/"))
-
-    if arguments['method'] in ['SPINNet', 'SPINNet_split']:
-        arguments["trained_model"]    = arguments.get("trained_model", os.path.join(default_trained_folder_legacy, 'training_model_002000.pt'))
-        arguments["setting_path"]     = arguments.get("setting_path", os.path.join(default_trained_folder_legacy, 'setting_002000.json'))
-    elif arguments['method'] == 'SPINNetSD':
-        arguments["trained_model"]    = arguments.get("trained_model", os.path.join(default_trained_folder_sd, 'best_model_epoch_3268_Val_0.00448.pt'))
-        arguments["setting_path"]     = arguments.get("setting_path", os.path.join(default_trained_folder_sd, 'training_results.json'))
-    else:
-        arguments["trained_model"] = ""
-        arguments["setting_path"]  = ""
-
+    arguments["trained_model_type"]   = arguments.get("trained_model_type",   "Phase-Only")
+    arguments["trained_model_folder"] = arguments.get("trained_model_folder", "Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining")
+    arguments["trained_model"]        = arguments.get("trained_model", "training_model_002000.pt")
+    arguments["setting_path"]         = arguments.get("setting_path", "setting_002000.json")
     arguments["GPU"]              = arguments.get("GPU", False) # Use GPU or not. GPU can be 2 times faster. But multi-resolution process is disabled.
     arguments["use_wavelet"]      = arguments.get("use_wavelet", False) # use wavelet transform or not.
     arguments["wavelet_lv_cut"]   = arguments.get("wavelet_lv_cut", 2) # wavelet cutting level
@@ -1142,6 +1143,8 @@ def execute_process_image(**arguments):
         'down_sampling': args.down_sampling,  # down-sample to reduce calculation cost, [0~1]
         'crop_boundary': [args.window_searching + args.template_size * int(1 / args.down_sampling), args.window_searching + args.template_size * int(1 / args.down_sampling)] if args.crop_boundary == -1 else [args.crop_boundary, args.crop_boundary],  # crop boundary of dx and dy.
         'method': args.method,  # method to get displacement, simple: slope-tracking, fast,less accurate; WXST
+        'trained_model_type'   : args.trained_model_type,
+        'trained_model_folder' : args.trained_model_folder,
         'trained_model' : args.trained_model,
         'setting_path' : args.setting_path,
         'GPU': args.GPU,  # use GPU for WXST or not
