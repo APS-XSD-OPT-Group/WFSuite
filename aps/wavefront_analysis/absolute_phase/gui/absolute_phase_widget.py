@@ -60,6 +60,7 @@ from aps.common.utilities import list_to_string, string_to_list
 from matplotlib.figure import Figure
 from matplotlib.ticker import FuncFormatter
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
+from matplotlib.widgets import RectangleSelector
 from cmasher import cm as cmm
 
 from PyQt5.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QScrollArea
@@ -391,7 +392,7 @@ class AbsolutePhaseWidget(GenericWidget):
 
         gui.comboBox(wa_box_3, self, "data_from", label="Data From", labelWidth=labels_width_1, orientation='horizontal', items=["stream", "file"], callback=self._set_data_from)
         self.le_image_ops = gui.lineEdit(wa_box_3, self, "image_ops", "Image Transformations (T, FV, FH)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_image_ops)
-        gui.lineEdit(wa_box_3, self, "crop", "Crop (-1: auto, n: pixels around center,\n            x1, x2, y2, y2: coordinates in pixels)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
+        self.le_crop = gui.lineEdit(wa_box_3, self, "crop", "Crop (-1: auto, n: pixels around center,\n            [b, t, l, r]: coordinates in pixels)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
         wa_box_7 = gui.widgetBox(wa_tab_5, "Processing", width=self._wa_box.width()-25, height=120)
 
@@ -593,6 +594,7 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self._wf_int_figure = Figure(figsize=figsize, constrained_layout=True)
         self._wf_int_figure_canvas = FigureCanvas(self._wf_int_figure)
+
         self._wf_int_scroll = QScrollArea(self._wf_box_0_0)
         self._wf_int_scroll.setWidget(self._wf_int_figure_canvas)
         self._wf_box_0_0.layout().addWidget(NavigationToolbar(self._wf_int_figure_canvas, self))
@@ -1066,12 +1068,52 @@ class AbsolutePhaseWidget(GenericWidget):
         axis.set_ylabel("Vertical (mm)")
         axis.set_aspect("equal")
         
-        
+        axis.set_title("Choose Roi: select and release (right click: reset)", fontsize=12, color='black', weight='bold')
+
         if sys.platform == 'darwin':  axis.set_position([-0.1, 0.15, 1.0, 0.8])
         else:                         axis.set_position([0.15, 0.15, 0.8, 0.8])
         
         cbar = fig.colorbar(mappable=image, ax=axis, pad=0.03, aspect=30, shrink=0.6)
         cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
+
+        def set_crop_output_listener(crop_array):
+            self.le_crop.setText(list_to_string(crop_array))
+
+        def onselect(eclick, erelease):
+            if eclick.button == 3:  # right click
+                axis.set_xlim(xrange[0], xrange[1])
+                axis.set_ylim(yrange[0], yrange[1])
+
+                set_crop_output_listener([0, -1, 0, -1])
+            elif eclick.button == 1:
+                ROI_j_lim = np.sort([eclick.xdata, erelease.xdata]).tolist()
+                ROI_i_lim = np.sort([eclick.ydata, erelease.ydata]).tolist()
+
+                pixel_size = self.pixel_size*1e3 # mm
+                dimensions = data_2D.shape
+
+                axis.set_xlim(ROI_j_lim[0] - pixel_size, ROI_j_lim[1] + pixel_size)
+                axis.set_ylim(ROI_i_lim[1] + pixel_size, ROI_i_lim[0] - pixel_size)
+
+                ROI_j_lim[0] = int(ROI_j_lim[0] / pixel_size + 0.5*dimensions[0])
+                ROI_j_lim[1] = int(ROI_j_lim[1] / pixel_size + 0.5*dimensions[0])
+                ROI_i_lim[0] = int(ROI_i_lim[0] / pixel_size + 0.5*dimensions[1])
+                ROI_i_lim[1] = int(ROI_i_lim[1] / pixel_size + 0.5*dimensions[1])
+
+                set_crop_output_listener(ROI_i_lim + ROI_j_lim)
+
+        def toggle_selector(event):
+            if event.key in ['Q', 'q'] and toggle_selector.RS.active:     toggle_selector.RS.set_active(False)
+            if event.key in ['A', 'a'] and not toggle_selector.RS.active: toggle_selector.RS.set_active(True)
+
+        toggle_selector.RS = RectangleSelector(axis, onselect,
+                                               props=dict(facecolor='purple',
+                                                          edgecolor='black',
+                                                          alpha=0.2,
+                                                          fill=True))
+
+        fig.canvas.mpl_connect('key_press_event', toggle_selector)
+
 
         self._image_figure_canvas.draw()
 

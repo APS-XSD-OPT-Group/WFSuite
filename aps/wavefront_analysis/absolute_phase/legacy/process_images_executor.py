@@ -1271,6 +1271,10 @@ def execute_process_image(**arguments):
     boundary_crop = lambda img: img[int(args.crop[0] - extend_boundary):int(args.crop[1] + extend_boundary),
                                 int(args.crop[2] - extend_boundary):int(args.crop[3] + extend_boundary)]
     I_img     = boundary_crop(I_img_raw)
+
+    plt.imshow(I_img)
+    plt.show()
+
     I_img_raw = (I_img_raw - dark) / (flat - dark)
     flat      = boundary_crop(flat)
     dark      = boundary_crop(dark)
