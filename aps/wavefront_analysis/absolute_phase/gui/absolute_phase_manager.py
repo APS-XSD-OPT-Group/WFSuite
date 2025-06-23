@@ -46,6 +46,7 @@
 # ----------------------------------------------------------------------- #
 import json
 import os.path
+import shutil
 import sys
 import shutil
 
@@ -195,20 +196,14 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         return h_coord, v_coord, image
 
     def take_shot_as_flat_image(self, initialization_parameters: ScriptData, **kwargs):
-        h_coord, v_coord, image, _ = self.__take_shot(initialization_parameters)
+        h_coord, v_coord, image, _ = self.__take_shot(initialization_parameters, flat=True)
         _, data_from = self.__get_image_ops(initialization_parameters)
 
-        if data_from == "stream":
-            index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
-            data_collection_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
-
-            file_path = os.path.join(data_collection_directory, f"stream_image_%0{index_digits}i.json" % 1)
-            flat_path = os.path.join(data_collection_directory, f"flat_stream_image_%0{index_digits}i.json" % 1)
-        else:
+        if data_from == "file":
             file_path = self.__wavefront_sensor.get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index=1)
             flat_path = os.path.join(os.path.dirname(file_path), "flat_" + os.path.basename(file_path))
 
-        shutil.copyfile(file_path, flat_path)
+            shutil.copyfile(file_path, flat_path)
 
         return h_coord, v_coord, image
 
@@ -288,7 +283,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
     # PRIVATE METHODS
     # --------------------------------------------------------------------------------------
 
-    def __take_shot(self, initialization_parameters: ScriptData):
+    def __take_shot(self, initialization_parameters: ScriptData, flat=False):
         if self.__wavefront_sensor is None: raise EnvironmentError("Wavefront Sensor is not connected")
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
         self.__check_wavefront_analyzer(initialization_parameters)
@@ -296,13 +291,19 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         image_ops, data_from = self.__get_image_ops(initialization_parameters)
 
         try:
+            if data_from == "stream":
+                if flat: self.__backup_image_file(initialization_parameters, data_from, flat=True)
+                else:    self.__backup_image_file(initialization_parameters, data_from, flat=False)
+            elif data_from == "file":
+                self.__backup_image_file(initialization_parameters, data_from, flat=False)
+
             self.__wavefront_sensor.collect_single_shot_image(index=1)
 
             if data_from == "stream":
                 image, h_coord, v_coord = self.__wavefront_sensor.get_image_stream_data(units="mm")
                 h_coord, v_coord, image = apply_transformations(h_coord, v_coord, image, image_ops)
 
-                self.__save_stream_image(h_coord, v_coord, image, initialization_parameters)
+                self.__save_stream_image(h_coord, v_coord, image, initialization_parameters, flat=flat)
             elif data_from == "file":
                 h_coord, v_coord, image = self.__wavefront_analyzer.get_wavefront_data(image_index=1, units="mm", image_ops=image_ops)
 
@@ -348,7 +349,23 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
 
         return image_ops, data_from
 
-    def __save_stream_image(self, h_coord, v_coord, image, initialization_parameters):
+    def __backup_image_file(self, initialization_parameters, data_from, flat=False):
+        index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
+        data_collection_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
+
+        if data_from == "stream":
+            file_path = os.path.join(data_collection_directory,
+                                     f"stream_image_%0{index_digits}i.json" % 1 if not flat \
+                                         else f"flat_stream_image_%0{index_digits}i.json" % 1)
+        elif data_from == "file":
+            file_path = self.__wavefront_sensor.get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index=1)
+            flat_path = os.path.join(os.path.dirname(file_path),
+                                     os.path.basename(file_path) if not flat \
+                                         else "flat_" + os.path.basename(file_path))
+
+        if os.path.exists(file_path): shutil.copyfile(file_path, os.path.join(file_path, ".bkp"))
+
+    def __save_stream_image(self, h_coord, v_coord, image, initialization_parameters, flat=False):
         index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
         data_collection_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
 
@@ -356,7 +373,10 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
                      "v_coord" : {"array" : v_coord.tolist(), "shape" : v_coord.shape, "dtype" : str(v_coord.dtype)},
                      "image"   : {"array" : image.flatten().tolist(), "shape" : image.shape, "dtype" : str(image.dtype)}}
 
-        with open(os.path.join(data_collection_directory, f"stream_image_%0{index_digits}i.json" % 1), "w") as f: json.dump(data_dict, f)
+        file_name = os.path.join(data_collection_directory, f"stream_image_%0{index_digits}i.json" % 1) if not flat else \
+                    os.path.join(data_collection_directory, f"flat_stream_image_%0{index_digits}i.json" % 1)
+
+        with open(file_name, "w") as f: json.dump(data_dict, f)
 
     def __load_stream_image(self, initialization_parameters):
         index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]

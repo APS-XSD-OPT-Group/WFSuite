@@ -1046,6 +1046,7 @@ def execute_process_image(**arguments):
     arguments["pattern_path"]          = arguments.get("pattern_path", './mask/RanMask5umB0.npy') # path to mask design pattern
     arguments["propagated_pattern"]    = arguments.get("propagated_pattern", './images/propagated_pattern.npz') # if None, will create one in the data folder
     arguments["propagated_patternDet"] = arguments.get("propagated_patternDet", './images/propagated_patternDet.npz') # if None, will search from the propagated pattern. Its size is determined by the det_size
+    arguments["process_after_mask"]    = arguments.get("process_after_mask", False)
     arguments["saving_path"]           = arguments.get("saving_path", None) # if None, will save the propagated pattern file to the data folder
     arguments["crop"]                  = arguments.get("crop", [0, -1, 0, -1]) # if is [256], central crop. if len()==4, boundary crop, if is 0, use gui crop, if is -1, use auto-crop
     arguments["img_transfer_matrix"]   = arguments.get("img_transfer_matrix", [1, 0, 0]) # the image transfer matrix to make the images match with the simulated pattern.
@@ -1116,6 +1117,7 @@ def execute_process_image(**arguments):
         'saving_path':       file_folder
         if args.saving_path is None else args.saving_path,  # if propagated_pattern is None, save the simulated to this path
         'propagated_patternDet': args.propagated_patternDet,  # propagated transformed simulated reference image at detector, if None, will search from the propagated pattern.
+        'process_after_mask' : args.process_after_mask
     }
 
     para_simulation = {
@@ -1255,6 +1257,7 @@ def execute_process_image(**arguments):
         sys.exit()
 
     generate_simulated_mask = para_pattern['propagated_pattern'] is None or para_pattern['propagated_patternDet'] is None
+    process_after_mask      = para_pattern['process_after_mask']
 
     for key, value in args.__dict__.items(): prColor('{}: {}'.format(key, value), 'cyan')
 
@@ -1287,7 +1290,7 @@ def execute_process_image(**arguments):
     pattern_find = pattern_search(ini_para=para_simulation)
 
     # -------------------------------- do the re-calculation of source distance -------------------------------------
-    if args.d_source_recal and para_pattern['propagated_pattern'] is None and para_pattern['propagated_patternDet'] is None:
+    if args.d_source_recal and generate_simulated_mask:
         prColor('Re-calculate the source distance according to the current value', 'cyan')
         # estimation method, simple_speckle or geometric, simple_speckle means using the slope_tracking to estimate the overall source distance; geometric means using the image scalling factor to get the overall source distance
         est_method = 'geometric'
@@ -1398,220 +1401,225 @@ def execute_process_image(**arguments):
     if generate_simulated_mask:  shutil.copy(os.path.join(args.result_folder, 'reference.json'),
                                              os.path.join(para_pattern['saving_path'], 'reference.json'))
 
-    # choose the proper speckle tracking mode, either area or centralLine
-    c_w = pattern_find.c_w
+    if not generate_simulated_mask or \
+        (generate_simulated_mask and process_after_mask) :
 
-    if args.mode == 'area':
-        prColor('speckle tracking mode: area. Will use the whole cropping area for calculation.', 'cyan')
-        # XSHI removed DPC and phase from speckle_tracking
-        (displace_y,
-         displace_x,
-         displace_fine,
-         displace_y_tilt,
-         displace_x_tilt) = speckle_tracking(I_simu, I_img, para_XST, displace_offset=[displace_y_offset, displace_x_offset])
+        # choose the proper speckle tracking mode, either area or centralLine
+        c_w = pattern_find.c_w
 
-        block_width = int(args.lineWidth * args.pattern_size / args.p_x) + 2 * para_XST['window_searching']
+        if args.mode == 'area':
+            prColor('speckle tracking mode: area. Will use the whole cropping area for calculation.', 'cyan')
+            # XSHI removed DPC and phase from speckle_tracking
+            (displace_y,
+             displace_x,
+             displace_fine,
+             displace_y_tilt,
+             displace_x_tilt) = speckle_tracking(I_simu, I_img, para_XST, displace_offset=[displace_y_offset, displace_x_offset])
 
-        line_displace_y = displace_y[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
-        line_displace_x = displace_x[int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width), :]
+            block_width = int(args.lineWidth * args.pattern_size / args.p_x) + 2 * para_XST['window_searching']
 
-        line_displace = [np.mean(line_displace_y, axis=1), np.mean(line_displace_x, axis=0)]
-        line_displace = [line_displace[0] - np.mean(line_displace[0]), line_displace[1] - np.mean(line_displace[1])]
+            line_displace_y = displace_y[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
+            line_displace_x = displace_x[int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width), :]
 
-        line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'],
-                      np.gradient(line_displace[1]) / para_simulation['d_prop']]
+            line_displace = [np.mean(line_displace_y, axis=1), np.mean(line_displace_x, axis=0)]
+            line_displace = [line_displace[0] - np.mean(line_displace[0]), line_displace[1] - np.mean(line_displace[1])]
 
-        # XSHI move the phase to the detector plane! Oct 2024
-        x_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[1]))
-        y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
+            line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'],
+                          np.gradient(line_displace[1]) / para_simulation['d_prop']]
 
-        line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
-                      np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
-        DPC_y      = (displace_y) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
-        DPC_x      = (displace_x) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
+            # XSHI move the phase to the detector plane! Oct 2024
+            x_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[1]))
+            y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
 
-        avg_source_d_x =  1 / np.mean(line_curve[1])
-        avg_source_d_y =  1 / np.mean(line_curve[0])
+            line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
+                          np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
+            DPC_y      = (displace_y) * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling  # added scaling
+            DPC_x      = (displace_x) * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling  # added scaling
 
-        phase = frankotchellappa(DPC_x, DPC_y) * para_simulation['p_x'] * 2 * np.pi / c_w
-        line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
-                    line_displace[1] * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling]
-        line_phase = [np.cumsum(line_dpc[0]) * para_simulation['p_x'] * 2 * np.pi / c_w,
-                      np.cumsum(line_dpc[1]) * para_simulation['p_x'] * 2 * np.pi / c_w]
+            avg_source_d_x =  1 / np.mean(line_curve[1])
+            avg_source_d_y =  1 / np.mean(line_curve[0])
 
-        curve_y, curve_x = get_local_curvature(displace_y * y_scaling, displace_x * x_scaling, para_simulation['d_prop'])
+            phase = frankotchellappa(DPC_x, DPC_y) * para_simulation['p_x'] * 2 * np.pi / c_w
+            line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
+                        line_displace[1] * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling]
+            line_phase = [np.cumsum(line_dpc[0]) * para_simulation['p_x'] * 2 * np.pi / c_w,
+                          np.cumsum(line_dpc[1]) * para_simulation['p_x'] * 2 * np.pi / c_w]
 
-        avg_radius_y = 1 / np.mean(curve_y)
-        avg_radius_x = 1 / np.mean(curve_x)
+            curve_y, curve_x = get_local_curvature(displace_y * y_scaling, displace_x * x_scaling, para_simulation['d_prop'])
 
-        prColor('mean radius of curvature: {}y    {}x'.format(avg_radius_y, avg_radius_x), 'cyan')
+            avg_radius_y = 1 / np.mean(curve_y)
+            avg_radius_x = 1 / np.mean(curve_x)
 
-        ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
-        intensity = flat[(flat.shape[0] - phase.shape[0]) // 2: (flat.shape[0] + phase.shape[0]) // 2, (flat.shape[1] - phase.shape[1]) // 2: (flat.shape[1] + phase.shape[1]) // 2]
+            prColor('mean radius of curvature: {}y    {}x'.format(avg_radius_y, avg_radius_x), 'cyan')
 
-        line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
+            ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
+            intensity = flat[(flat.shape[0] - phase.shape[0]) // 2: (flat.shape[0] + phase.shape[0]) // 2, (flat.shape[1] - phase.shape[1]) // 2: (flat.shape[1] + phase.shape[1]) // 2]
 
-        if args.save_images:
-            with lock:
-                plt.figure(figsize=(10, 8))
-                plt.subplot(221)
-                plt.imshow(displace_fine[0])
-                plt.colorbar()
-                plt.title('fine displace y')
-                plt.subplot(222)
-                plt.imshow(displace_fine[1])
-                plt.colorbar()
-                plt.title('fine displace x')
-                plt.subplot(223)
-                plt.imshow(displace_y)
-                plt.colorbar()
-                plt.title('displace y')
-                plt.subplot(224)
-                plt.imshow(displace_x)
-                plt.colorbar()
-                plt.title('displace x')
-                plt.savefig(os.path.join(args.result_folder, 'displace_fine.png'), dpi=150)
-                plt.close()
+            line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
 
-                plt.figure(figsize=(10, 4))
-                plt.subplot(121)
-                plt.plot(line_curve[0], 'k')
-                plt.plot(line_curve_filter[0], 'r')
-                plt.xlabel('[px]')
-                plt.ylabel('[1/m]')
-                plt.grid()
-                plt.title('vertical curvature')
-                plt.subplot(122)
-                plt.plot(line_curve[1], 'k')
-                plt.plot(line_curve_filter[1], 'r')
-                plt.xlabel('[px]')
-                plt.ylabel('[1/m]')
-                plt.grid()
-                plt.title('horizontal curvature')
-                plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
-                plt.close()
+            if args.save_images:
+                with lock:
+                    plt.figure(figsize=(10, 8))
+                    plt.subplot(221)
+                    plt.imshow(displace_fine[0])
+                    plt.colorbar()
+                    plt.title('fine displace y')
+                    plt.subplot(222)
+                    plt.imshow(displace_fine[1])
+                    plt.colorbar()
+                    plt.title('fine displace x')
+                    plt.subplot(223)
+                    plt.imshow(displace_y)
+                    plt.colorbar()
+                    plt.title('displace y')
+                    plt.subplot(224)
+                    plt.imshow(displace_x)
+                    plt.colorbar()
+                    plt.title('displace x')
+                    plt.savefig(os.path.join(args.result_folder, 'displace_fine.png'), dpi=150)
+                    plt.close()
 
-        write_json(result_path=args.result_folder,
-                   file_name='result',
-                   data_dict={'avg_source_d_x': float(avg_source_d_x),
-                              'avg_source_d_y': float(avg_source_d_y),
-                              'avg_radius_x':   float(avg_radius_x),
-                              'avg_radius_y':   float(avg_radius_y)})
-        if generate_simulated_mask: shutil.copy(os.path.join(args.result_folder,          'result.json'),
-                                                os.path.join(para_pattern['saving_path'], 'result.json'))
+                    plt.figure(figsize=(10, 4))
+                    plt.subplot(121)
+                    plt.plot(line_curve[0], 'k')
+                    plt.plot(line_curve_filter[0], 'r')
+                    plt.xlabel('[px]')
+                    plt.ylabel('[1/m]')
+                    plt.grid()
+                    plt.title('vertical curvature')
+                    plt.subplot(122)
+                    plt.plot(line_curve[1], 'k')
+                    plt.plot(line_curve_filter[1], 'r')
+                    plt.xlabel('[px]')
+                    plt.ylabel('[1/m]')
+                    plt.grid()
+                    plt.title('horizontal curvature')
+                    plt.savefig(os.path.join(args.result_folder, 'linecurve_filter.png'), dpi=150)
+                    plt.close()
 
-        if args.save_images:
-            with lock:
-                save_figure(image_pair=[['displace_x', displace_x, '[px]'],
-                                        ['displace_y', displace_y, '[px]'],
-                                        ['curve_y', curve_y, '[1/m]'],
-                                        ['curve_x', curve_x, '[1/m]'],
-                                        ['phase', phase, '[rad]'],
-                                        ['flat', flat, 'intensity'],
-                                        ['displace_x_fine', displace_fine[1], '[px]'],
-                                        ['displace_y_fine', displace_fine[0], '[px]']],
-                            path=args.result_folder,
-                            p_x=para_simulation['p_x'],
-                            extention='.png')
-                save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
-                                           ['line_phase_x', line_phase[1], '[rad]'],
-                                           ['line_displace_y', line_displace[0], '[px]'],
-                                           ['line_phase_y', line_phase[0], '[rad]'],
-                                           ['line_curve_y', line_curve_filter[0], '[1/m]'],
-                                           ['line_curve_x', line_curve_filter[1], '[1/m]']],
-                               path=args.result_folder, p_x=para_simulation['p_x'])
-        save_data(data={'intensity': intensity,
-                        'displace_x': displace_x,
-                        'displace_y': displace_y,
-                        'phase': phase,
-                        'line_phase_y': line_phase[0],
-                        'line_displace_y': line_displace[0],
-                        'line_curve_y': line_curve_filter[0],
-                        'line_phase_x': line_phase[1],
-                        'line_displace_x': line_displace[1],
-                        'line_curve_x': line_curve_filter[1]},
-                  path_folder=args.result_folder)
+            write_json(result_path=args.result_folder,
+                       file_name='result',
+                       data_dict={'avg_source_d_x': float(avg_source_d_x),
+                                  'avg_source_d_y': float(avg_source_d_y),
+                                  'avg_radius_x':   float(avg_radius_x),
+                                  'avg_radius_y':   float(avg_radius_y)})
+            if generate_simulated_mask: shutil.copy(os.path.join(args.result_folder,          'result.json'),
+                                                    os.path.join(para_pattern['saving_path'], 'result.json'))
 
-        result = ProcessImageResult(args.mode, intensity, phase, line_phase, line_displace, line_curve_filter)
-    elif args.mode == 'centralLine':
-        prColor('speckle tracking mode: centralLine. Will use the central linewidth of {}um for calculation.'.format(args.lineWidth * args.pattern_size * 1e6), 'cyan')
-        # crop the vertical and horizontal block for calculation
-        block_width = int(args.lineWidth * args.pattern_size / args.p_x) + 2 * (args.window_searching + args.template_size * int(1 / args.down_sampling))
+            if args.save_images:
+                with lock:
+                    save_figure(image_pair=[['displace_x', displace_x, '[px]'],
+                                            ['displace_y', displace_y, '[px]'],
+                                            ['curve_y', curve_y, '[1/m]'],
+                                            ['curve_x', curve_x, '[1/m]'],
+                                            ['phase', phase, '[rad]'],
+                                            ['flat', flat, 'intensity'],
+                                            ['displace_x_fine', displace_fine[1], '[px]'],
+                                            ['displace_y_fine', displace_fine[0], '[px]']],
+                                path=args.result_folder,
+                                p_x=para_simulation['p_x'],
+                                extention='.png')
+                    save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
+                                               ['line_phase_x', line_phase[1], '[rad]'],
+                                               ['line_displace_y', line_displace[0], '[px]'],
+                                               ['line_phase_y', line_phase[0], '[rad]'],
+                                               ['line_curve_y', line_curve_filter[0], '[1/m]'],
+                                               ['line_curve_x', line_curve_filter[1], '[1/m]']],
+                                   path=args.result_folder, p_x=para_simulation['p_x'])
+            save_data(data={'intensity': intensity,
+                            'displace_x': displace_x,
+                            'displace_y': displace_y,
+                            'phase': phase,
+                            'line_phase_y': line_phase[0],
+                            'line_displace_y': line_displace[0],
+                            'line_curve_y': line_curve_filter[0],
+                            'line_phase_x': line_phase[1],
+                            'line_displace_x': line_displace[1],
+                            'line_curve_x': line_curve_filter[1]},
+                      path_folder=args.result_folder)
 
-        I_img_v = I_img[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
-        I_simu_v = I_simu[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
-        displace_y_offset_v = displace_y_offset[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
-        displace_x_offset_v = displace_x_offset[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
+            result = ProcessImageResult(args.mode, intensity, phase, line_phase, line_displace, line_curve_filter)
+        elif args.mode == 'centralLine':
+            prColor('speckle tracking mode: centralLine. Will use the central linewidth of {}um for calculation.'.format(args.lineWidth * args.pattern_size * 1e6), 'cyan')
+            # crop the vertical and horizontal block for calculation
+            block_width = int(args.lineWidth * args.pattern_size / args.p_x) + 2 * (args.window_searching + args.template_size * int(1 / args.down_sampling))
 
-        # XSHI removed DPC and phase from speckle_tracking
-        displace_y, _, _, displace_y_tilt, _ = speckle_tracking(I_simu_v, I_img_v, para_XST, displace_offset=[displace_y_offset_v, displace_x_offset_v])
+            I_img_v = I_img[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
+            I_simu_v = I_simu[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
+            displace_y_offset_v = displace_y_offset[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
+            displace_x_offset_v = displace_x_offset[:, int(I_img.shape[0] // 2 - block_width // 2):int(I_img.shape[0] // 2 - block_width // 2 + block_width)]
 
-        I_img_h = I_img[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
-        I_simu_h = I_simu[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
-        displace_y_offset_h = displace_y_offset[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
-        displace_x_offset_h = displace_x_offset[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
+            # XSHI removed DPC and phase from speckle_tracking
+            displace_y, _, _, displace_y_tilt, _ = speckle_tracking(I_simu_v, I_img_v, para_XST, displace_offset=[displace_y_offset_v, displace_x_offset_v])
 
-        # XSHI removed DPC and phase from speckle_tracking
-        _, displace_x, _, _, displace_x_tilt = speckle_tracking(I_simu_h, I_img_h, para_XST, displace_offset=[displace_y_offset_h, displace_x_offset_h])
+            I_img_h = I_img[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
+            I_simu_h = I_simu[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
+            displace_y_offset_h = displace_y_offset[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
+            displace_x_offset_h = displace_x_offset[int(I_img.shape[1] // 2 - block_width // 2):int(I_img.shape[1] // 2 - block_width // 2 + block_width), :]
 
-        line_displace = [np.mean(displace_y, axis=1), np.mean(displace_x, axis=0)]
-        line_displace = [line_displace[0] - np.mean(line_displace[0]), line_displace[1] - np.mean(line_displace[1])]
+            # XSHI removed DPC and phase from speckle_tracking
+            _, displace_x, _, _, displace_x_tilt = speckle_tracking(I_simu_h, I_img_h, para_XST, displace_offset=[displace_y_offset_h, displace_x_offset_h])
 
-        line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'],
-                      np.gradient(line_displace[1]) / para_simulation['d_prop']]
+            line_displace = [np.mean(displace_y, axis=1), np.mean(displace_x, axis=0)]
+            line_displace = [line_displace[0] - np.mean(line_displace[0]), line_displace[1] - np.mean(line_displace[1])]
 
-        # XSHI move the phase to the detector plane! Oct 2024
-        x_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[1]))
-        y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
-        line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
-                      np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
-        avg_source_d_x = 1 / np.mean(line_curve[1])
-        avg_source_d_y = 1 / np.mean(line_curve[0])
+            line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'],
+                          np.gradient(line_displace[1]) / para_simulation['d_prop']]
 
-        # get phase and curveature for central line profile
-        line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
-                    line_displace[1] * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling]
-        line_phase = [np.cumsum(line_dpc[0]) * para_simulation['p_x'] * 2 * np.pi / c_w,
-                      np.cumsum(line_dpc[1]) * para_simulation['p_x'] * 2 * np.pi / c_w]
+            # XSHI move the phase to the detector plane! Oct 2024
+            x_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[1]))
+            y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
+            line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
+                          np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
+            avg_source_d_x = 1 / np.mean(line_curve[1])
+            avg_source_d_y = 1 / np.mean(line_curve[0])
 
-        # filter the line curve
-        line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
+            # get phase and curveature for central line profile
+            line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
+                        line_displace[1] * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling]
+            line_phase = [np.cumsum(line_dpc[0]) * para_simulation['p_x'] * 2 * np.pi / c_w,
+                          np.cumsum(line_dpc[1]) * para_simulation['p_x'] * 2 * np.pi / c_w]
 
-        ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
-        linewidth_tosum = int(args.lineWidth * args.pattern_size / args.p_x)
+            # filter the line curve
+            line_curve_filter = [snd.gaussian_filter(line_curve[0], 21), snd.gaussian_filter(line_curve[1], 21)]
 
-        intensity_x = flat[(flat.shape[0] - linewidth_tosum) // 2: (flat.shape[0] + linewidth_tosum) // 2, (flat.shape[1] - line_phase[1].shape[0]) // 2: (flat.shape[1] + line_phase[1].shape[0]) // 2]
-        intensity_y = flat[(flat.shape[0] - line_phase[0].shape[0]) // 2: (flat.shape[0] + line_phase[0].shape[0]) // 2, (flat.shape[1] - linewidth_tosum) // 2: (flat.shape[1] + linewidth_tosum) // 2]
-        int_x = np.sum(intensity_x, axis=0)
-        int_y = np.sum(intensity_y, axis=1)
+            ###XSHI Feb 2024 added intensity，May 2024 modified with zoom factor, Oct 2024 change to save intensity at detector
+            linewidth_tosum = int(args.lineWidth * args.pattern_size / args.p_x)
 
-        prColor('mean source distance: {}y    {}x'.format(avg_source_d_y, avg_source_d_x), 'cyan')
+            intensity_x = flat[(flat.shape[0] - linewidth_tosum) // 2: (flat.shape[0] + linewidth_tosum) // 2, (flat.shape[1] - line_phase[1].shape[0]) // 2: (flat.shape[1] + line_phase[1].shape[0]) // 2]
+            intensity_y = flat[(flat.shape[0] - line_phase[0].shape[0]) // 2: (flat.shape[0] + line_phase[0].shape[0]) // 2, (flat.shape[1] - linewidth_tosum) // 2: (flat.shape[1] + linewidth_tosum) // 2]
+            int_x = np.sum(intensity_x, axis=0)
+            int_y = np.sum(intensity_y, axis=1)
 
-        if args.save_images:
-            with lock:
-                save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
-                                           ['line_phase_x', line_phase[1], '[rad]'],
-                                           ['line_displace_y', line_displace[0], '[px]'],
-                                           ['line_phase_y', line_phase[0], '[rad]'],
-                                           ['line_curve_y', line_curve_filter[0], '[1/m]'],
-                                           ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
-        write_json(result_path=args.result_folder,
-                   file_name='result',
-                   data_dict={'avg_source_d_x': float(avg_source_d_x),
-                              'avg_source_d_y': float(avg_source_d_y),
-                              })
-        if generate_simulated_mask: shutil.copy(os.path.join(args.result_folder,          'result.json'),
-                                                os.path.join(para_pattern['saving_path'], 'result.json'))
-        save_data(data={'int_y': int_y,
-                        'line_phase_y': line_phase[0],
-                        'line_displace_y': line_displace[0],
-                        'line_curve_y': line_curve_filter[0],
-                        'int_x': int_x,
-                        'line_phase_x': line_phase[1],
-                        'line_displace_x': line_displace[1],
-                        'line_curve_x': line_curve_filter[1]},
-                  path_folder=args.result_folder)
+            prColor('mean source distance: {}y    {}x'.format(avg_source_d_y, avg_source_d_x), 'cyan')
 
-        result = ProcessImageResult(args.mode, [int_x, int_y], None, line_phase, line_displace, line_curve_filter)
+            if args.save_images:
+                with lock:
+                    save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
+                                               ['line_phase_x', line_phase[1], '[rad]'],
+                                               ['line_displace_y', line_displace[0], '[px]'],
+                                               ['line_phase_y', line_phase[0], '[rad]'],
+                                               ['line_curve_y', line_curve_filter[0], '[1/m]'],
+                                               ['line_curve_x', line_curve_filter[1], '[1/m]']], path=args.result_folder, p_x=para_simulation['p_x'])
+            write_json(result_path=args.result_folder,
+                       file_name='result',
+                       data_dict={'avg_source_d_x': float(avg_source_d_x),
+                                  'avg_source_d_y': float(avg_source_d_y),
+                                  })
+            if generate_simulated_mask: shutil.copy(os.path.join(args.result_folder,          'result.json'),
+                                                    os.path.join(para_pattern['saving_path'], 'result.json'))
+            save_data(data={'int_y': int_y,
+                            'line_phase_y': line_phase[0],
+                            'line_displace_y': line_displace[0],
+                            'line_curve_y': line_curve_filter[0],
+                            'int_x': int_x,
+                            'line_phase_x': line_phase[1],
+                            'line_displace_x': line_displace[1],
+                            'line_curve_x': line_curve_filter[1]},
+                      path_folder=args.result_folder)
 
-    return result.to_dict()
+            result = ProcessImageResult(args.mode, [int_x, int_y], None, line_phase, line_displace, line_curve_filter)
+
+        return result.to_dict()
+    else:
+        return None
