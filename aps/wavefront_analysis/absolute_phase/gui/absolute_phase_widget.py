@@ -1055,7 +1055,7 @@ class AbsolutePhaseWidget(GenericWidget):
         def custom_formatter(x, pos): return f'{x:.2f}'
 
         axis  = fig.gca()
-        image = axis.pcolormesh(hh, vv, data_2D, cmap=cmm.sunburst_r, rasterized=True)
+        plotted_image = axis.pcolormesh(hh, vv, data_2D, cmap=cmm.sunburst_r, rasterized=True)
         axis.set_xlim(xrange[0], xrange[1])
         axis.set_ylim(yrange[0], yrange[1])
         axis.set_xticks(np.linspace(xrange[0], xrange[1], 11, endpoint=True))
@@ -1073,47 +1073,51 @@ class AbsolutePhaseWidget(GenericWidget):
         if sys.platform == 'darwin':  axis.set_position([-0.1, 0.15, 1.0, 0.8])
         else:                         axis.set_position([0.15, 0.15, 0.8, 0.8])
         
-        cbar = fig.colorbar(mappable=image, ax=axis, pad=0.03, aspect=30, shrink=0.6)
+        cbar = fig.colorbar(mappable=plotted_image, ax=axis, pad=0.03, aspect=30, shrink=0.6)
         cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
 
-        def set_crop_output_listener(crop_array):
-            self.le_crop.setText(list_to_string(crop_array))
+        def set_crop(crop_array): self.le_crop.setText(list_to_string(crop_array))
 
         def onselect(eclick, erelease):
             if eclick.button == 3:  # right click
                 axis.set_xlim(xrange[0], xrange[1])
                 axis.set_ylim(yrange[0], yrange[1])
 
-                set_crop_output_listener([0, -1, 0, -1])
+                set_crop([0, -1, 0, -1])
             elif eclick.button == 1:
-                ROI_j_lim = np.sort([eclick.xdata, erelease.xdata]).tolist()
-                ROI_i_lim = np.sort([eclick.ydata, erelease.ydata]).tolist()
-
                 pixel_size = self.pixel_size*1e3 # mm
                 dimensions = data_2D.shape
 
+                ROI_j_lim = np.sort([eclick.xdata, erelease.xdata]).tolist()
+                ROI_i_lim = np.sort([eclick.ydata, erelease.ydata]).tolist()
+
                 axis.set_xlim(ROI_j_lim[0] - pixel_size, ROI_j_lim[1] + pixel_size)
-                axis.set_ylim(ROI_i_lim[1] + pixel_size, ROI_i_lim[0] - pixel_size)
+                axis.set_ylim(ROI_i_lim[0] - pixel_size, ROI_i_lim[1] + pixel_size)
 
-                ROI_j_lim[0] = int(ROI_j_lim[0] / pixel_size + 0.5*dimensions[0])
-                ROI_j_lim[1] = int(ROI_j_lim[1] / pixel_size + 0.5*dimensions[0])
-                ROI_i_lim[0] = int(ROI_i_lim[0] / pixel_size + 0.5*dimensions[1])
-                ROI_i_lim[1] = int(ROI_i_lim[1] / pixel_size + 0.5*dimensions[1])
+                ROI_j_lim[0] = np.argmin(abs(vv - ROI_j_lim[0]))
+                ROI_j_lim[1] = np.argmin(abs(vv - ROI_j_lim[1]))
+                ROI_i_lim[0] = np.argmin(abs(hh - ROI_i_lim[0]))
+                ROI_i_lim[1] = np.argmin(abs(hh - ROI_i_lim[1]))
 
-                set_crop_output_listener(ROI_i_lim + ROI_j_lim)
+                set_crop([
+                          int(dimensions[1] - ROI_i_lim[1]),
+                          int(dimensions[1] - ROI_i_lim[0]),
+                          int(dimensions[0] - ROI_j_lim[0]),
+                          int(dimensions[0] - ROI_j_lim[1]),
+                ])
 
-        def toggle_selector(event):
-            if event.key in ['Q', 'q'] and toggle_selector.RS.active:     toggle_selector.RS.set_active(False)
-            if event.key in ['A', 'a'] and not toggle_selector.RS.active: toggle_selector.RS.set_active(True)
+            self._image_figure_canvas.draw()
+
+        def toggle_selector(event): pass
 
         toggle_selector.RS = RectangleSelector(axis, onselect,
                                                props=dict(facecolor='purple',
                                                           edgecolor='black',
                                                           alpha=0.2,
                                                           fill=True))
+        toggle_selector.RS.set_active(True)
 
         fig.canvas.mpl_connect('key_press_event', toggle_selector)
-
 
         self._image_figure_canvas.draw()
 

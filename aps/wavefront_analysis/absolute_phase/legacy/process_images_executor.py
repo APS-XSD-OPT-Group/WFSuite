@@ -1217,10 +1217,10 @@ def execute_process_image(**arguments):
     if len(args.crop) == 4:
         if args.rebinning > 1:
             crop = args.crop
-            if not args.crop[0] == 0:  crop[0] = args.crop[0] // args.rebinning
-            if not args.crop[1] == -1: crop[1] = args.crop[1] // args.rebinning
-            if not args.crop[2] == 0:  crop[2] = args.crop[2] // args.rebinning
-            if not args.crop[3] == -1: crop[3] = args.crop[3] // args.rebinning
+            if not args.crop[0] == 0:  crop[0] = int(args.crop[0] // args.rebinning)
+            if not args.crop[1] == -1: crop[1] = int(args.crop[1] // args.rebinning)
+            if not args.crop[2] == 0:  crop[2] = int(args.crop[2] // args.rebinning)
+            if not args.crop[3] == -1: crop[3] = int(args.crop[3] // args.rebinning)
             args.crop = crop
     elif len(args.crop) == 1:
         if args.crop[0] == 0:
@@ -1234,10 +1234,8 @@ def execute_process_image(**arguments):
                 int(corner[0][1]),
                 int(corner[1][1])
             ]
-            image_boundary = args.crop
         elif args.crop[0] == -1:
             # use auto-crop according to the intensity boundary. rectangular shapess
-            image_boundary = auto_crop(flat, shrink=0.85, to_int=False)
             args.crop      = auto_crop(flat, shrink=0.85, to_int=True)
         else:
             # central crop
@@ -1248,7 +1246,6 @@ def execute_process_image(**arguments):
                       int(I_img_raw.shape[1] // 2 + args.crop[0] // 2),
                       ]
             args.crop      = corner
-            image_boundary = args.crop
     else:
         # error input
         prColor(
@@ -1273,11 +1270,8 @@ def execute_process_image(**arguments):
     extend_boundary = args.window_searching + args.template_size * int(1 / args.down_sampling)
     boundary_crop = lambda img: img[int(args.crop[0] - extend_boundary):int(args.crop[1] + extend_boundary),
                                 int(args.crop[2] - extend_boundary):int(args.crop[3] + extend_boundary)]
+
     I_img     = boundary_crop(I_img_raw)
-
-    plt.imshow(I_img)
-    plt.show()
-
     I_img_raw = (I_img_raw - dark) / (flat - dark)
     flat      = boundary_crop(flat)
     dark      = boundary_crop(dark)
