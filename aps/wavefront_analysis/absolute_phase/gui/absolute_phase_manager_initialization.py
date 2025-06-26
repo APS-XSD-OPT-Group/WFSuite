@@ -167,8 +167,12 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
 
     # Here GUI specific ini
 
-    wavefront_sensor_image_directory       = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory", default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
+    wavefront_sensor_image_directory       = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory",       default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
     wavefront_sensor_image_directory_batch = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory-Batch", default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
+    simulated_mask_directory               = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory",               default=os.path.abspath(os.path.join(os.path.curdir, "wf_images", "simulated_mask")))
+    simulated_mask_directory_batch         = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory-Batch",         default=os.path.abspath(os.path.join(os.path.curdir, "wf_images", "simulated_mask")))
+
+
     save_images                      = ini.get_boolean_from_ini("Wavefront-Analyzer", "Save-Images", default=True)
     plot_raw_image                   = ini.get_boolean_from_ini("Wavefront-Analyzer", "Plot-Raw_image", default=True)
     data_from                        = ini.get_int_from_ini("Wavefront-Analyzer", "Data-From", default=1) # file
@@ -177,6 +181,8 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
 
     return ScriptData(wavefront_sensor_image_directory=wavefront_sensor_image_directory,
                       wavefront_sensor_image_directory_batch=wavefront_sensor_image_directory_batch,
+                      simulated_mask_directory=simulated_mask_directory,
+                      simulated_mask_directory_batch=simulated_mask_directory_batch,
                       save_images=save_images,
                       plot_raw_image=plot_raw_image,
                       data_from=data_from,
@@ -296,6 +302,8 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
 
     ini.set_value_at_ini("Wavefront-Sensor", "Wavefront-Sensor-Image-Directory", initialization_parameters.get_parameter("wavefront_sensor_image_directory"))
     ini.set_value_at_ini("Wavefront-Sensor", "Wavefront-Sensor-Image-Directory-Batch", initialization_parameters.get_parameter("wavefront_sensor_image_directory_batch"))
+    ini.set_value_at_ini("Wavefront-Sensor", "Simulated-Mask-Directory", initialization_parameters.get_parameter("simulated_mask_directory"))
+    ini.set_value_at_ini("Wavefront-Sensor", "Simulated-Mask-Directory-Batch", initialization_parameters.get_parameter("simulated_mask_directory_batch"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Save-Images", value=initialization_parameters.get_parameter("save_images"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Plot-Raw_image", value=initialization_parameters.get_parameter("plot_raw_image"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Data-From", value=initialization_parameters.get_parameter("data_from"))

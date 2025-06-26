@@ -144,7 +144,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
             if action is None: raise ValueError("Batch Mode without specified action ( use -a<ACTION>)")
 
             if "PIS" == str(action).upper():
-                self.__check_wavefront_analyzer(initialization_parameters)
+                self.__check_wavefront_analyzer(initialization_parameters, batch_mode=True)
                 image_ops, _ = self.__get_image_ops(initialization_parameters, data_from="file")
 
                 wavefront_analyzer_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")
@@ -329,17 +329,24 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
 
         return image_ops, data_from
 
-    def __check_wavefront_analyzer(self, initialization_parameters: ScriptData):
+    def __check_wavefront_analyzer(self, initialization_parameters: ScriptData, batch_mode=False):
         data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
-        data_collection_directory   = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
+        data_collection_directory   = initialization_parameters.get_parameter("wavefront_sensor_image_directory" if not batch_mode else
+                                                                              "wavefront_sensor_image_directory_batch")
+        simulated_mask_directory    = initialization_parameters.get_parameter("simulated_mask_directory" if not batch_mode else
+                                                                              "simulated_mask_directory_batch")
         energy                      = data_analysis_configuration['energy']
 
         if self.__wavefront_analyzer is None: generate = True
         else:
             current_setup = self.__wavefront_analyzer.get_current_setup()
-            generate = current_setup['data_collection_directory'] != data_collection_directory or current_setup['energy'] != energy
+            generate = current_setup['data_collection_directory'] != data_collection_directory or \
+                       current_setup['energy'] != energy or \
+                       current_setup['simulated_mask_directory'] != simulated_mask_directory
 
-        if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory, energy=energy)
+        if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory,
+                                                                           simulated_mask_directory=simulated_mask_directory,
+                                                                           energy=energy)
 
     def __get_image_ops(self, initialization_parameters, data_from=None):
         data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]

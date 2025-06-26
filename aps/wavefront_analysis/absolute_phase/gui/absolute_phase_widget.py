@@ -113,6 +113,7 @@ class AbsolutePhaseWidget(GenericWidget):
         initialization_parameters: ScriptData = self._initialization_parameters
 
         self.wavefront_sensor_image_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory", os.path.join(os.path.abspath(os.curdir), "wf_images"))
+        self.simulated_mask_directory         = initialization_parameters.get_parameter("simulated_mask_directory", os.path.join(self.wavefront_sensor_image_directory, "simulated_mask"))
         self.save_images                      = initialization_parameters.get_parameter("save_images", True)
         self.plot_raw_image                   = initialization_parameters.get_parameter("plot_raw_image", True)
         self.data_from                        = initialization_parameters.get_parameter("data_from", 1)
@@ -277,6 +278,10 @@ class AbsolutePhaseWidget(GenericWidget):
         self.le_wavefront_sensor_image_directory  = gui.lineEdit(self._wavefront_sensor_image_directory_box, self, "wavefront_sensor_image_directory", "Store image from detector at", orientation='vertical', valueType=str)
         gui.button(self._wavefront_sensor_image_directory_box, self, "...", width=30, callback=self._set_wavefront_sensor_image_directory)
 
+        self._simulated_mask_directory_box = gui.widgetBox(self._ws_box , "", width=self._ws_box.width(), orientation='horizontal', addSpace=False)
+        self.le_simulated_mask_directory  = gui.lineEdit(self._simulated_mask_directory_box, self, "simulated_mask_directory", "Simulated Mask at", orientation='vertical', valueType=str)
+        gui.button(self._simulated_mask_directory_box, self, "...", width=30, callback=self._set_simulated_mask_directory)
+
         tab_widget = gui.tabWidget( self._ws_box)
         ws_tab_1     = gui.createTabPage(tab_widget, "Image Capture")
         ws_tab_2     = gui.createTabPage(tab_widget, "IOC")
@@ -388,7 +393,7 @@ class AbsolutePhaseWidget(GenericWidget):
         le.setFont(font)
         le.setStyleSheet("QLineEdit {color : darkred}")
 
-        wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=130)
+        wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=150)
 
         gui.comboBox(wa_box_3, self, "data_from", label="Data From", labelWidth=labels_width_1, orientation='horizontal', items=["stream", "file"], callback=self._set_data_from)
         self.le_image_ops = gui.lineEdit(wa_box_3, self, "image_ops", "Image Transformations (T, FV, FH)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_image_ops)
@@ -696,6 +701,12 @@ class AbsolutePhaseWidget(GenericWidget):
                                           previous_directory_path=self.wavefront_sensor_image_directory,
                                           start_directory=self.working_directory))
 
+    def _set_simulated_mask_directory(self):
+        self.le_simulated_mask_directory.setText(
+            gui.selectDirectoryFromDialog(self,
+                                          previous_directory_path=self.simulated_mask_directory,
+                                          start_directory=self.wavefront_sensor_image_directory))
+
     def _set_d_source_recal(self):
         self.le_estimation_method.setEnabled(bool(self.d_source_recal))
 
@@ -846,6 +857,7 @@ class AbsolutePhaseWidget(GenericWidget):
         # Widget ini
 
         initialization_parameters.set_parameter("wavefront_sensor_image_directory", self.wavefront_sensor_image_directory)
+        initialization_parameters.set_parameter("simulated_mask_directory",         self.simulated_mask_directory)
         initialization_parameters.set_parameter("save_images",                      bool(self.save_images))
         initialization_parameters.set_parameter("plot_raw_image",                   bool(self.plot_raw_image))
         initialization_parameters.set_parameter("data_from",                        self.data_from)
