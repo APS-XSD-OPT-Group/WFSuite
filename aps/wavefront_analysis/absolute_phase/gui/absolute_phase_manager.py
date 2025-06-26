@@ -359,11 +359,11 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
                                          else f"flat_stream_image_%0{index_digits}i.json" % 1)
         elif data_from == "file":
             file_path = self.__wavefront_sensor.get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index=1)
-            flat_path = os.path.join(os.path.dirname(file_path),
+            file_path = os.path.join(os.path.dirname(file_path),
                                      os.path.basename(file_path) if not flat \
                                          else "flat_" + os.path.basename(file_path))
 
-        if os.path.exists(file_path): shutil.copyfile(file_path, os.path.join(file_path, ".bkp"))
+        if os.path.exists(file_path): shutil.copyfile(file_path, file_path + ".bkp")
 
     def __save_stream_image(self, h_coord, v_coord, image, initialization_parameters, flat=False):
         index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
