@@ -114,6 +114,8 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self.wavefront_sensor_image_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory", os.path.join(os.path.abspath(os.curdir), "wf_images"))
         self.simulated_mask_directory         = initialization_parameters.get_parameter("simulated_mask_directory", os.path.join(self.wavefront_sensor_image_directory, "simulated_mask"))
+        self.use_flat                         = initialization_parameters.get_parameter("use_flat", False)
+        self.use_dark                         = initialization_parameters.get_parameter("use_dark", False)
         self.save_images                      = initialization_parameters.get_parameter("save_images", True)
         self.plot_raw_image                   = initialization_parameters.get_parameter("plot_raw_image", True)
         self.data_from                        = initialization_parameters.get_parameter("data_from", 1)
@@ -418,6 +420,9 @@ class AbsolutePhaseWidget(GenericWidget):
         self._le_itm = gui.lineEdit(wa_box_5, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=380)
+
+        gui.checkBox(wa_box_6, self, "use_flat", "Use Flat Image")
+        gui.checkBox(wa_box_6, self, "use_dark", "Use Dark Image")
 
         gui.lineEdit(wa_box_6, self, "mode", label="Mode (area, lineWidth)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
         gui.lineEdit(wa_box_6, self, "line_width", label="Line Width", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
@@ -858,6 +863,8 @@ class AbsolutePhaseWidget(GenericWidget):
 
         initialization_parameters.set_parameter("wavefront_sensor_image_directory", self.wavefront_sensor_image_directory)
         initialization_parameters.set_parameter("simulated_mask_directory",         self.simulated_mask_directory)
+        initialization_parameters.set_parameter("use_dark",                         bool(self.use_dark))
+        initialization_parameters.set_parameter("use_flat",                         bool(self.use_flat))
         initialization_parameters.set_parameter("save_images",                      bool(self.save_images))
         initialization_parameters.set_parameter("plot_raw_image",                   bool(self.plot_raw_image))
         initialization_parameters.set_parameter("data_from",                        self.data_from)

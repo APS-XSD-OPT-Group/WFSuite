@@ -153,6 +153,8 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
                 self.__wavefront_analyzer.process_images(mode=ProcessingMode.BATCH,
                                                          n_threads=data_analysis_configuration.get("n_cores"),
                                                          image_ops=image_ops,
+                                                         use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                         use_flat=initialization_parameters.get_parameter("use_flat", False),
                                                          save_images=initialization_parameters.get_parameter("save_result", True))
             else:
                 raise ValueError(f"Batch Mode: action not recognized {action}")
@@ -209,7 +211,10 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
 
     def take_shot_and_generate_mask(self, initialization_parameters: ScriptData, **kwargs):
         h_coord, v_coord, image, image_ops = self.__take_shot(initialization_parameters)
-        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image, image_ops=image_ops)
+        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image,
+                                                                                                image_ops=image_ops,
+                                                                                                use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                                                                use_flat=initialization_parameters.get_parameter("use_flat", False))
 
         if not is_new_mask: raise ValueError("Simulated Mask is already present in the Wavefront Image Directory")
         else:               return h_coord, v_coord, image, image_transfer_matrix
@@ -219,6 +224,8 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
                                                                              image_data=image,
                                                                              image_ops=image_ops,
+                                                                             use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                                             use_flat=initialization_parameters.get_parameter("use_flat", False),
                                                                              save_images=initialization_parameters.get_parameter("save_result", True))
 
         return h_coord, v_coord, image, wavefront_at_detector_data
@@ -228,6 +235,8 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
                                                                              image_data=image,
                                                                              image_ops=image_ops,
+                                                                             use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                                             use_flat=initialization_parameters.get_parameter("use_flat", False),
                                                                              save_images=initialization_parameters.get_parameter("save_result", True))
         propagated_wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
                                                                                        show_figure=False,
@@ -247,25 +256,35 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
 
         if data_from == "stream":
             _, _, image = self.__load_stream_image(initialization_parameters)
-            image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image, image_ops=image_ops)
+            image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image, 
+                                                                                                   image_ops=image_ops,
+                                                                                                   use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                                                                   use_flat=initialization_parameters.get_parameter("use_flat", False))
         elif data_from == "file":
-            image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1, image_ops=image_ops)
+            image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1, 
+                                                                                                   image_ops=image_ops,
+                                                                                                   use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                                                                   use_flat=initialization_parameters.get_parameter("use_flat", False))
 
         if not is_new_mask: raise ValueError("Simulated Mask is already present in the Wavefront Image Directory")
         else:               return image_transfer_matrix
 
     def process_image_from_file(self, initialization_parameters: ScriptData):
         image_ops, data_from = self.__set_wavefront_ready(initialization_parameters)
-
+        
         if data_from == "stream":
             _, _, image = self.__load_stream_image(initialization_parameters)
             wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
                                                                                  image_data=image,
                                                                                  image_ops=image_ops,
+                                                                                 use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                                                 use_flat=initialization_parameters.get_parameter("use_flat", False),
                                                                                  save_images=initialization_parameters.get_parameter("save_result", True))
         else:
             wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
                                                                                  image_ops=image_ops,
+                                                                                 use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                                                 use_flat=initialization_parameters.get_parameter("use_flat", False),
                                                                                  save_images=initialization_parameters.get_parameter("save_result", True))
 
         return wavefront_at_detector_data
@@ -326,7 +345,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, QObject):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
         self.__check_wavefront_analyzer(initialization_parameters)
         image_ops, data_from = self.__get_image_ops(initialization_parameters)
-
+        
         return image_ops, data_from
 
     def __check_wavefront_analyzer(self, initialization_parameters: ScriptData, batch_mode=False):

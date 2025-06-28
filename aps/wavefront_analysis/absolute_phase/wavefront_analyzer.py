@@ -375,8 +375,11 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     image_data   = kwargs.get("image_data", None)
     image_ops    = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
 
-    dark           = None if DARK is None else os.path.join(data_collection_directory, DARK)
-    flat           = None if FLAT is None else os.path.join(data_collection_directory, FLAT)
+    use_flat = kwargs.get("use_flat")
+    use_dark = kwargs.get("use_dark")
+
+    dark           = None if (DARK is None or not use_dark) else os.path.join(data_collection_directory, DARK)
+    flat           = None if (FLAT is None or not use_flat) else os.path.join(data_collection_directory, FLAT)
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
     result_folder  = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])
 
@@ -448,8 +451,11 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
     index_digits = kwargs.get("index_digits", INDEX_DIGITS)
     verbose      = kwargs.get("verbose", False)
 
-    dark           = None if DARK is None else os.path.join(data_collection_directory, DARK)
-    flat           = None if FLAT is None else os.path.join(data_collection_directory, FLAT)
+    use_flat = kwargs.get("use_flat")
+    use_dark = kwargs.get("use_dark")
+
+    dark = None if (DARK is None or not use_dark) else os.path.join(data_collection_directory, DARK)
+    flat = None if (FLAT is None or not use_flat) else os.path.join(data_collection_directory, FLAT)
     img         = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     image_data  = kwargs.get("image_data", None)
     image_ops   = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
