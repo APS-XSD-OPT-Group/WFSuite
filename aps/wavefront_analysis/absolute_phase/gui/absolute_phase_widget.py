@@ -231,11 +231,13 @@ class AbsolutePhaseWidget(GenericWidget):
         geom = QApplication.desktop().availableGeometry()
 
         try:    widget_width = kwargs["widget_width"]
-        except: widget_width = max(1720, geom.width()*0.98)
+        except:
+            if sys.platform == 'darwin' : widget_width = 1720
+            else:                         widget_width = 1780
         try:    widget_height = kwargs["widget_height"]
         except:
-            if sys.platform == 'darwin' : widget_height = min(750, geom.height()*0.95)
-            else:                         widget_height = min(850, geom.height()*0.95)
+            if sys.platform == 'darwin' : widget_height = 750
+            else:                         widget_height = 850
         self.setGeometry(QRect(10, 10, int(widget_width), int(widget_height)))
         self.setFixedWidth(int(widget_width))
         self.setFixedHeight(int(widget_height))
