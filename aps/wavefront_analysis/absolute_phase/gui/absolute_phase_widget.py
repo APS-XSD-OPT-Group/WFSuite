@@ -231,7 +231,7 @@ class AbsolutePhaseWidget(GenericWidget):
         geom = QApplication.desktop().availableGeometry()
 
         try:    widget_width = kwargs["widget_width"]
-        except: widget_width = min(1450, geom.width()*0.98)
+        except: widget_width = max(1720, geom.width()*0.98)
         try:    widget_height = kwargs["widget_height"]
         except:
             if sys.platform == 'darwin' : widget_height = min(750, geom.height()*0.95)
@@ -244,9 +244,11 @@ class AbsolutePhaseWidget(GenericWidget):
         layout.setAlignment(Qt.AlignLeft)
         self.setLayout(layout)
 
-        main_box_width = 450
+        main_box_width    = 720
+        input_box_width   = 450
+        command_box_width = 260
 
-        self._main_box = gui.widgetBox(self, "", width=main_box_width, height=self.height() - 20)
+        self._main_box    = gui.widgetBox(self, "", width=main_box_width,    height=self.height() - 20)
 
         button_box = gui.widgetBox(self._main_box, "", width=self._main_box.width(), orientation='horizontal')
         button_box.layout().setAlignment(Qt.AlignCenter)
@@ -260,10 +262,17 @@ class AbsolutePhaseWidget(GenericWidget):
         palette.setColor(QPalette.ButtonText, QColor('Dark Blue'))
         exit_button.setPalette(palette)
 
-        self._main_tab_widget = gui.tabWidget( self._main_box)
-        ws_tab     = gui.createTabPage(self._main_tab_widget, "Wavefront Sensor")
-        wa_tab     = gui.createTabPage(self._main_tab_widget, "Wavefront Analysis")
-        ex_tab     = gui.createTabPage(self._main_tab_widget, "Execution")
+        forms_box = gui.widgetBox(self._main_box, "", width=self._main_box.width(), orientation='horizontal')
+
+        self._input_box   = gui.widgetBox(forms_box, "", width=input_box_width, height=self.height() - 60)
+        self._command_box = gui.widgetBox(forms_box, "", width=command_box_width, height=self.height() - 60)
+
+        self._input_tab_widget = gui.tabWidget(self._input_box)
+        ws_tab     = gui.createTabPage(self._input_tab_widget, "Wavefront Sensor")
+        wa_tab     = gui.createTabPage(self._input_tab_widget, "Wavefront Analysis")
+
+        self._command_tab_widget = gui.tabWidget(self._command_box)
+        ex_tab     = gui.createTabPage(self._command_tab_widget, "Execution")
 
         labels_width_1 = 300
         labels_width_2 = 150
@@ -272,7 +281,7 @@ class AbsolutePhaseWidget(GenericWidget):
         #########################################################################################
         # WAVEFRONT SENSOR
 
-        self._ws_box  = gui.widgetBox(ws_tab, "", width=self._main_box.width()-10, height=self._main_box.height()-185)
+        self._ws_box  = gui.widgetBox(ws_tab, "", width=self._input_box.width()-10, height=self._input_box.height()-120)
 
         gui.separator(self._ws_box)
 
@@ -355,7 +364,7 @@ class AbsolutePhaseWidget(GenericWidget):
         #########################################################################################
         # WAVEFRONT ANALYSIS
 
-        self._wa_box  = gui.widgetBox(wa_tab, "", width=self._main_box.width()-10, height=self._main_box.height()-85)
+        self._wa_box  = gui.widgetBox(wa_tab, "", width=self._input_box.width()-10, height=self._input_box.height()-65)
 
         gui.separator(self._wa_box)
 
@@ -508,7 +517,7 @@ class AbsolutePhaseWidget(GenericWidget):
         #########################################################################################
         # Execution
 
-        self._ex_box = gui.widgetBox(ex_tab, "", width=self._main_box.width() - 10, height=self._main_box.height() - 85)
+        self._ex_box = gui.widgetBox(ex_tab, "", width=self._command_box.width() - 10, height=self._command_box.height() - 85)
 
         gui.separator(self._ex_box)
 
@@ -516,11 +525,11 @@ class AbsolutePhaseWidget(GenericWidget):
         ex_box_1 = gui.widgetBox(self._ex_box , "Online",            width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
         ex_box_2 = gui.widgetBox(self._ex_box , "Offline (no W.S.)", width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
 
-        ws_button = gui.button(ex_box_0, None, "Reconnect Wavefront Sensor", callback=self._connect_wavefront_sensor_callback, width=ex_box_0.width()-20, height=60)
+        ws_button = gui.button(ex_box_0, None, "Reconnect\nWavefront Sensor", callback=self._connect_wavefront_sensor_callback, width=ex_box_0.width()-20, height=60)
         font = QFont(ws_button.font())
         font.setBold(True)
         font.setItalic(False)
-        font.setPixelSize(18)
+        font.setPixelSize(16)
         ws_button.setFont(font)
         palette = QPalette(ws_button.palette())
         palette.setColor(QPalette.ButtonText, QColor('Dark Red'))
@@ -1053,7 +1062,7 @@ class AbsolutePhaseWidget(GenericWidget):
                     self._set_delta_f()
                     self.le_delta_f_h.setText(str(self.delta_f_h))
                     self.le_delta_f_v.setText(str(self.delta_f_v))
-                    self._main_tab_widget.setCurrentIndex(1)
+                    self._input_tab_widget.setCurrentIndex(1)
                     self._wa_tab_widget.setCurrentIndex(1)
                     self._wa_tab_widget_2.setCurrentIndex(0)
 
