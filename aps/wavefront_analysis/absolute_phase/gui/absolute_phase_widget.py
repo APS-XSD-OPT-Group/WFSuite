@@ -231,9 +231,7 @@ class AbsolutePhaseWidget(GenericWidget):
         geom = QApplication.desktop().availableGeometry()
 
         try:    widget_width = kwargs["widget_width"]
-        except:
-            if sys.platform == 'darwin' : widget_width = 1720
-            else:                         widget_width = 1780
+        except: widget_width = 1720
         try:    widget_height = kwargs["widget_height"]
         except:
             if sys.platform == 'darwin' : widget_height = 750
@@ -299,7 +297,8 @@ class AbsolutePhaseWidget(GenericWidget):
         ws_tab_1     = gui.createTabPage(tab_widget, "Image Capture")
         ws_tab_2     = gui.createTabPage(tab_widget, "IOC")
 
-        ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=300)
+        if sys.platform == 'darwin' : ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=300)
+        else:                         ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=330)
 
         ws_send_stop_command      = gui.checkBox(ws_box_1, self, "send_stop_command",      "Send Stop Command")
         ws_send_save_command      = gui.checkBox(ws_box_1, self, "send_save_command",      "Send Save Command")
@@ -320,7 +319,8 @@ class AbsolutePhaseWidget(GenericWidget):
         ws_pixel_size          = gui.lineEdit(ws_box_2, self, "pixel_size",          "Pixel Size [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         ws_detector_resolution = gui.lineEdit(ws_box_2, self, "detector_resolution", "Resolution [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
 
-        ws_box_3 = gui.widgetBox(ws_tab_2, "Epics", width=self._ws_box.width()-15, height=340)
+        if sys.platform == 'darwin' : ws_box_3 = gui.widgetBox(ws_tab_2, "Epics", width=self._ws_box.width()-15, height=380)
+        else:                         ws_box_3 = gui.widgetBox(ws_tab_2, "Epics", width=self._ws_box.width()-15, height=420)
 
         ws_cam_pixel_format      = gui.lineEdit(ws_box_3, self, "cam_pixel_format",      "Cam: Pixel Format",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
         ws_cam_acquire           = gui.lineEdit(ws_box_3, self, "cam_acquire",           "Cam: Acquire",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
@@ -335,8 +335,7 @@ class AbsolutePhaseWidget(GenericWidget):
         ws_tiff_autoincrement    = gui.lineEdit(ws_box_3, self, "tiff_autoincrement",    "Tiff: Auto-Increment",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
         ws_pva_image             = gui.lineEdit(ws_box_3, self, "pva_image",             "Pva Image",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
 
-        def emit_wavefront_sensor_changed():
-            self.wavefront_sensor_changed.emit()
+        def emit_wavefront_sensor_changed(): self.wavefront_sensor_changed.emit()
 
         ws_send_stop_command.stateChanged.connect(emit_wavefront_sensor_changed)
         ws_send_save_command.stateChanged.connect(emit_wavefront_sensor_changed)
@@ -384,7 +383,8 @@ class AbsolutePhaseWidget(GenericWidget):
         wa_tab_3     = gui.createTabPage(self._wa_tab_widget_2, "Propagation")
         wa_tab_4     = gui.createTabPage(self._wa_tab_widget_2, "Best Focus")
 
-        wa_box_1 = gui.widgetBox(wa_tab_1, "Mask", width=self._wa_box.width()-25, height=170)
+        if sys.platform == 'darwin': wa_box_1 = gui.widgetBox(wa_tab_1, "Mask", width=self._wa_box.width()-25, height=170)
+        else:                        wa_box_1 = gui.widgetBox(wa_tab_1, "Mask", width=self._wa_box.width()-25, height=190)
 
         gui.lineEdit(wa_box_1, self, "pattern_size",          "Pattern Size [m]",           labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(wa_box_1, self, "pattern_thickness",     "Pattern Thickness [m]",      labelWidth=labels_width_1, orientation='horizontal', valueType=float)
@@ -392,7 +392,8 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(wa_box_1, self, "ran_mask",              "Random Mask",                labelWidth=labels_width_3, orientation='horizontal', valueType=str)
         gui.lineEdit(wa_box_1, self, "propagation_distance",  "Propagation Distance [m]",   labelWidth=labels_width_1, orientation='horizontal', valueType=float)
 
-        wa_box_2 = gui.widgetBox(wa_tab_1, "Source", width=self._wa_box.width()-25, height=170)
+        if sys.platform == 'darwin': wa_box_2 = gui.widgetBox(wa_tab_1, "Source", width=self._wa_box.width()-25, height=170)
+        else:                        wa_box_2 = gui.widgetBox(wa_tab_1, "Source", width=self._wa_box.width()-25, height=190)
 
         le = gui.lineEdit(wa_box_2, self, "energy",            "Energy [eV]",           labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(wa_box_2, self, "source_v",          "Source Size V [m]",      labelWidth=labels_width_1, orientation='horizontal', valueType=float)
@@ -406,31 +407,33 @@ class AbsolutePhaseWidget(GenericWidget):
         le.setFont(font)
         le.setStyleSheet("QLineEdit {color : darkred}")
 
-        wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=150)
+        wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=160)
 
         gui.comboBox(wa_box_3, self, "data_from", label="Data From", labelWidth=labels_width_1, orientation='horizontal', items=["stream", "file"], callback=self._set_data_from)
         self.le_image_ops = gui.lineEdit(wa_box_3, self, "image_ops", "Image Transformations (T, FV, FH)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_image_ops)
         self.le_crop = gui.lineEdit(wa_box_3, self, "crop", "Crop (-1: auto, n: pixels around center,\n            [b, t, l, r]: coordinates in pixels)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
-        wa_box_7 = gui.widgetBox(wa_tab_5, "Processing", width=self._wa_box.width()-25, height=120)
+        wa_box_7 = gui.widgetBox(wa_tab_5, "Processing", width=self._wa_box.width()-25, height=130)
 
         gui.lineEdit(wa_box_7, self, "n_cores", label="Number of Cores", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(wa_box_7, self, "n_group", label="Number of Threads", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.checkBox(wa_box_7, self, "use_gpu",      "Use GPUs")
 
-        wa_box_4 = gui.widgetBox(wa_tab_5, "Output", width=self._wa_box.width()-25, height=90)
+        wa_box_4 = gui.widgetBox(wa_tab_5, "Output", width=self._wa_box.width()-25, height=100)
 
         gui.checkBox(wa_box_4, self, "show_align_figure",  "Show Align Figure")
         gui.checkBox(wa_box_4, self, "correct_scale",      "Correct Scale")
 
-        wa_box_5 = gui.widgetBox(wa_tab_2, "Simulated Mask", width=self._wa_box.width()-25, height=140)
+        if sys.platform == 'darwin' : wa_box_5 = gui.widgetBox(wa_tab_2, "Simulated Mask", width=self._wa_box.width()-25, height=140)
+        else:                         wa_box_5 = gui.widgetBox(wa_tab_2, "Simulated Mask", width=self._wa_box.width()-25, height=170)
 
         gui.checkBox(wa_box_5, self, "d_source_recal",  "Source Distance Recalculation", callback=self._set_d_source_recal)
         self.le_estimation_method = gui.lineEdit(wa_box_5, self, "estimation_method", "Method", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
         gui.checkBox(wa_box_5, self, "find_transfer_matrix",  "Find Transfer Matrix")
         self._le_itm = gui.lineEdit(wa_box_5, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
-        wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=380)
+        if sys.platform == 'darwin' : wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=380)
+        else:                         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=440)
 
         gui.checkBox(wa_box_6, self, "use_flat", "Use Flat Image")
         gui.checkBox(wa_box_6, self, "use_dark", "Use Dark Image")
@@ -439,7 +442,7 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(wa_box_6, self, "line_width", label="Line Width", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(wa_box_6, self, "rebinning", label="Image Rebinning Factor", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(wa_box_6, self, "down_sampling", label="Down Sampling", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(wa_box_6, self, "method", label="Method (WXST, SPINNet, SPINNetSD, simple)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_method)
+        gui.lineEdit(wa_box_6, self, "method", label="Method (WXST, SPINNet(SD), simple)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_method)
         gui.checkBox(wa_box_6, self, "use_wavelet",  "Use Wavelets")
 
         gui.lineEdit(wa_box_6, self, "wavelet_cut", label="Wavelet Cut", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
@@ -470,7 +473,8 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.lineEdit(bp_box_1, self, "magnification_v", label="Magnification V", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.checkBox(bp_box_1, self, "shift_half_pixel",  "Shift Half Pixel")
 
-        bp_box_2 = gui.widgetBox(wa_tab_3, "Image", width=self._wa_box.width()-25, height=240)
+        if sys.platform == 'darwin' : bp_box_2 = gui.widgetBox(wa_tab_3, "Image", width=self._wa_box.width()-25, height=260)
+        else:                         bp_box_2 = gui.widgetBox(wa_tab_3, "Image", width=self._wa_box.width()-25, height=280)
 
         gui.lineEdit(bp_box_2, self, "rebinning_bp", label="Wavefront Rebinning Factor", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
 
