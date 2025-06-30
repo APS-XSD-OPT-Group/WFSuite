@@ -413,7 +413,7 @@ class AbsolutePhaseWidget(GenericWidget):
         if sys.platform == 'darwin' : wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=180)
         else:                         wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=210)
 
-        gui.checkBox(wa_box_3, self, "plot_raw_image", "Plot Raw Image")
+        gui.checkBox(wa_box_3, self, "plot_raw_image", "Plot Raw Image after Shot")
         gui.lineEdit(wa_box_3, self, "plot_rebinning_factor", label="Rebinning Factor for plotting", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
         gui.comboBox(wa_box_3, self, "data_from", label="Data From", labelWidth=labels_width_1, orientation='horizontal', items=["stream", "file"], callback=self._set_data_from)
