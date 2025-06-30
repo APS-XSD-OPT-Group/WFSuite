@@ -410,7 +410,8 @@ class AbsolutePhaseWidget(GenericWidget):
         le.setFont(font)
         le.setStyleSheet("QLineEdit {color : darkred}")
 
-        wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=180)
+        if sys.platform == 'darwin' : wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=180)
+        else:                         wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=210)
 
         gui.checkBox(wa_box_3, self, "plot_raw_image", "Plot Raw Image")
         gui.lineEdit(wa_box_3, self, "plot_rebinning_factor", label="Rebinning Factor for plotting", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
@@ -439,7 +440,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self._le_itm = gui.lineEdit(wa_box_5, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
         if sys.platform == 'darwin' : wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=400)
-        else:                         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=440)
+        else:                         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=450)
 
         gui.checkBox(wa_box_6, self, "use_flat", "Use Flat Image")
         gui.checkBox(wa_box_6, self, "use_dark", "Use Dark Image")
