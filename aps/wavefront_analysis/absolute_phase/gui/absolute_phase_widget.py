@@ -44,6 +44,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
+import copy
 import os
 import sys
 
@@ -118,6 +119,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self.use_dark                         = initialization_parameters.get_parameter("use_dark", False)
         self.save_images                      = initialization_parameters.get_parameter("save_images", True)
         self.plot_raw_image                   = initialization_parameters.get_parameter("plot_raw_image", True)
+        self.plot_rebinning_factor            = initialization_parameters.get_parameter("plot_rebinning_factor", 4)
         self.data_from                        = initialization_parameters.get_parameter("data_from", 1)
         self.bp_calibration_mode              = initialization_parameters.get_parameter("bp_calibration_mode", False)
         self.bp_plot_shift                    = initialization_parameters.get_parameter("bp_plot_shift", True)
@@ -297,8 +299,8 @@ class AbsolutePhaseWidget(GenericWidget):
         ws_tab_1     = gui.createTabPage(tab_widget, "Image Capture")
         ws_tab_2     = gui.createTabPage(tab_widget, "IOC")
 
-        if sys.platform == 'darwin' : ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=300)
-        else:                         ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=330)
+        if sys.platform == 'darwin' : ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=310)
+        else:                         ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=340)
 
         ws_send_stop_command      = gui.checkBox(ws_box_1, self, "send_stop_command",      "Send Stop Command")
         ws_send_save_command      = gui.checkBox(ws_box_1, self, "send_save_command",      "Send Save Command")
@@ -365,7 +367,8 @@ class AbsolutePhaseWidget(GenericWidget):
         #########################################################################################
         # WAVEFRONT ANALYSIS
 
-        self._wa_box  = gui.widgetBox(wa_tab, "", width=self._input_box.width()-10, height=self._input_box.height()-65)
+        if sys.platform == 'darwin' : self._wa_box  = gui.widgetBox(wa_tab, "", width=self._input_box.width()-10, height=self._input_box.height()-40)
+        else:                         self._wa_box  = gui.widgetBox(wa_tab, "", width=self._input_box.width()-10, height=self._input_box.height()-40)
 
         gui.separator(self._wa_box)
 
@@ -407,7 +410,10 @@ class AbsolutePhaseWidget(GenericWidget):
         le.setFont(font)
         le.setStyleSheet("QLineEdit {color : darkred}")
 
-        wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=160)
+        wa_box_3 = gui.widgetBox(wa_tab_1, "Image", width=self._wa_box.width()-25, height=180)
+
+        gui.checkBox(wa_box_3, self, "plot_raw_image", "Plot Raw Image")
+        gui.lineEdit(wa_box_3, self, "plot_rebinning_factor", label="Rebinning Factor for plotting", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
         gui.comboBox(wa_box_3, self, "data_from", label="Data From", labelWidth=labels_width_1, orientation='horizontal', items=["stream", "file"], callback=self._set_data_from)
         self.le_image_ops = gui.lineEdit(wa_box_3, self, "image_ops", "Image Transformations (T, FV, FH)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_image_ops)
@@ -432,7 +438,7 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.checkBox(wa_box_5, self, "find_transfer_matrix",  "Find Transfer Matrix")
         self._le_itm = gui.lineEdit(wa_box_5, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
-        if sys.platform == 'darwin' : wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=380)
+        if sys.platform == 'darwin' : wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=400)
         else:                         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=440)
 
         gui.checkBox(wa_box_6, self, "use_flat", "Use Flat Image")
@@ -882,6 +888,7 @@ class AbsolutePhaseWidget(GenericWidget):
         initialization_parameters.set_parameter("use_flat",                         bool(self.use_flat))
         initialization_parameters.set_parameter("save_images",                      bool(self.save_images))
         initialization_parameters.set_parameter("plot_raw_image",                   bool(self.plot_raw_image))
+        initialization_parameters.set_parameter("plot_rebinning_factor",            self.plot_rebinning_factor)
         initialization_parameters.set_parameter("data_from",                        self.data_from)
         initialization_parameters.set_parameter("bp_calibration_mode",              bool(self.bp_calibration_mode))
         initialization_parameters.set_parameter("bp_plot_shift",                    bool(self.bp_plot_shift))
@@ -1079,6 +1086,20 @@ class AbsolutePhaseWidget(GenericWidget):
         data_2D = image
         hh      = h_coord
         vv      = v_coord[::-1]
+        hh_orig = copy.deepcopy(h_coord)
+        vv_orig = copy.deepcopy(v_coord[::-1])
+
+        if self.plot_rebinning_factor > 1:
+            height, width = data_2D.shape
+            if height % self.plot_rebinning_factor != 0 or width % self.plot_rebinning_factor != 0:
+                raise ValueError("Image dimensions must be divisible by the rebinning factor.")
+
+            new_shape = (height // self.plot_rebinning_factor, self.plot_rebinning_factor, width // self.plot_rebinning_factor, self.plot_rebinning_factor)
+
+            data_2D = data_2D.reshape(new_shape).mean(axis=(1, 3))
+
+            hh = hh.reshape((width  // self.plot_rebinning_factor, self.plot_rebinning_factor)).mean(axis=1)
+            vv = vv.reshape((height // self.plot_rebinning_factor, self.plot_rebinning_factor)).mean(axis=1)
 
         xrange = [np.min(hh), np.max(hh)]
         yrange = [np.min(vv), np.max(vv)]
@@ -1119,8 +1140,13 @@ class AbsolutePhaseWidget(GenericWidget):
 
                 set_crop([0, -1, 0, -1])
             elif eclick.button == 1:
-                pixel_size = self.pixel_size*1e3 # mm
-                dimensions = data_2D.shape
+
+                if self.plot_rebinning_factor > 1:
+                    dimensions = [data_2D.shape[0]*self.plot_rebinning_factor, data_2D.shape[1]*self.plot_rebinning_factor]
+                    pixel_size = self.pixel_size*self.plot_rebinning_factor*1e3    # mm
+                else:
+                    dimensions = data_2D.shape
+                    pixel_size = self.pixel_size * 1e3  # mm
 
                 ROI_j_lim = np.sort([eclick.xdata, erelease.xdata]).tolist()
                 ROI_i_lim = np.sort([eclick.ydata, erelease.ydata]).tolist()
@@ -1128,10 +1154,10 @@ class AbsolutePhaseWidget(GenericWidget):
                 axis.set_xlim(ROI_j_lim[0] - pixel_size, ROI_j_lim[1] + pixel_size)
                 axis.set_ylim(ROI_i_lim[0] - pixel_size, ROI_i_lim[1] + pixel_size)
 
-                ROI_j_lim[0] = np.argmin(abs(vv - ROI_j_lim[0]))
-                ROI_j_lim[1] = np.argmin(abs(vv - ROI_j_lim[1]))
-                ROI_i_lim[0] = np.argmin(abs(hh - ROI_i_lim[0]))
-                ROI_i_lim[1] = np.argmin(abs(hh - ROI_i_lim[1]))
+                ROI_j_lim[0] = np.argmin(abs(vv_orig - ROI_j_lim[0]))
+                ROI_j_lim[1] = np.argmin(abs(vv_orig - ROI_j_lim[1]))
+                ROI_i_lim[0] = np.argmin(abs(hh_orig - ROI_i_lim[0]))
+                ROI_i_lim[1] = np.argmin(abs(hh_orig - ROI_i_lim[1]))
 
                 set_crop([
                           int(dimensions[1] - ROI_i_lim[1]),
