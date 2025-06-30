@@ -1222,6 +1222,12 @@ def execute_process_image(**arguments):
             if not args.crop[2] == 0:  crop[2] = int(args.crop[2] // args.rebinning)
             if not args.crop[3] == -1: crop[3] = int(args.crop[3] // args.rebinning)
             args.crop = crop
+
+        c1 = args.crop[1] if not args.crop[1] == -1 else I_img_raw.shape[0]
+        c3 = args.crop[3] if not args.crop[3] == -1 else I_img_raw.shape[1]
+
+        if (c1 - args.crop[0]) % 2 != 0: args.crop[1] = c1 - 1
+        if (c3 - args.crop[2]) % 2 != 0: args.crop[3] = c3 - 1
     elif len(args.crop) == 1:
         if args.crop[0] == 0:
             print("before crop------------------------------------------------")
