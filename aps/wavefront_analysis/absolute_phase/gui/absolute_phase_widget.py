@@ -54,7 +54,6 @@ from aps.common.plot import gui
 from aps.common.plot.gui import MessageDialog
 from aps.common.widgets.generic_widget import GenericWidget
 from aps.common.widgets.congruence import *
-from aps.common.singleton import synchronized_method
 from aps.common.scripts.script_data import ScriptData
 from aps.common.utilities import list_to_string, string_to_list
 
@@ -64,7 +63,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.widgets import RectangleSelector
 from cmasher import cm as cmm
 
-from PyQt5.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QScrollArea
+from PyQt5.QtWidgets import QWidget, QPushButton, QApplication, QHBoxLayout, QVBoxLayout, QScrollArea, QSlider
 from PyQt5.QtCore import QRect, Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
 
@@ -74,6 +73,7 @@ DEBUG_MODE = int(os.environ.get("DEBUG_MODE", 0)) == 1
 
 class AbsolutePhaseWidget(GenericWidget):
     wavefront_sensor_changed = pyqtSignal()
+    profile_clicked          = pyqtSignal(str, int)
 
     def __init__(self, parent, application_name=None, **kwargs):
         self._log_stream_widget             = kwargs["log_stream_widget"]
@@ -107,6 +107,8 @@ class AbsolutePhaseWidget(GenericWidget):
         super(AbsolutePhaseWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
 
         self.wavefront_sensor_changed.connect(self._wavefront_sensor_changed)
+        self.profile_clicked.connect(self._on_profile_clicked)
+
 
     def _set_values_from_initialization_parameters(self):
         self.working_directory = self._working_directory
@@ -704,12 +706,35 @@ class AbsolutePhaseWidget(GenericWidget):
         self._wf_tab_2_2 = gui.createTabPage(self._wf_tab_2_widget, "Best Focus Planes")
         self._wf_box_2_2 = gui.widgetBox(self._wf_tab_2_2, "")
 
-        self._wf_prof_figure_3 = Figure(figsize=figsize, constrained_layout=True)
+        self._wf_prof_figure_3 = Figure(figsize=(figsize[0], figsize[1]-0.5), constrained_layout=True)
         self._wf_prof_figure_3_canvas = FigureCanvas(self._wf_prof_figure_3)
         wf_prof_scroll = QScrollArea(self._wf_box_2_2)
         wf_prof_scroll.setWidget(self._wf_prof_figure_3_canvas)
         self._wf_box_2_2.layout().addWidget(NavigationToolbar(self._wf_prof_figure_3_canvas, self))
         self._wf_box_2_2.layout().addWidget(wf_prof_scroll)
+
+        slider_box = gui.widgetBox(self._wf_box_2_2, "", orientation="horizontal")
+
+        self._slider_h = SliderWithButtons()
+        self._slider_h.setMinimum(0)
+        self._slider_h.setMaximum(100)
+        self._slider_h.setValue(50)
+        self._slider_h.setTickPosition(QSlider.TicksBelow)
+        self._slider_h.setTickInterval(10)
+
+        self._slider_v = SliderWithButtons()
+        self._slider_v.setMinimum(0)
+        self._slider_v.setMaximum(100)
+        self._slider_v.setValue(50)
+        self._slider_v.setTickPosition(QSlider.TicksBelow)
+        self._slider_v.setTickInterval(10)
+
+        gui.separator(slider_box, width=30)
+        slider_box.layout().addWidget(self._slider_h)
+        gui.separator(slider_box, width=30)
+        slider_box.layout().addWidget(self._slider_v)
+
+        self._wf_box_2_2.layout().addWidget(slider_box)
 
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignCenter)
@@ -924,11 +949,14 @@ class AbsolutePhaseWidget(GenericWidget):
             self._ws_text.setText("Wavefront Sensor  \n(NOT CONNECTED)")
             self._ws_label.setPixmap(self.__ws_pixmaps["red"])
 
-
     def _wavefront_sensor_changed(self):
         if self.__is_wavefront_sensor_initialized:
             self._ws_label.setPixmap(self.__ws_pixmaps["orange"])
             self._ws_text.setText("Wavefront Sensor  \n(Reconnect if changed)")
+
+    def _on_profile_clicked(self, direction, index):
+        if direction == "x":   self._slider_h.setValue(index)
+        elif direction == "y": self._slider_v.setValue(index)
 
     # Online -------------------------------------------
 
@@ -1403,7 +1431,6 @@ class AbsolutePhaseWidget(GenericWidget):
         self._wf_prof_figure_2_canvas.draw()
 
         # Propagation planes
-
         for i in range(planes_x.shape[1]): planes_x[:, i] = intensities_x[i]
         for i in range(planes_y.shape[1]): planes_y[:, i] = intensities_y[i]
 
@@ -1423,12 +1450,9 @@ class AbsolutePhaseWidget(GenericWidget):
             ax_prof.set_xlim(coords[0], coords[-1])
             add_text_1D(ax_prof, dir, best_size, focus, vpos=0.7)
 
-
             line = ax.axvline(focus, color="gray", ls="--", linewidth=1, alpha=0.9, visible=False)
             text = ax.text(0.5, 0.6, f"{best_focus_from} {round(best_size, 3)} $\mu$m\nat {round(focus, 5)} m", color="darkred", alpha=0.9, fontsize=9, fontname=("Courier" if sys.platform == 'darwin' else "DejaVu Sans"),
                            bbox=dict(facecolor="yellow", edgecolor="darkred", alpha=0.7), transform=ax.transAxes, visible=False)
-
-
 
             def onclick(event):
                 # Check if the click is inside the axes
@@ -1449,7 +1473,11 @@ class AbsolutePhaseWidget(GenericWidget):
 
                     self._wf_prof_figure_3.canvas.draw_idle()
 
+                    self.profile_clicked.emit(dir, index)
+
             self._wf_prof_figure_3.canvas.mpl_connect('button_press_event', onclick)
+
+            return line, text
 
         axes = self._wf_prof_figure_3.subplots(nrows=2, ncols=2, sharex=False, sharey=False)
         extent_data_x = np.array([
@@ -1462,8 +1490,38 @@ class AbsolutePhaseWidget(GenericWidget):
             bf_propagation_distances_y[-1],
             y_coordinates[0],
             y_coordinates[-1]])
-        plot_ax_plane(axes[1][0], axes[0][0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x, bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x)
-        plot_ax_plane(axes[1][1], axes[0][1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y, bf_size_values_y, bf_propagation_distances_y, y_coordinates, intensities_y)
+        line_h, text_h = plot_ax_plane(axes[1][0], axes[0][0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x, bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x)
+        line_v, text_v = plot_ax_plane(axes[1][1], axes[0][1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y, bf_size_values_y, bf_propagation_distances_y, y_coordinates, intensities_y)
+
+        def on_value_changed(index, line, text, ax_prof, sizes, distances, coords, profiles, dir):
+            line.set_xdata([distances[index]])
+            text.set_text(f"{best_focus_from} {round(sizes[index], 3)} $\mu$m\nat {round(distances[index], 5)} m")
+            line.set_visible(True)
+            text.set_visible(True)
+            text.set_position((min((index + 1) / len(sizes), 0.7), 0.6))
+
+            ax_prof.clear()
+            ax_prof.plot(coords, profiles[index], 'k')
+            ax_prof.set_xlim(coords[0], coords[-1])
+            add_text_1D(ax_prof, dir, sizes[index], distances[index], vpos=0.7)
+
+            self._wf_prof_figure_3.canvas.draw_idle()
+
+        def on_value_changed_h(index):
+            on_value_changed(index, line_h, text_h, axes[0][0], bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x, "x")
+
+        def on_value_changed_v(index):
+            on_value_changed(index, line_v, text_v, axes[0][1], bf_size_values_y, bf_propagation_distances_y, y_coordinates, intensities_y, "y")
+
+        self._slider_h.setMaximum(len(bf_propagation_distances_x)-1)
+        self._slider_h.setTickInterval(int(len(bf_propagation_distances_x)/10))
+        self._slider_h.setValue(0)
+        self._slider_h.value_changed().connect(on_value_changed_h)
+
+        self._slider_v.setMaximum(len(bf_propagation_distances_y)-1)
+        self._slider_v.setTickInterval(int(len(bf_propagation_distances_x)/10))
+        self._slider_v.setValue(0)
+        self._slider_v.value_changed().connect(on_value_changed_v)
 
         self._wf_prof_figure_3.tight_layout()
         self._wf_prof_figure_3_canvas.draw()
@@ -1501,3 +1559,55 @@ def plot_1D(fig, line_x, line_y, label, p_x, coords=None):
     fig.tight_layout()
 
     return axes
+
+class SliderWithButtons(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        main_layout = QHBoxLayout()
+
+        # Slider
+        self.slider = QSlider(Qt.Horizontal)
+
+        # Buttons layout
+        button_layout_left  = QHBoxLayout()
+        button_layout_right = QHBoxLayout()
+        self.btn_minus = QPushButton("-")
+        self.btn_plus  = QPushButton("+")
+        self.btn_min   = QPushButton("Min")
+        self.btn_max   = QPushButton("Max")
+
+        self.btn_minus.setFixedWidth(20)
+        self.btn_plus.setFixedWidth(20)
+        self.btn_min.setFixedWidth(30)
+        self.btn_max.setFixedWidth(30)
+
+        self.btn_minus.clicked.connect(self.decrease_value)
+        self.btn_plus.clicked.connect(self.increase_value)
+        self.btn_min.clicked.connect(lambda: self.slider.setValue(self.slider.minimum()))
+        self.btn_max.clicked.connect(lambda: self.slider.setValue(self.slider.maximum()))
+
+        button_layout_left.addWidget(self.btn_min)
+        button_layout_left.addWidget(self.btn_minus)
+        button_layout_right.addWidget(self.btn_plus)
+        button_layout_right.addWidget(self.btn_max)
+
+        main_layout.addLayout(button_layout_left)
+        main_layout.addWidget(self.slider)
+        main_layout.addLayout(button_layout_right)
+
+        self.setLayout(main_layout)
+
+    def setMinimum(self, value=0):   self.slider.setMinimum(value)
+    def setMaximum(self, value=100): self.slider.setMaximum(value)
+    def setValue(self, value=50):    self.slider.setValue(value)
+    def setTickPosition(self, tick_position=QSlider.TicksBelow): self.slider.setTickPosition(tick_position)
+    def setTickInterval(self, value=10): self.slider.setTickInterval(value)
+
+    def increase_value(self):
+        self.slider.setValue(self.slider.value() + self.slider.singleStep())
+
+    def decrease_value(self):
+        self.slider.setValue(self.slider.value() - self.slider.singleStep())
+
+    def value_changed(self): return self.slider.valueChanged
