@@ -1512,6 +1512,8 @@ class AbsolutePhaseWidget(GenericWidget):
 
                 self._wf_prof_figure_3.canvas.draw_idle()
 
+            try:    slider.value_changed().disconnect()
+            except: pass
             slider.value_changed().connect(on_value_changed)
 
         plot_slider(self._slider_h, axes[0][0], "x", bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x, line_h, text_h)
