@@ -787,8 +787,8 @@ class AbsolutePhaseWidget(GenericWidget):
     def _set_method(self):
         if not self.method in ["WXST", "SPINNet", "SPINNetSD", "simple"]: MessageDialog.message(self, title="Input Error", message="Method must be 'WXST', 'SPINNet', 'SPINNetSD' or 'simple'", type="critical", width=500)
         else:
-            self.delta_f_h = self._delta_f_v.get(self.method, 0.0)
-            self.delta_f_v = self._delta_f_h.get(self.method, 0.0)
+            self.delta_f_h = self._delta_f_h.get(self.method, 0.0)
+            self.delta_f_v = self._delta_f_v.get(self.method, 0.0)
             self.le_delta_f_h.setText(str(self.delta_f_h))
             self.le_delta_f_v.setText(str(self.delta_f_v))
 
@@ -1507,11 +1507,27 @@ class AbsolutePhaseWidget(GenericWidget):
 
             self._wf_prof_figure_3.canvas.draw_idle()
 
-        def on_value_changed_h(index):
-            on_value_changed(index, line_h, text_h, axes[0][0], bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x, "x")
+        def on_value_changed_h(index_h):
+            on_value_changed(index_h,
+                             line_h,
+                             text_h,
+                             axes[0][0],
+                             bf_size_values_x,
+                             bf_propagation_distances_x,
+                             x_coordinates,
+                             intensities_x,
+                             "x")
 
-        def on_value_changed_v(index):
-            on_value_changed(index, line_v, text_v, axes[0][1], bf_size_values_y, bf_propagation_distances_y, y_coordinates, intensities_y, "y")
+        def on_value_changed_v(index_v):
+            on_value_changed(index_v,
+                             line_v,
+                             text_v,
+                             axes[0][1],
+                             bf_size_values_y,
+                             bf_propagation_distances_y,
+                             y_coordinates,
+                             intensities_y,
+                             "y")
 
         self._slider_h.setMaximum(len(bf_propagation_distances_x)-1)
         self._slider_h.setTickInterval(int(len(bf_propagation_distances_x)/10))
@@ -1519,7 +1535,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self._slider_h.value_changed().connect(on_value_changed_h)
 
         self._slider_v.setMaximum(len(bf_propagation_distances_y)-1)
-        self._slider_v.setTickInterval(int(len(bf_propagation_distances_x)/10))
+        self._slider_v.setTickInterval(int(len(bf_propagation_distances_y)/10))
         self._slider_v.setValue(0)
         self._slider_v.value_changed().connect(on_value_changed_v)
 
