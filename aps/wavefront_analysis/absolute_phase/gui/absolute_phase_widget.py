@@ -1493,51 +1493,29 @@ class AbsolutePhaseWidget(GenericWidget):
         line_h, text_h = plot_ax_plane(axes[1][0], axes[0][0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x, bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x)
         line_v, text_v = plot_ax_plane(axes[1][1], axes[0][1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y, bf_size_values_y, bf_propagation_distances_y, y_coordinates, intensities_y)
 
-        def on_value_changed(index, line, text, ax_prof, sizes, distances, coords, profiles, dir):
-            line.set_xdata([distances[index]])
-            text.set_text(f"{best_focus_from} {round(sizes[index], 3)} $\mu$m\nat {round(distances[index], 5)} m")
-            line.set_visible(True)
-            text.set_visible(True)
-            text.set_position((min((index + 1) / len(sizes), 0.7), 0.6))
+        def plot_slider(slider, ax_prof, dir, sizes, distances, coords, profiles, line, text):
+            slider.setMaximum(len(bf_propagation_distances_x) - 1)
+            slider.setTickInterval(int(len(bf_propagation_distances_x) / 10))
+            slider.setValue(0)
 
-            ax_prof.clear()
-            ax_prof.plot(coords, profiles[index], 'k')
-            ax_prof.set_xlim(coords[0], coords[-1])
-            add_text_1D(ax_prof, dir, sizes[index], distances[index], vpos=0.7)
+            def on_value_changed(index):
+                line.set_xdata([distances[index]])
+                text.set_text(f"{best_focus_from} {round(sizes[index], 3)} $\mu$m\nat {round(distances[index], 5)} m")
+                line.set_visible(True)
+                text.set_visible(True)
+                text.set_position((min((index + 1) / len(sizes), 0.7), 0.6))
 
-            self._wf_prof_figure_3.canvas.draw_idle()
+                ax_prof.clear()
+                ax_prof.plot(coords, profiles[index], 'k')
+                ax_prof.set_xlim(coords[0], coords[-1])
+                add_text_1D(ax_prof, dir, sizes[index], distances[index], vpos=0.7)
 
-        def on_value_changed_h(index_h):
-            on_value_changed(index_h,
-                             line_h,
-                             text_h,
-                             axes[0][0],
-                             bf_size_values_x,
-                             bf_propagation_distances_x,
-                             x_coordinates,
-                             intensities_x,
-                             "x")
+                self._wf_prof_figure_3.canvas.draw_idle()
 
-        def on_value_changed_v(index_v):
-            on_value_changed(index_v,
-                             line_v,
-                             text_v,
-                             axes[0][1],
-                             bf_size_values_y,
-                             bf_propagation_distances_y,
-                             y_coordinates,
-                             intensities_y,
-                             "y")
+            slider.value_changed().connect(on_value_changed)
 
-        self._slider_h.setMaximum(len(bf_propagation_distances_x)-1)
-        self._slider_h.setTickInterval(int(len(bf_propagation_distances_x)/10))
-        self._slider_h.setValue(0)
-        self._slider_h.value_changed().connect(on_value_changed_h)
-
-        self._slider_v.setMaximum(len(bf_propagation_distances_y)-1)
-        self._slider_v.setTickInterval(int(len(bf_propagation_distances_y)/10))
-        self._slider_v.setValue(0)
-        self._slider_v.value_changed().connect(on_value_changed_v)
+        plot_slider(self._slider_h, axes[0][0], "x", bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x, line_h, text_h)
+        plot_slider(self._slider_v, axes[0][1], "y", bf_size_values_y, bf_propagation_distances_y, y_coordinates, intensities_y, line_v, text_v)
 
         self._wf_prof_figure_3.tight_layout()
         self._wf_prof_figure_3_canvas.draw()
