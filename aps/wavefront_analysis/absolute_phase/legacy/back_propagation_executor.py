@@ -52,10 +52,16 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import PowerNorm
 import json
 
+from syned.beamline.beamline_element import BeamlineElement, ElementCoordinates
 from wofry.propagator.wavefront2D.generic_wavefront import GenericWavefront2D
 from wofry.propagator.wavefront1D.generic_wavefront import GenericWavefront1D
+from wofry.propagator.propagator import PropagationParameters, PropagationElements
 from wofryimpl.propagator.propagators2D.fresnel_zoom_xy import FresnelZoomXY2D
 from wofryimpl.propagator.propagators1D.fresnel_zoom import FresnelZoom1D
+from wofryimpl.beamline.optical_elements.ideal_elements.screen import WOScreen
+from wofrysrw.propagator.propagators2D.srw_fresnel_wofry import FresnelSRWWofry
+from wofrysrw.propagator.wavefront2D.srw_wavefront import SRWWavefront, WavefrontPropagationParameters
+from wofrysrw.beamline.optical_elements.ideal_elements.srw_screen import SRWScreen
 
 from aps.wavefront_analysis.common.arguments import Args
 from aps.common.plot.image import rebin_1D, rebin_2D
@@ -153,6 +159,8 @@ class PropagatedWavefront:
                  scan_best_focus_from=None,
                  bf_propagation_distance_x=None,
                  bf_propagation_distance_y=None,
+                 bf_x_coordinate=None,
+                 bf_y_coordinate=None,
                  bf_intensity_x=None,
                  bf_intensity_y=None,
                  bf_integrated_intensity_x=None,
@@ -162,6 +170,8 @@ class PropagatedWavefront:
                  bf_propagation_distances=None,
                  bf_propagation_distances_x=None,
                  bf_propagation_distances_y=None,
+                 bf_x_coordinates=None,
+                 bf_y_coordinates=None,
                  bf_intensities=None,
                  bf_intensities_x=None,
                  bf_intensities_y=None,
@@ -196,6 +206,8 @@ class PropagatedWavefront:
             # bf found
             self.bf_propagation_distance_x   = bf_propagation_distance_x
             self.bf_propagation_distance_y   = bf_propagation_distance_y
+            self.bf_x_coordinate             = bf_x_coordinate
+            self.bf_y_coordinate             = bf_y_coordinate
             self.bf_intensity_x              = bf_intensity_x
             self.bf_intensity_y              = bf_intensity_y
             self.bf_integrated_intensity_x   = bf_integrated_intensity_x
@@ -206,6 +218,8 @@ class PropagatedWavefront:
             self.bf_propagation_distances    = bf_propagation_distances
             self.bf_propagation_distances_x  = bf_propagation_distances_x
             self.bf_propagation_distances_y  = bf_propagation_distances_y
+            self.bf_x_coordinates            = bf_x_coordinates
+            self.bf_y_coordinates            = bf_y_coordinates
             self.bf_intensities              = bf_intensities
             self.bf_intensities_x            = bf_intensities_x
             self.bf_intensities_y            = bf_intensities_y
@@ -255,6 +269,8 @@ class PropagatedWavefront:
                 wf.attrs["bf_propagation_distance_x"] = self.bf_propagation_distance_x
                 wf.attrs["bf_propagation_distance_y"] = self.bf_propagation_distance_y
                 if self.kind == "2D":
+                    wf.create_dataset('bf_x_coordinates',          data=self.bf_x_coordinate)
+                    wf.create_dataset('bf_y_coordinates',          data=self.bf_y_coordinate)
                     wf.create_dataset('bf_intensity_x',            data=self.bf_intensity_x)
                     wf.create_dataset('bf_intensity_y',            data=self.bf_intensity_y)
                     wf.create_dataset('bf_integrated_intensity_x', data=self.bf_integrated_intensity_x)
@@ -268,6 +284,8 @@ class PropagatedWavefront:
                     wf.create_dataset('bf_propagation_distances', data=self.bf_propagation_distances)
                     for i in range(len(self.bf_propagation_distances)):
                         sc = wf.create_group(f"{self.bf_propagation_distances[i]}")
+                        sc.create_dataset('x_coordinates',          data=self.bf_x_coordinates[i])
+                        sc.create_dataset('y_coordinates',          data=self.bf_y_coordinates[i])
                         sc.create_dataset('intensity',              data=self.bf_intensities[i])
                         sc.create_dataset('integrated_intensity_x', data=self.bf_integrated_intensities_x[i])
                         sc.create_dataset('integrated_intensity_y', data=self.bf_integrated_intensities_y[i])
@@ -325,19 +343,27 @@ class PropagatedWavefront:
             out["bf_size_values_fit_x"]     = self.bf_size_values_fit_x
             out["bf_size_values_fit_y"]     = self.bf_size_values_fit_y
             if self.kind == "2D":
+                out["bf_x_coordinate"]              = self.bf_x_coordinate
+                out["bf_y_coordinate"]              = self.bf_y_coordinate
                 out["bf_intensity_x"]              = self.bf_intensity_x
                 out["bf_intensity_y"]              = self.bf_intensity_y
                 out["bf_integrated_intensity_x"]   = self.bf_integrated_intensity_x
                 out["bf_integrated_intensity_y"]   = self.bf_integrated_intensity_y
                 out["bf_propagation_distances"]    = self.bf_propagation_distances
+                out["bf_x_coordinates"]            = self.bf_x_coordinates
+                out["bf_y_coordinates"]            = self.bf_y_coordinates
                 out["bf_intensities"]              = self.bf_intensities
                 out["bf_integrated_intensities_x"] = self.bf_integrated_intensities_x
                 out["bf_integrated_intensities_y"] = self.bf_integrated_intensities_y
             elif self.kind == "1D":
+                out["bf_x_coordinate"]           = self.bf_x_coordinate
+                out["bf_y_coordinate"]           = self.bf_y_coordinate
                 out["bf_intensity_x"]             = self.bf_intensity_x
                 out["bf_intensity_y"]             = self.bf_intensity_y
                 out["bf_propagation_distances_x"] = self.bf_propagation_distances_x
                 out["bf_propagation_distances_y"] = self.bf_propagation_distances_y
+                out["bf_x_coordinates"]           = self.bf_x_coordinates
+                out["bf_y_coordinates"]           = self.bf_y_coordinates
                 out["bf_intensities_x"]           = self.bf_intensities_x
                 out["bf_intensities_y"]           = self.bf_intensities_y
 
@@ -361,9 +387,22 @@ def execute_back_propagation(**arguments) -> dict:
     arguments["delta_f_y"]              = arguments.get("delta_f_y", 0.0)
     arguments["x_rms_range"]            = arguments.get("x_rms_range", [-2e-6, 2e-6])
     arguments["y_rms_range"]            = arguments.get("y_rms_range", [-2e-6, 2e-6])
+    arguments["engine"]                 = arguments.get("engine", "srw")
+
     arguments["magnification_x"]        = arguments.get("magnification_x", 0.028)  # Magnification factor along X
     arguments["magnification_y"]        = arguments.get("magnification_y", 0.028)  # Magnification factor along Y
     arguments["shift_half_pixel"]       = arguments.get("shift_half_pixel", True)  # Whether to shift half a pixel
+
+    arguments["auto_resize_before_propagation"]                         = arguments.get("auto_resize_before_propagation", False)
+    arguments["auto_resize_after_propagation"]                          = arguments.get("auto_resize_after_propagation", False)
+    arguments["relative_precision_for_propagation_with_autoresizing"]   = arguments.get("relative_precision_for_propagation_with_autoresizing", 1.0)
+    arguments["allow_semianalytical_treatment_of_quadratic_phase_term"] = arguments.get("allow_semianalytical_treatment_of_quadratic_phase_term", 1)
+    arguments["do_any_resizing_on_fourier_side_using_fft"]              = arguments.get("do_any_resizing_on_fourier_side_using_fft", False)
+    arguments["horizontal_range_modification_factor_at_resizing"]       = arguments.get("horizontal_range_modification_factor_at_resizing", 1.0)
+    arguments["horizontal_resolution_modification_factor_at_resizing"]  = arguments.get("horizontal_resolution_modification_factor_at_resizing", 1.0)
+    arguments["vertical_range_modification_factor_at_resizing"]         = arguments.get("vertical_range_modification_factor_at_resizing", 1.0)
+    arguments["vertical_resolution_modification_factor_at_resizing"]    = arguments.get("vertical_resolution_modification_factor_at_resizing", 1.0)
+
     arguments["show_figure"]            = arguments.get("show_figure", False)
     arguments["save_result"]            = arguments.get("save_result", False)
     arguments["scan_best_focus"]        = arguments.get("scan_best_focus", False)
@@ -387,16 +426,7 @@ def execute_back_propagation(**arguments) -> dict:
     shift_y          = args.shift_y
     delta_f_x        = args.delta_f_x
     delta_f_y        = args.delta_f_y
-    x_rms_range      = args.x_rms_range     
-    y_rms_range      = args.y_rms_range     
-    magnification_x  = args.magnification_x 
-    magnification_y  = args.magnification_y 
-    shift_half_pixel = args.shift_half_pixel
-
     best_focus_from  = args.best_focus_from
-    scan_rel_range   = args.scan_rel_range
-    scan_x_rel_range = args.scan_x_rel_range
-    scan_y_rel_range = args.scan_y_rel_range
 
     file_path                = os.path.join(args.folder, 'single_shot_1.hdf5')
     json_setting_path        = os.path.join(args.folder, 'setting.json')
@@ -409,9 +439,6 @@ def execute_back_propagation(**arguments) -> dict:
 
     # Convert energy to wavelength
     wavelength = energy_to_wavelength(params['energy'])
-
-    # Use pixel_size from parameters
-    pixel_size = params['p_x']
 
     # Load results
     results        = load_parameters(json_result_path)
@@ -488,32 +515,30 @@ def execute_back_propagation(**arguments) -> dict:
                                                                                 z_array=wavefront,
                                                                                 wavelength=wavelength)
 
-        # Instantiate the propagator
-        fresnel_propagator = FresnelZoomXY2D()
+        if args.engine.lower() == "wofry":
+            fresnel_propagator = FresnelZoomXY2D()
+        elif args.engine.lower() == "srw":
+            initial_wavefront = SRWWavefront.fromGenericWavefront(initial_wavefront,
+                                                                  z=propagation_distance,
+                                                                  Rx=R_x,
+                                                                  Ry=R_y)
+            fresnel_propagator = FresnelSRWWofry()
+
 
         if args.scan_best_focus:
-            best_distance_x, best_intensity_x, best_integrated_intensity_x, smallest_size_x, best_distance_y, best_intensity_y, best_integrated_intensity_y, smallest_size_y, \
-            bf_propagation_distances, bf_intensities, bf_integrated_intensities_x, bf_size_values_x, bf_size_values_x_fit, bf_integrated_intensities_y, bf_size_values_y, bf_size_values_y_fit = \
-                __scan_best_focus_2D(fresnel_propagator,
-                                     initial_wavefront,
-                                     magnification_x,
-                                     magnification_y,
+            best_distance_x, best_x_coordinates, best_intensity_x, best_integrated_intensity_x, smallest_size_x, best_distance_y, best_y_coordinates, best_intensity_y, best_integrated_intensity_y, smallest_size_y, \
+            bf_propagation_distances, bf_x_coordinates, bf_y_coordinates, bf_intensities, bf_integrated_intensities_x, bf_size_values_x, bf_size_values_x_fit, bf_integrated_intensities_y, bf_size_values_y, bf_size_values_y_fit = \
+                __scan_best_focus_2D(initial_wavefront,
+                                     fresnel_propagator,
                                      propagation_distance,
-                                     shift_half_pixel,
-                                     x_rms_range,
-                                     y_rms_range,
-                                     scan_rel_range,
-                                     args.use_fit,
-                                     best_focus_from,
-                                     args.show_figure,
-                                     args.verbose)
+                                     args)
             focus_z_position_x = -(propagation_distance - best_distance_x)
             focus_z_position_y = -(propagation_distance - best_distance_y)
         else:
             focus_z_position_x = -(propagation_distance + R_x)
             focus_z_position_y = -(propagation_distance + R_y)
-            best_distance_x = best_intensity_x = best_integrated_intensity_x = smallest_size_x = best_distance_y = best_intensity_y = best_integrated_intensity_y = smallest_size_y = \
-            bf_propagation_distances = bf_intensities = bf_integrated_intensities_x = bf_size_values_x = bf_size_values_x_fit = bf_integrated_intensities_y = bf_size_values_y = bf_size_values_y_fit = None
+            best_distance_x = best_x_coordinates = best_intensity_x = best_integrated_intensity_x = smallest_size_x = best_distance_y = best_y_coordinates = best_intensity_y = best_integrated_intensity_y = smallest_size_y = \
+            bf_propagation_distances = bf_x_coordinates = bf_y_coordinates = bf_intensities = bf_integrated_intensities_x = bf_size_values_x = bf_size_values_x_fit = bf_integrated_intensities_y = bf_size_values_y = bf_size_values_y_fit = None
 
         # Perform the propagation
         sigma_x, \
@@ -524,15 +549,10 @@ def execute_back_propagation(**arguments) -> dict:
         integrated_intensity_x, \
         integrated_intensity_y, \
         x_coordinates, \
-        y_coordinates = __propagate_2D(fresnel_propagator,
-                                       initial_wavefront,
-                                       magnification_x,
-                                       magnification_y,
+        y_coordinates = __propagate_2D(initial_wavefront,
+                                       fresnel_propagator,
                                        propagation_distance,
-                                       shift_half_pixel,
-                                       x_rms_range,
-                                       y_rms_range,
-                                       args.verbose)
+                                       args)
 
         # note: inf is used for the purpose of best focus scan, while NaN is the failed return value, useful for optimization purposes
         if not args.scan_best_focus:
@@ -572,6 +592,8 @@ def execute_back_propagation(**arguments) -> dict:
                                                        scan_best_focus_from=best_focus_from,
                                                        bf_propagation_distance_x=best_distance_x,
                                                        bf_propagation_distance_y=best_distance_y,
+                                                       bf_x_coordinate=best_x_coordinates,
+                                                       bf_y_coordinate=best_y_coordinates,
                                                        bf_intensity_x=best_intensity_x,
                                                        bf_intensity_y=best_intensity_y,
                                                        bf_integrated_intensity_x=best_integrated_intensity_x,
@@ -579,6 +601,8 @@ def execute_back_propagation(**arguments) -> dict:
                                                        bf_size_value_x=smallest_size_x,
                                                        bf_size_value_y=smallest_size_y,
                                                        bf_propagation_distances=bf_propagation_distances,
+                                                       bf_x_coordinates = bf_x_coordinates,
+                                                       bf_y_coordinates = bf_y_coordinates,
                                                        bf_intensities=bf_intensities,
                                                        bf_integrated_intensities_x=bf_integrated_intensities_x,
                                                        bf_integrated_intensities_y=bf_integrated_intensities_y,
@@ -677,46 +701,46 @@ def execute_back_propagation(**arguments) -> dict:
         # Instantiate the propagator
         fresnel_propagator = FresnelZoom1D()
 
-        sigma_x, fwhm_x, intensity_x_wofry, x_coordinates = __propagate_1D(fresnel_propagator,
-                                                                           initial_wavefront_x,
-                                                                           magnification_x,
+        sigma_x, fwhm_x, intensity_x_wofry, x_coordinates = __propagate_1D(initial_wavefront_x,
+                                                                           fresnel_propagator,
                                                                            propagation_distance_x,
-                                                                           x_rms_range,
+                                                                           args.magnification_x,
+                                                                           args.x_rms_range,
                                                                            "X",
                                                                            args.verbose)
 
-        sigma_y, fwhm_y, intensity_y_wofry, y_coordinates = __propagate_1D(fresnel_propagator,
-                                                                           initial_wavefront_y,
-                                                                           magnification_y,
+        sigma_y, fwhm_y, intensity_y_wofry, y_coordinates = __propagate_1D(initial_wavefront_y,
+                                                                           fresnel_propagator,
                                                                            propagation_distance_y,
-                                                                           y_rms_range,
+                                                                           args.magnification_y,
+                                                                           args.y_rms_range,
                                                                            "Y",
                                                                            args.verbose)
 
         if args.scan_best_focus:
-            best_distance_x, best_intensity_x, smallest_size_x, \
-            bf_propagation_distances_x, bf_intensities_x, bf_size_values_x, bf_size_values_fit_x \
-                = __scan_best_focus_1D(fresnel_propagator,
-                                       initial_wavefront_x,
-                                       magnification_x,
+            best_distance_x, best_x_coordinate, best_intensity_x, smallest_size_x, \
+            bf_propagation_distances_x, bf_x_coordinates, bf_intensities_x, bf_size_values_x, bf_size_values_fit_x \
+                = __scan_best_focus_1D(initial_wavefront_x,
+                                       fresnel_propagator,
                                        propagation_distance_x,
-                                       x_rms_range,
-                                       scan_x_rel_range,
+                                       args.magnification_x,
+                                       args.x_rms_range,
+                                       args.scan_x_rel_range,
                                        args.use_fit,
-                                       best_focus_from,
+                                       args.best_focus_from,
                                        "X",
                                        args.show_figure,
                                        args.verbose)
-            best_distance_y, best_intensity_y, smallest_size_y, \
-            bf_propagation_distances_y, bf_intensities_y, bf_size_values_y, bf_size_values_fit_y \
-                = __scan_best_focus_1D(fresnel_propagator,
-                                       initial_wavefront_y,
-                                       magnification_y,
+            best_distance_y, best_y_coordinate, best_intensity_y, smallest_size_y, \
+            bf_propagation_distances_y, bf_y_coordinates, bf_intensities_y, bf_size_values_y, bf_size_values_fit_y \
+                = __scan_best_focus_1D(initial_wavefront_y,
+                                       fresnel_propagator,
                                        propagation_distance_y,
-                                       y_rms_range,
-                                       scan_y_rel_range,
+                                       args.magnification_y,
+                                       args.y_rms_range,
+                                       args.scan_y_rel_range,
                                        args.use_fit,
-                                       best_focus_from,
+                                       args.best_focus_from,
                                        "Y",
                                        args.show_figure,
                                        args.verbose)
@@ -727,8 +751,8 @@ def execute_back_propagation(**arguments) -> dict:
             focus_z_position_y = -(propagation_distance_y + R_y)
 
             best_distance_x = best_intensity_x = smallest_size_x = \
-            bf_propagation_distances_x = bf_intensities_x = bf_size_values_x = bf_size_values_fit_x = \
-            best_distance_y = best_intensity_y = smallest_size_y = \
+            bf_propagation_distances_x = bf_x_coordinates = bf_intensities_x = bf_size_values_x = bf_size_values_fit_x = \
+            best_distance_y = bf_y_coordinates = best_intensity_y = smallest_size_y = \
             bf_propagation_distances_y = bf_intensities_y = bf_size_values_y = bf_size_values_fit_y = None
 
         # note: inf is used for the purpose of best focus scan, while NaN is the failed return value, useful for optimization purposes
@@ -770,12 +794,16 @@ def execute_back_propagation(**arguments) -> dict:
                                                        scan_best_focus_from=best_focus_from,
                                                        bf_propagation_distance_x=best_distance_x,
                                                        bf_propagation_distance_y=best_distance_y,
+                                                       bf_x_coordinate=best_x_coordinate,
+                                                       bf_y_coordinate=best_y_coordinate,
                                                        bf_intensity_x=best_intensity_x,
                                                        bf_intensity_y=best_intensity_y,
                                                        bf_size_value_x=smallest_size_x,
                                                        bf_size_value_y=smallest_size_y,
                                                        bf_propagation_distances_x=bf_propagation_distances_x,
                                                        bf_propagation_distances_y=bf_propagation_distances_y,
+                                                       bf_x_coordinates=bf_x_coordinates,
+                                                       bf_y_coordinates=bf_y_coordinates,
                                                        bf_intensities_x=bf_intensities_x,
                                                        bf_intensities_y=bf_intensities_y,
                                                        bf_size_values_x=bf_size_values_x,
@@ -824,26 +852,18 @@ def __get_scan_fit(coordinates, size_values, indexes):
 
     return best_distance_fit, smallest_size_fit, spline
 
-def __scan_best_focus_2D(fresnel_propagator,
-                         initial_wavefront,
-                         magnification_x,
-                         magnification_y,
+def __scan_best_focus_2D(initial_wavefront,
+                         fresnel_propagator,
                          propagation_distance,
-                         shift_half_pixel,
-                         x_rms_range,
-                         y_rms_range,
-                         scan_rel_range,
-                         use_fit,
-                         best_focus_from,
-                         show_figure,
-                         verbose):
-    propagation_distances = np.arange(propagation_distance + scan_rel_range[0],
-                                      propagation_distance + scan_rel_range[1],
-                                      scan_rel_range[2])
+                         args):
+    propagation_distances = np.arange(propagation_distance + args.scan_rel_range[0],
+                                      propagation_distance + args.scan_rel_range[1],
+                                      args.scan_rel_range[2])
 
     smallest_size_x  = np.inf
     best_distance_x  = 0
     best_distance_index_x = 0
+    best_x_coordinate = None
     best_intensity_x = None
     best_integrated_intensity_x = None
     size_values_x    = []
@@ -851,16 +871,17 @@ def __scan_best_focus_2D(fresnel_propagator,
     smallest_size_y  = np.inf
     best_distance_y  = 0
     best_distance_index_y = 0
+    best_y_coordinate = None
     best_intensity_y = None
     best_integrated_intensity_y = None
     size_values_y    = []
 
+    x_coordinates            = []
+    y_coordinates            = []
     intensities              = []
     integrated_intensities_x = []
     integrated_intensities_y = []
 
-    x_coordinates = None
-    y_coordinates = None
 
     for index in range(len(propagation_distances)):
         distance = propagation_distances[index]
@@ -872,28 +893,25 @@ def __scan_best_focus_2D(fresnel_propagator,
         intensity_wofry, \
         integrated_intensity_x, \
         integrated_intensity_y, \
-        x_coordinates, \
-        y_coordinates = __propagate_2D(fresnel_propagator,
-                                       initial_wavefront,
-                                       magnification_x,
-                                       magnification_y,
-                                       distance,
-                                       shift_half_pixel,
-                                       x_rms_range,
-                                       y_rms_range,
-                                       verbose)
-        if   best_focus_from == "rms":
+        x_coord, \
+        y_coord = __propagate_2D(initial_wavefront,
+                                 fresnel_propagator,
+                                 distance,
+                                 args)
+        if   args.best_focus_from == "rms":
             size_x = sigma_x
             size_y = sigma_y
-        elif best_focus_from == "fwhm":
+        elif args.best_focus_from == "fwhm":
             size_x = fwhm_x
             size_y = fwhm_y
         else:
-            raise ValueError(f"Best focus from not recognized {best_focus_from}")
+            raise ValueError(f"Best focus from not recognized {args.best_focus_from}")
 
         size_values_x.append(size_x)
         size_values_y.append(size_y)
 
+        x_coordinates.append(x_coord)
+        y_coordinates.append(y_coord)
         intensities.append(intensity_wofry)
         integrated_intensities_x.append(integrated_intensity_x)
         integrated_intensities_y.append(integrated_intensity_y)
@@ -901,6 +919,7 @@ def __scan_best_focus_2D(fresnel_propagator,
         if size_x < smallest_size_x:
             smallest_size_x  = size_x
             best_distance_x  = distance
+            best_x_coordinate = x_coord
             best_intensity_x = intensity_wofry
             best_integrated_intensity_x = integrated_intensity_x
             best_distance_index_x = index
@@ -908,6 +927,7 @@ def __scan_best_focus_2D(fresnel_propagator,
         if size_y < smallest_size_y:
             smallest_size_y  = size_y
             best_distance_y  = distance
+            best_y_coordinate = y_coord
             best_intensity_y = intensity_wofry
             best_integrated_intensity_y = integrated_intensity_y
             best_distance_index_y = index
@@ -916,7 +936,7 @@ def __scan_best_focus_2D(fresnel_propagator,
     size_values_y         = np.array(size_values_y)
     propagation_distances = np.array(propagation_distances)
 
-    if use_fit:
+    if args.use_fit:
         indexes_x = [max(0, best_distance_index_x-2), min(best_distance_index_x+2, len(propagation_distances)-1)]
         indexes_y = [max(0, best_distance_index_y-2), min(best_distance_index_y+2, len(propagation_distances)-1)]
 
@@ -929,16 +949,16 @@ def __scan_best_focus_2D(fresnel_propagator,
         best_distance_x_fit, smallest_size_x_fit, spline_x = best_distance_x, smallest_size_x, None
         best_distance_y_fit, smallest_size_y_fit, spline_y = best_distance_y, smallest_size_y, None
 
-    if verbose:
-        print(f"Smallest size in X    : {round(1e6*smallest_size_x, 3)} um {best_focus_from} at distance {best_distance_x} m")
-        print(f"Smallest size in Y    : {round(1e6*smallest_size_y, 3)} um {best_focus_from} at distance {best_distance_y} m")
-        print(f"Smallest size in X FIT: {round(1e6*smallest_size_x_fit, 3)} um {best_focus_from} at distance {best_distance_x_fit} m")
-        print(f"Smallest size in Y FIT: {round(1e6*smallest_size_y_fit, 3)} um {best_focus_from} at distance {best_distance_y_fit} m")
+    if args.verbose:
+        print(f"Smallest size in X    : {round(1e6*smallest_size_x, 3)} um {args.best_focus_from} at distance {best_distance_x} m")
+        print(f"Smallest size in Y    : {round(1e6*smallest_size_y, 3)} um {args.best_focus_from} at distance {best_distance_y} m")
+        print(f"Smallest size in X FIT: {round(1e6*smallest_size_x_fit, 3)} um {args.best_focus_from} at distance {best_distance_x_fit} m")
+        print(f"Smallest size in Y FIT: {round(1e6*smallest_size_y_fit, 3)} um {args.best_focus_from} at distance {best_distance_y_fit} m")
 
     size_values_x_fit = spline_x(propagation_distances) if not spline_x is None else None
     size_values_y_fit = spline_y(propagation_distances) if not spline_y is None else None
 
-    if show_figure:
+    if args.show_figure:
         with lock:
             plt.figure(figsize=(12, 4))
             plt.subplot(1, 2, 1)
@@ -951,7 +971,7 @@ def __scan_best_focus_2D(fresnel_propagator,
             plt.grid(True)
 
             plt.subplot(1, 2, 2)
-            plt.plot(1e6*x_coordinates, best_intensity_x.sum(axis=1))
+            plt.plot(1e6*best_x_coordinate, best_intensity_x.sum(axis=1))
             plt.xlim(-3e6 * (smallest_size_x if spline_x is None else smallest_size_x_fit),
                      3e6 * (smallest_size_x if spline_x is None else smallest_size_x_fit))
             plt.xlabel('X ($\mu$)')
@@ -972,7 +992,7 @@ def __scan_best_focus_2D(fresnel_propagator,
             plt.grid(True)
 
             plt.subplot(1, 2, 2)
-            plt.plot(1e6*y_coordinates, best_intensity_y.sum(axis=0))
+            plt.plot(1e6*best_y_coordinate, best_intensity_y.sum(axis=0))
             plt.xlim(-3e6*(smallest_size_y if spline_y is None else smallest_size_y_fit),
                      3e6*(smallest_size_y if spline_y is None else smallest_size_y_fit))
             plt.xlabel('Y ($\mu$)')
@@ -982,14 +1002,14 @@ def __scan_best_focus_2D(fresnel_propagator,
             plt.tight_layout()  # Adjust spacing between plots
             plt.show()
 
-    return best_distance_x_fit, best_intensity_x, best_integrated_intensity_x, smallest_size_x_fit, best_distance_y_fit, best_intensity_y, best_integrated_intensity_y, smallest_size_y_fit, \
-           propagation_distances, intensities, integrated_intensities_x, size_values_x, size_values_x_fit, integrated_intensities_y, size_values_y, size_values_y_fit
+    return best_distance_x_fit, best_x_coordinate, best_intensity_x, best_integrated_intensity_x, smallest_size_x_fit, best_distance_y_fit, best_y_coordinate, best_intensity_y, best_integrated_intensity_y, smallest_size_y_fit, \
+           propagation_distances, x_coordinates, y_coordinates, intensities, integrated_intensities_x, size_values_x, size_values_x_fit, integrated_intensities_y, size_values_y, size_values_y_fit
 
 
-def __scan_best_focus_1D(fresnel_propagator,
-                         initial_wavefront,
-                         magnification,
+def __scan_best_focus_1D(initial_wavefront,
+                         fresnel_propagator,
                          propagation_distance,
+                         magnification,
                          rms_range,
                          scan_rel_range,
                          use_fit,
@@ -1004,31 +1024,34 @@ def __scan_best_focus_1D(fresnel_propagator,
     smallest_size  = np.inf
     best_distance  = 0
     best_distance_index = 0
+    best_coordinate = None
     best_intensity = None
     size_values    = []
 
     intensities = []
-    coordinates = None
+    coordinates = []
 
     for index in range(len(propagation_distances)):
         distance = propagation_distances[index]
-        sigma, fwhm, intensity_wofry, coordinates = __propagate_1D(fresnel_propagator,
-                                                                   initial_wavefront,
-                                                                   magnification,
-                                                                   distance,
-                                                                   rms_range,
-                                                                   direction,
-                                                                   verbose)
+        sigma, fwhm, intensity_wofry, coord = __propagate_1D(fresnel_propagator,
+                                                             initial_wavefront,
+                                                             magnification,
+                                                             distance,
+                                                             rms_range,
+                                                             direction,
+                                                             verbose)
         if   best_focus_from == "rms":   size = sigma
         elif best_focus_from == "fwhm":  size = fwhm
         else: raise ValueError(f"Best focus from not recognized {best_focus_from}")
 
+        coordinates.append(coord)
         size_values.append(size)
         intensities.append(intensity_wofry)
 
         if size < smallest_size:
             smallest_size  = size
             best_distance  = distance
+            best_coordinate = coord
             best_intensity = intensity_wofry
             best_distance_index = index
 
@@ -1061,7 +1084,7 @@ def __scan_best_focus_1D(fresnel_propagator,
         plt.grid(True)
 
         plt.subplot(1, 2, 2)
-        plt.plot(coordinates, best_intensity)
+        plt.plot(best_coordinate, best_intensity)
         plt.xlabel('X (meters)')
         plt.ylabel('Intensity')
         plt.title(f"Intensity profile at {direction} waist")
@@ -1069,13 +1092,13 @@ def __scan_best_focus_1D(fresnel_propagator,
         plt.tight_layout()  # Adjust spacing between plots
         plt.show()
 
-    return best_distance, best_intensity, smallest_size, \
-           propagation_distances, intensities, size_values, size_values_fit
+    return best_distance, best_coordinate, best_intensity, smallest_size, \
+           propagation_distances, coordinates, intensities, size_values, size_values_fit
 
-def __propagate_1D(fresnel_propagator,
-                   initial_wavefront,
-                   magnification,
+def __propagate_1D(initial_wavefront,
+                   fresnel_propagator,
                    propagation_distance,
+                   magnification,
                    rms_range,
                    direction,
                    verbose):
@@ -1091,23 +1114,56 @@ def __propagate_1D(fresnel_propagator,
 
     return sigma, fwhm, intensity_wofry, coordinates
 
-def __propagate_2D(fresnel_propagator,
-                   initial_wavefront,
-                   magnification_x,
-                   magnification_y,
+def __propagate_2D(initial_wavefront,
+                   fresnel_propagator,
                    propagation_distance,
-                   shift_half_pixel,
-                   x_rms_range,
-                   y_rms_range,
-                   verbose):
+                   args):
 
-    if verbose: print(f"Propagation distance: {propagation_distance}")
+    if args.verbose: print(f"Propagation distance: {propagation_distance}")
 
-    propagated_wavefront_wofry = fresnel_propagator.propagate_wavefront(initial_wavefront,
-                                                                        propagation_distance,
-                                                                        magnification_x=magnification_x,
-                                                                        magnification_y=magnification_y,
-                                                                        shift_half_pixel=shift_half_pixel)
+    if args.engine.lower() == "wofry":
+        additional_parameters = {
+            "magnification_x":  args.magnification_x,
+            "magnification_y":  args.magnification_y,
+            "shift_half_pixel": args.shift_half_pixel
+        }
+
+        propagation_elements = PropagationElements()
+        propagation_elements.add_beamline_element(BeamlineElement(optical_element=WOScreen(name="Focus"),
+                                                                  coordinates=ElementCoordinates(p=propagation_distance)))
+
+        propagation_parameters = PropagationParameters(wavefront=initial_wavefront,
+                                                       propagation_elements=propagation_elements,
+                                                       **additional_parameters)
+
+        propagated_wavefront_wofry = fresnel_propagator.do_propagation(propagation_parameters)
+    elif args.engine.lower() == "srw":
+        wavefront = initial_wavefront.duplicate()
+
+        additional_parameters = {
+            "srw_drift_before_wavefront_propagation_parameters" : WavefrontPropagationParameters(
+                auto_resize_before_propagation=int(args.auto_resize_before_propagation),
+                auto_resize_after_propagation=int(args.auto_resize_after_propagation),
+                relative_precision_for_propagation_with_autoresizing=args.relative_precision_for_propagation_with_autoresizing,
+                allow_semianalytical_treatment_of_quadratic_phase_term=args.allow_semianalytical_treatment_of_quadratic_phase_term,
+                do_any_resizing_on_fourier_side_using_fft=int(args.do_any_resizing_on_fourier_side_using_fft),
+                horizontal_range_modification_factor_at_resizing=args.horizontal_range_modification_factor_at_resizing,
+                horizontal_resolution_modification_factor_at_resizing=args.horizontal_resolution_modification_factor_at_resizing,
+                vertical_range_modification_factor_at_resizing=args.vertical_range_modification_factor_at_resizing,
+                vertical_resolution_modification_factor_at_resizing=args.vertical_resolution_modification_factor_at_resizing)
+        }
+
+        propagation_elements = PropagationElements()
+        propagation_elements.add_beamline_element(BeamlineElement(optical_element=SRWScreen(name="Focus"),
+                                                                  coordinates=ElementCoordinates(p=propagation_distance)))
+
+        propagation_parameters = PropagationParameters(wavefront=wavefront,
+                                                       propagation_elements=propagation_elements,
+                                                       **additional_parameters)
+
+        propagated_wavefront_srw   = fresnel_propagator.do_propagation(propagation_parameters)
+        propagated_wavefront_wofry = propagated_wavefront_srw.toGenericWavefront()
+
     intensity_wofry = np.abs(propagated_wavefront_wofry.get_complex_amplitude()) ** 2
     x_coordinates   = propagated_wavefront_wofry.get_coordinate_x()
     y_coordinates   = propagated_wavefront_wofry.get_coordinate_y()
@@ -1118,10 +1174,10 @@ def __propagate_2D(fresnel_propagator,
     # Calculate beam size
     fwhm_x  = find_fwhm(x_coordinates, integrated_intensity_x)
     fwhm_y  = find_fwhm(y_coordinates, integrated_intensity_y)
-    sigma_x = find_rms(x_coordinates, integrated_intensity_x, x_rms_range)
-    sigma_y = find_rms(y_coordinates, integrated_intensity_y, y_rms_range)
+    sigma_x = find_rms(x_coordinates, integrated_intensity_x, args.x_rms_range)
+    sigma_y = find_rms(y_coordinates, integrated_intensity_y, args.y_rms_range)
 
-    if verbose:
+    if args.verbose:
         print(f"X direction: sigma = {sigma_x:.3g}, FWHM = {fwhm_x:.3g}")
         print(f"Y direction: sigma = {sigma_y:.3g}, FWHM = {fwhm_y:.3g}")
 

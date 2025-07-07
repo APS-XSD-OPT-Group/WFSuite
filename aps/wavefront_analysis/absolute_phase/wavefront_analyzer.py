@@ -133,9 +133,24 @@ DELTA_F_V               = ini_file.get_dict_from_ini(   section="Back-Propagatio
 DELTA_F_H               = ini_file.get_dict_from_ini(   section="Back-Propagation", key="Delta-F-H",                   default={"WXST" : 0.0, "SPINNet" : 0.0})
 RMS_RANGE_V             = ini_file.get_list_from_ini(   section="Back-Propagation", key="RMS-Range-V",                 default=[-2e-6, 2e-6], type=float)
 RMS_RANGE_H             = ini_file.get_list_from_ini(   section="Back-Propagation", key="RMS-Range-H",                 default=[-2e-6, 2e-6], type=float)
+ENGINE                  = ini_file.get_string_from_ini( section="Back-Propagation", key="Engine",                      default="WOFRY")
+
+# WOFRY
 MAGNIFICATION_V         = ini_file.get_float_from_ini(  section="Back-Propagation", key="Magnification-V",             default=0.028)
 MAGNIFICATION_H         = ini_file.get_float_from_ini(  section="Back-Propagation", key="Magnification-H",             default=0.028)
 SHIFT_HALF_PIXEL        = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Shift-Half-Pixel",            default=False)
+
+# SRW
+AUTO_RESIZE_BEFORE_PROPAGATION                         = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Auto-Resize-Before-Propagation",                         default=False)
+AUTO_RESIZE_AFTER_PROPAGATION                          = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Auto-Resize-After-Propagation",                          default=False)
+RELATIVE_PRECISION_FOR_PROPAGATION_WITH_AUTORESIZING   = ini_file.get_float_from_ini(  section="Back-Propagation", key="Relative-Precision-For-Propagation-With-Autoresizing",   default=1.0)
+ALLOW_SEMIANALYTICAL_TREATMENT_OF_QUADRATIC_PHASE_TERM = ini_file.get_int_from_ini(    section="Back-Propagation", key="Allow-Semianalytical-Treatment-Of-Quadratic-Phase-Term", default=1)
+DO_ANY_RESIZING_ON_FOURIER_SIDE_USING_FFT              = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Do-Any-Resizing-On-Fourier-Side-Using-FFT",              default=False)
+HORIZONTAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING       = ini_file.get_float_from_ini(  section="Back-Propagation", key="Horizontal-Range-Modification-Factor-At-Resizing",       default=1.0)
+HORIZONTAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING  = ini_file.get_float_from_ini(  section="Back-Propagation", key="Horizontal-Resolution-Modification-Factor-At-Resizing",  default=1.0)
+VERTICAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING         = ini_file.get_float_from_ini(  section="Back-Propagation", key="Vertical-Range-Modification-Factor-At-Resizing",         default=1.0)
+VERTICAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING    = ini_file.get_float_from_ini(  section="Back-Propagation", key="Vertical-Resolution-Modification-Factor-At-Resizing",    default=1.0)
+
 SCAN_BEST_FOCUS         = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Scan-Best-Focus",             default=False)
 USE_FIT                 = ini_file.get_boolean_from_ini(section="Back-Propagation", key="USe-Fit",                     default=True)
 BEST_FOCUS_FROM         = ini_file.get_string_from_ini( section="Back-Propagation", key="Best-Focus-From",             default="rms")
@@ -182,13 +197,29 @@ def store():
     ini_file.set_value_at_ini(section="Back-Propagation", key="1D, Propagation-Distance-H", value=DISTANCE_H)
     ini_file.set_dict_at_ini( section="Back-Propagation", key="Delta-F-V",                  values_dict=DELTA_F_V)
     ini_file.set_dict_at_ini( section="Back-Propagation", key="Delta-F-H",                  values_dict=DELTA_F_H)
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Engine",                     value=ENGINE)
+    
+    # WOFRY
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-V",            value=MAGNIFICATION_V)
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-H",            value=MAGNIFICATION_H)
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Shift-Half-Pixel",           value=SHIFT_HALF_PIXEL)
+
+    # SRW
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Auto-Resize-Before-Propagation",                         value=AUTO_RESIZE_BEFORE_PROPAGATION                        )
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Auto-Resize-After-Propagation",                          value=AUTO_RESIZE_AFTER_PROPAGATION                         )
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Relative-Precision-For-Propagation-With-Autoresizing",   value=RELATIVE_PRECISION_FOR_PROPAGATION_WITH_AUTORESIZING  )
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Allow-Semianalytical-Treatment-Of-Quadratic-Phase-Term", value=ALLOW_SEMIANALYTICAL_TREATMENT_OF_QUADRATIC_PHASE_TERM)
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Do-Any-Resizing-On-Fourier-Side-Using-FFT",              value=DO_ANY_RESIZING_ON_FOURIER_SIDE_USING_FFT             )
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Horizontal-Range-Modification-Factor-At-Resizing",       value=HORIZONTAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING      )
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Horizontal-Resolution-Modification-Factor-At-Resizing",  value=HORIZONTAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING )
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Vertical-Range-Modification-Factor-At-Resizing",         value=VERTICAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING        )
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Vertical-Resolution-Modification-Factor-At-Resizing",    value=VERTICAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING   )
+
     ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-V",                values_list=RMS_RANGE_V)
     ini_file.set_list_at_ini( section="Back-Propagation", key="RMS-Range-H",                values_list=RMS_RANGE_H)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Scan-Best-Focus",            value=SCAN_BEST_FOCUS)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Use-Fit",                    value=USE_FIT)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Best-Focus-From",            value=BEST_FOCUS_FROM)
-    ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-V",            value=MAGNIFICATION_V)
-    ini_file.set_value_at_ini(section="Back-Propagation", key="Magnification-H",            value=MAGNIFICATION_H)
     ini_file.set_list_at_ini( section="Back-Propagation", key="2D, Best-Focus-Scan-Range",      values_list=BEST_FOCUS_SCAN_RANGE)
     ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V",    values_list=BEST_FOCUS_SCAN_RANGE_V)
     ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-H",    values_list=BEST_FOCUS_SCAN_RANGE_H)
@@ -552,11 +583,21 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_d
                                     shift_y                = kwargs.get("crop_shift_v", CROP_SHIFT_V),
                                     delta_f_x              = kwargs.get("delta_f_h", DELTA_F_H.get(METHOD, 0.0)),
                                     delta_f_y              = kwargs.get("delta_f_v", DELTA_F_V.get(METHOD, 0.0)),
-                                    x_rms_range            = kwargs.get("rms_range_h", RMS_RANGE_H),
-                                    y_rms_range            = kwargs.get("rms_range_v", RMS_RANGE_V),
+                                    engine                 = kwargs.get("engine", ENGINE),
                                     magnification_x        = kwargs.get("magnification_h", MAGNIFICATION_H),
                                     magnification_y        = kwargs.get("magnification_v", MAGNIFICATION_V),
                                     shift_half_pixel       = kwargs.get("shift_half_pixel", SHIFT_HALF_PIXEL),
+                                    auto_resize_before_propagation                         = kwargs.get("auto_resize_before_propagation", AUTO_RESIZE_BEFORE_PROPAGATION),
+                                    auto_resize_after_propagation                          = kwargs.get("auto_resize_after_propagation", AUTO_RESIZE_AFTER_PROPAGATION),
+                                    relative_precision_for_propagation_with_autoresizing   = kwargs.get("relative_precision_for_propagation_with_autoresizing", RELATIVE_PRECISION_FOR_PROPAGATION_WITH_AUTORESIZING),
+                                    allow_semianalytical_treatment_of_quadratic_phase_term = kwargs.get("allow_semianalytical_treatment_of_quadratic_phase_term", ALLOW_SEMIANALYTICAL_TREATMENT_OF_QUADRATIC_PHASE_TERM),
+                                    do_any_resizing_on_fourier_side_using_fft              = kwargs.get("do_any_resizing_on_fourier_side_using_fft", DO_ANY_RESIZING_ON_FOURIER_SIDE_USING_FFT),
+                                    horizontal_range_modification_factor_at_resizing       = kwargs.get("horizontal_range_modification_factor_at_resizing", HORIZONTAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING),
+                                    horizontal_resolution_modification_factor_at_resizing  = kwargs.get("horizontal_resolution_modification_factor_at_resizing", HORIZONTAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING),
+                                    vertical_range_modification_factor_at_resizing         = kwargs.get("vertical_range_modification_factor_at_resizing", VERTICAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING),
+                                    vertical_resolution_modification_factor_at_resizing    = kwargs.get("vertical_resolution_modification_factor_at_resizing", VERTICAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING),
+                                    x_rms_range            = kwargs.get("rms_range_h", RMS_RANGE_H),
+                                    y_rms_range            = kwargs.get("rms_range_v", RMS_RANGE_V),
                                     show_figure            = kwargs.get("show_figure", False),
                                     save_result            = kwargs.get("save_result", False),
                                     scan_best_focus        = kwargs.get("scan_best_focus", SCAN_BEST_FOCUS),

@@ -219,9 +219,25 @@ class AbsolutePhaseWidget(GenericWidget):
         self.delta_f_h = self._delta_f_h.get(self.method, 0.0)
         self.rms_range_v = list_to_string(back_propagation_configuration["rms_range_v"])
         self.rms_range_h = list_to_string(back_propagation_configuration["rms_range_h"])
+
+        self.engine = back_propagation_configuration["engine"]
+
+        # WOFRY
         self.magnification_v = back_propagation_configuration["magnification_v"]
         self.magnification_h = back_propagation_configuration["magnification_h"]
         self.shift_half_pixel = back_propagation_configuration["shift_half_pixel"]
+
+        # SRW
+        self.auto_resize_before_propagation                         = back_propagation_configuration["auto_resize_before_propagation"]
+        self.auto_resize_after_propagation                          = back_propagation_configuration["auto_resize_after_propagation"]
+        self.relative_precision_for_propagation_with_autoresizing   = back_propagation_configuration["relative_precision_for_propagation_with_autoresizing"]
+        self.allow_semianalytical_treatment_of_quadratic_phase_term = back_propagation_configuration["allow_semianalytical_treatment_of_quadratic_phase_term"]
+        self.do_any_resizing_on_fourier_side_using_fft              = back_propagation_configuration["do_any_resizing_on_fourier_side_using_fft"]
+        self.horizontal_range_modification_factor_at_resizing       = back_propagation_configuration["horizontal_range_modification_factor_at_resizing"]
+        self.horizontal_resolution_modification_factor_at_resizing  = back_propagation_configuration["horizontal_resolution_modification_factor_at_resizing"]
+        self.vertical_range_modification_factor_at_resizing         = back_propagation_configuration["vertical_range_modification_factor_at_resizing"]
+        self.vertical_resolution_modification_factor_at_resizing    = back_propagation_configuration["vertical_resolution_modification_factor_at_resizing"]
+
         self.scan_best_focus = back_propagation_configuration["scan_best_focus"]
         self.use_fit = back_propagation_configuration["use_fit"]
         self.best_focus_from = back_propagation_configuration["best_focus_from"]
@@ -464,26 +480,57 @@ class AbsolutePhaseWidget(GenericWidget):
         #########################################################################################
         # Back-Propagation
 
-        bp_box_1 = gui.widgetBox(wa_tab_3, "Propagation", width=self._wa_box.width()-25, height=260)
+        if sys.platform == 'darwin' : bp_box_1 = gui.widgetBox(wa_tab_3, "Propagation", width=self._wa_box.width()-25, height=350)
+        else:                         bp_box_1 = gui.widgetBox(wa_tab_3, "Propagation", width=self._wa_box.width()-25, height=380)
 
         self.le_kind  = gui.lineEdit(bp_box_1, self, "kind", label="Kind (1D, 2D)", labelWidth=labels_width_1, orientation='horizontal',  valueType=str, callback=self._set_kind)
 
-        self.kind_box_1_1 = gui.widgetBox(bp_box_1, "", width=bp_box_1.width()-20, height=50)
-        self.kind_box_2_1 = gui.widgetBox(bp_box_1, "", width=bp_box_1.width()-20, height=50)
+        self.kind_box_1_1 = gui.widgetBox(bp_box_1, "", width=bp_box_1.width()-20, height=30)
+        self.kind_box_2_1 = gui.widgetBox(bp_box_1, "", width=bp_box_1.width()-20, height=30, orientation='horizontal' )
 
         gui.lineEdit(self.kind_box_1_1, self, "distance",   label="Propagation Distance [m] (<0)", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(self.kind_box_2_1, self, "distance_h", label="Propagation Distance H  [m] (<0)",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(self.kind_box_2_1, self, "distance_v", label="Propagation Distance V  [m] (<0)",  labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        gui.lineEdit(self.kind_box_2_1, self, "distance_h", label="Propagation Distance H  [m] (<0)",  labelWidth=labels_width_2, orientation='horizontal', valueType=float)
+        gui.lineEdit(self.kind_box_2_1, self, "distance_v", label="V  [m] (<0)",  labelWidth=labels_width_3, orientation='horizontal', valueType=float)
 
         self.le_delta_f_h = gui.lineEdit(bp_box_1, self, "delta_f_h", label="Phase Shift H [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float, callback=self._set_delta_f)
         self.le_delta_f_v = gui.lineEdit(bp_box_1, self, "delta_f_v", label="Phase Shift V [m]",  labelWidth=labels_width_1, orientation='horizontal', valueType=float, callback=self._set_delta_f)
 
-        gui.lineEdit(bp_box_1, self, "magnification_h", label="Magnification H", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(bp_box_1, self, "magnification_v", label="Magnification V", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.checkBox(bp_box_1, self, "shift_half_pixel",  "Shift Half Pixel")
+        self.le_engine = gui.lineEdit(bp_box_1, self, "engine", label="Engine (WOFRY, SRW)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_engine)
 
-        if sys.platform == 'darwin' : bp_box_2 = gui.widgetBox(wa_tab_3, "Image", width=self._wa_box.width()-25, height=260)
-        else:                         bp_box_2 = gui.widgetBox(wa_tab_3, "Image", width=self._wa_box.width()-25, height=280)
+        self.bp_box_1_1 = gui.widgetBox(bp_box_1, "", width=bp_box_1.width() - 20)
+        self.bp_box_1_2 = gui.widgetBox(bp_box_1, "", width=bp_box_1.width() - 20)
+
+        # WOFRY
+        gui.lineEdit(self.bp_box_1_1, self, "magnification_h", label="Magnification H", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        gui.lineEdit(self.bp_box_1_1, self, "magnification_v", label="Magnification V", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        gui.checkBox(self.bp_box_1_1, self, "shift_half_pixel",  "Shift Half Pixel")
+
+        # SRW
+        box = gui.widgetBox(self.bp_box_1_2, "", orientation="horizontal")
+        gui.comboBox(box, self, "auto_resize_before_propagation", label="Auto Resize Before",
+                     items=["No", "Yes"], labelWidth=labels_width_2, sendSelectedValue=False, orientation="horizontal")
+
+        gui.comboBox(box, self, "auto_resize_after_propagation", label="After Propagation",
+                     items=["No", "Yes"], labelWidth=labels_width_2, sendSelectedValue=False, orientation="horizontal")
+
+        gui.lineEdit(self.bp_box_1_2, self, "relative_precision_for_propagation_with_autoresizing", "Autoresizing relative precision (1.0 nominal)", labelWidth=labels_width_1, valueType=float, orientation="horizontal")
+
+        gui.comboBox(self.bp_box_1_2, self, "allow_semianalytical_treatment_of_quadratic_phase_term", label="Propagator",
+                     items=["Standard", "Quadratic Term", "Quadratic Term Special", "From Waist", "To Waist"], labelWidth=labels_width_2,
+                     sendSelectedValue=False, orientation="horizontal")
+
+        gui.comboBox(self.bp_box_1_2, self, "do_any_resizing_on_fourier_side_using_fft", label="Do any resizing on fourier side using fft",
+                     items=["No", "Yes"], labelWidth=labels_width_1, sendSelectedValue=False, orientation="horizontal")
+
+        box = gui.widgetBox(self.bp_box_1_2, "", orientation="horizontal")
+        gui.lineEdit(box, self, "horizontal_range_modification_factor_at_resizing", "H modification factor: range", labelWidth=labels_width_2+20, valueType=float, orientation="horizontal")
+        gui.lineEdit(box, self, "horizontal_resolution_modification_factor_at_resizing", "resolution", labelWidth=labels_width_3-20, valueType=float, orientation="horizontal")
+        box = gui.widgetBox(self.bp_box_1_2, "", orientation="horizontal")
+        gui.lineEdit(box, self, "vertical_range_modification_factor_at_resizing", "V modification factor: range", labelWidth=labels_width_2+20, valueType=float, orientation="horizontal")
+        gui.lineEdit(box, self, "vertical_resolution_modification_factor_at_resizing", "resolution", labelWidth=labels_width_3-20, valueType=float, orientation="horizontal")
+
+        if sys.platform == 'darwin' : bp_box_2 = gui.widgetBox(wa_tab_3, "Image", width=self._wa_box.width()-25, height=200)
+        else:                         bp_box_2 = gui.widgetBox(wa_tab_3, "Image", width=self._wa_box.width()-25, height=220)
 
         gui.lineEdit(bp_box_2, self, "rebinning_bp", label="Wavefront Rebinning Factor", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
 
@@ -495,10 +542,15 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.checkBox(box, self, "smooth_phase", "Smooth Phase    ")
         gui.lineEdit(box, self, "sigma_phase", label="\u03c3", labelWidth=20, orientation='horizontal', valueType=float)
 
-        gui.lineEdit(bp_box_2, self, "crop_h",       label="Crop H", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
-        gui.lineEdit(bp_box_2, self, "crop_shift_h", label="Crop Shift H", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
-        gui.lineEdit(bp_box_2, self, "crop_v",       label="Crop V", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
-        gui.lineEdit(bp_box_2, self, "crop_shift_v", label="Crop Shift V", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+        box = gui.widgetBox(bp_box_2, "", orientation="horizontal")
+
+        gui.lineEdit(box, self, "crop_h",       label="Crop H", labelWidth=labels_width_3, orientation='horizontal', valueType=int)
+        gui.lineEdit(box, self, "crop_shift_h", label="Shift H", labelWidth=labels_width_3, orientation='horizontal', valueType=int)
+
+        box = gui.widgetBox(bp_box_2, "", orientation="horizontal")
+
+        gui.lineEdit(box, self, "crop_v",       label="Crop V", labelWidth=labels_width_3, orientation='horizontal', valueType=int)
+        gui.lineEdit(box, self, "crop_shift_v", label="Shift V", labelWidth=labels_width_3, orientation='horizontal', valueType=int)
 
         gui.checkBox(bp_box_2, self, "bp_plot_shift", "Add shift on plots")
 
@@ -527,6 +579,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self._set_method()
         self._set_d_source_recal()
         self._set_kind()
+        self._set_engine()
         self._set_scan_best_focus()
 
         #########################################################################################
@@ -770,6 +823,12 @@ class AbsolutePhaseWidget(GenericWidget):
             self.kind_box_2_1.setVisible(self.kind=="1D")
             self.kind_box_2_2.setVisible(self.kind=="1D")
 
+    def _set_engine(self):
+        if not self.engine.lower() in ["wofry", "srw"]: MessageDialog.message(self, title="Input Error", message="Engine be 'WOFRY' or 'SRW'", type="critical", width=500)
+        else:
+            self.bp_box_1_1.setVisible(self.engine.lower()=="wofry")
+            self.bp_box_1_2.setVisible(self.engine.lower()=="srw")
+
     def _set_scan_best_focus(self):
         self._bp_box_3_1.setEnabled(bool(self.scan_best_focus))
 
@@ -894,11 +953,23 @@ class AbsolutePhaseWidget(GenericWidget):
         back_propagation_configuration["distance_h"] = self.distance_h
         back_propagation_configuration["delta_f_v"] = self._delta_f_v
         back_propagation_configuration["delta_f_h"] = self._delta_f_h
+        back_propagation_configuration["engine"]           = self.engine
         back_propagation_configuration["rms_range_v"]      = string_to_list(self.rms_range_v, float)
         back_propagation_configuration["rms_range_h"]      = string_to_list(self.rms_range_h, float)
         back_propagation_configuration["magnification_v"]  = self.magnification_v
         back_propagation_configuration["magnification_h"]  = self.magnification_h
         back_propagation_configuration["shift_half_pixel"] = self.shift_half_pixel
+
+        back_propagation_configuration["auto_resize_before_propagation"] = self.auto_resize_before_propagation
+        back_propagation_configuration["auto_resize_after_propagation"] = self.auto_resize_after_propagation
+        back_propagation_configuration["relative_precision_for_propagation_with_autoresizing"] = self.relative_precision_for_propagation_with_autoresizing
+        back_propagation_configuration["allow_semianalytical_treatment_of_quadratic_phase_term"] = self.allow_semianalytical_treatment_of_quadratic_phase_term
+        back_propagation_configuration["do_any_resizing_on_fourier_side_using_fft"] = self.do_any_resizing_on_fourier_side_using_fft
+        back_propagation_configuration["horizontal_range_modification_factor_at_resizing"] = self.horizontal_range_modification_factor_at_resizing
+        back_propagation_configuration["horizontal_resolution_modification_factor_at_resizing"] = self.horizontal_resolution_modification_factor_at_resizing
+        back_propagation_configuration["vertical_range_modification_factor_at_resizing"] = self.vertical_range_modification_factor_at_resizing
+        back_propagation_configuration["vertical_resolution_modification_factor_at_resizing"] = self.vertical_resolution_modification_factor_at_resizing
+
         back_propagation_configuration["scan_best_focus"]  = self.scan_best_focus
         back_propagation_configuration["use_fit"]          = self.use_fit
         back_propagation_configuration["best_focus_from"]  = self.best_focus_from
@@ -1353,8 +1424,8 @@ class AbsolutePhaseWidget(GenericWidget):
         self._wf_tab_1_widget.setCurrentIndex(0)
 
     def __plot_longitudinal_profiles(self, profiles_data):
-        x_coordinates = 1e6 * profiles_data['coordinates_x']
-        y_coordinates = 1e6 * profiles_data['coordinates_y']
+        best_x_coordinates = 1e6 * profiles_data['bf_x_coordinate']
+        best_y_coordinates = 1e6 * profiles_data['bf_y_coordinate']
 
         bf_size_values_x     = 1e6 * profiles_data['bf_size_values_x']
         bf_size_values_fit_x = profiles_data.get('bf_size_values_fit_x', None)
@@ -1418,12 +1489,12 @@ class AbsolutePhaseWidget(GenericWidget):
             intensities_x = profiles_data['bf_intensities_x']
             intensities_y = profiles_data['bf_intensities_y']
 
-        planes_x      = np.zeros((len(intensity_x), len(bf_propagation_distances_x)))
-        planes_y      = np.zeros((len(intensity_y), len(bf_propagation_distances_y)))
+        x_coordinates = [1e6 * coord for coord in profiles_data['bf_x_coordinates']]
+        y_coordinates = [1e6 * coord for coord in profiles_data['bf_y_coordinates']]
 
-        axes = plot_1D(self._wf_prof_figure_2.figure, intensity_x, intensity_y, "[counts]", None, coords=[x_coordinates, y_coordinates])
-        axes[0].set_xlim(x_coordinates[0], x_coordinates[-1])
-        axes[1].set_xlim(y_coordinates[0], y_coordinates[-1])
+        axes = plot_1D(self._wf_prof_figure_2.figure, intensity_x, intensity_y, "[counts]", None, coords=[best_x_coordinates, best_y_coordinates])
+        axes[0].set_xlim(best_x_coordinates[0], best_x_coordinates[-1])
+        axes[1].set_xlim(best_y_coordinates[0], best_y_coordinates[-1])
         axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
         axes[1].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
         add_text_1D(axes[0], "x", best_size_value_x, focus_z_position_x)
@@ -1431,12 +1502,33 @@ class AbsolutePhaseWidget(GenericWidget):
         self._wf_prof_figure_2_canvas.draw()
 
         # Propagation planes
-        for i in range(planes_x.shape[1]): planes_x[:, i] = intensities_x[i]
-        for i in range(planes_y.shape[1]): planes_y[:, i] = intensities_y[i]
+
+        # TODO: find the maximum extent, then create a space where to accomodate the same resolution of the smallest.
+        #       fill each line with interpolation
+
+        extension_x = abs(np.max(x_coordinates) - np.min(x_coordinates))
+        extension_y = abs(np.max(y_coordinates) - np.min(y_coordinates))
+
+        best_extension_x = abs(np.max(best_x_coordinates) - np.min(best_x_coordinates))
+        best_extension_y = abs(np.max(best_y_coordinates) - np.min(best_y_coordinates))
+
+        factor_x = extension_x/best_extension_x
+        factor_y = extension_y/best_extension_y
+
+        new_x_coordinates = np.linspace(np.min(x_coordinates), np.max(x_coordinates), int(len(best_x_coordinates) * factor_x))
+        new_y_coordinates = np.linspace(np.min(y_coordinates), np.max(y_coordinates), int(len(best_y_coordinates) * factor_y))
+
+        planes_x      = np.zeros((len(new_x_coordinates), len(bf_propagation_distances_x)))
+        planes_y      = np.zeros((len(new_y_coordinates), len(bf_propagation_distances_y)))
+
+        from scipy.interpolate import interp1d
+
+        for i in range(planes_x.shape[1]): planes_x[:, i] = interp1d(x_coordinates[i], intensities_x[i], kind="cubic", bounds_error=False, fill_value=[0.0])(new_x_coordinates)
+        for i in range(planes_y.shape[1]): planes_y[:, i] = interp1d(y_coordinates[i], intensities_y[i], kind="cubic", bounds_error=False, fill_value=[0.0])(new_y_coordinates)
 
         self._wf_prof_figure_3.clear()
 
-        def plot_ax_plane(ax, ax_prof, dir, planes, extent_data, best_size, focus, sizes, distances, coords, profiles):
+        def plot_ax_plane(ax, ax_prof, dir, planes, extent_data, best_size, focus, sizes, distances, coords):
             ax.imshow(planes, interpolation='bilinear', extent=extent_data)
             ax.set_xlabel(f"p. distance {dir} (m)", fontsize=22)
             ax.set_ylabel(f"{dir} ($\mu$m)", fontsize=22)
@@ -1446,7 +1538,7 @@ class AbsolutePhaseWidget(GenericWidget):
                          bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
             index = np.abs(distances - focus).argmin()
-            ax_prof.plot(coords, profiles[index], 'k')
+            ax_prof.plot(coords, planes[:, index], 'k')
             ax_prof.set_xlim(coords[0], coords[-1])
             add_text_1D(ax_prof, dir, best_size, focus, vpos=0.7)
 
@@ -1467,7 +1559,7 @@ class AbsolutePhaseWidget(GenericWidget):
                     text.set_position((min((index + 1)/len(sizes), 0.7), 0.6))
 
                     ax_prof.clear()
-                    ax_prof.plot(coords, profiles[index], 'k')
+                    ax_prof.plot(coords, planes[:, index], 'k')
                     ax_prof.set_xlim(coords[0], coords[-1])
                     add_text_1D(ax_prof, dir, sizes[index], distances[index], vpos=0.7)
 
@@ -1483,17 +1575,17 @@ class AbsolutePhaseWidget(GenericWidget):
         extent_data_x = np.array([
             bf_propagation_distances_x[0],
             bf_propagation_distances_x[-1],
-            x_coordinates[0],
-            x_coordinates[-1]])
+            new_x_coordinates[0],
+            new_x_coordinates[-1]])
         extent_data_y = np.array([
             bf_propagation_distances_y[0],
             bf_propagation_distances_y[-1],
-            y_coordinates[0],
-            y_coordinates[-1]])
-        line_h, text_h = plot_ax_plane(axes[1][0], axes[0][0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x, bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x)
-        line_v, text_v = plot_ax_plane(axes[1][1], axes[0][1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y, bf_size_values_y, bf_propagation_distances_y, y_coordinates, intensities_y)
+            new_y_coordinates[0],
+            new_y_coordinates[-1]])
+        line_h, text_h = plot_ax_plane(axes[1][0], axes[0][0], "x", planes_x, extent_data_x, best_size_value_x, focus_z_position_x, bf_size_values_x, bf_propagation_distances_x, new_x_coordinates)
+        line_v, text_v = plot_ax_plane(axes[1][1], axes[0][1], "y", planes_y, extent_data_y, best_size_value_y, focus_z_position_y, bf_size_values_y, bf_propagation_distances_y, new_y_coordinates)
 
-        def plot_slider(slider, ax_prof, dir, sizes, distances, coords, profiles, line, text):
+        def plot_slider(slider, ax_prof, dir, sizes, distances, coords, planes, line, text):
             slider.setMaximum(len(bf_propagation_distances_x) - 1)
             slider.setTickInterval(int(len(bf_propagation_distances_x) / 10))
             slider.setValue(0)
@@ -1506,7 +1598,7 @@ class AbsolutePhaseWidget(GenericWidget):
                 text.set_position((min((index + 1) / len(sizes), 0.7), 0.6))
 
                 ax_prof.clear()
-                ax_prof.plot(coords, profiles[index], 'k')
+                ax_prof.plot(coords, planes[:, index], 'k')
                 ax_prof.set_xlim(coords[0], coords[-1])
                 add_text_1D(ax_prof, dir, sizes[index], distances[index], vpos=0.7)
 
@@ -1516,12 +1608,11 @@ class AbsolutePhaseWidget(GenericWidget):
             except: pass
             slider.value_changed().connect(on_value_changed)
 
-        plot_slider(self._slider_h, axes[0][0], "x", bf_size_values_x, bf_propagation_distances_x, x_coordinates, intensities_x, line_h, text_h)
-        plot_slider(self._slider_v, axes[0][1], "y", bf_size_values_y, bf_propagation_distances_y, y_coordinates, intensities_y, line_v, text_v)
+        plot_slider(self._slider_h, axes[0][0], "x", bf_size_values_x, bf_propagation_distances_x, new_x_coordinates, planes_x, line_h, text_h)
+        plot_slider(self._slider_v, axes[0][1], "y", bf_size_values_y, bf_propagation_distances_y, new_y_coordinates, planes_y, line_v, text_v)
 
         self._wf_prof_figure_3.tight_layout()
         self._wf_prof_figure_3_canvas.draw()
-
 
 def plot_2D(fig, image, label, p_x, extent_data=None):
     extent_data = np.array([

@@ -151,11 +151,21 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
             "distance_h" : WavefrontAnalyzerModule.DISTANCE_H,
             "delta_f_v" : WavefrontAnalyzerModule.DELTA_F_V,
             "delta_f_h" : WavefrontAnalyzerModule.DELTA_F_H,
+            "engine"  : WavefrontAnalyzerModule.ENGINE,
+            "magnification_v": WavefrontAnalyzerModule.MAGNIFICATION_V,
+            "magnification_h": WavefrontAnalyzerModule.MAGNIFICATION_H,
+            "shift_half_pixel": WavefrontAnalyzerModule.SHIFT_HALF_PIXEL,
+            "auto_resize_before_propagation" : WavefrontAnalyzerModule.AUTO_RESIZE_BEFORE_PROPAGATION,
+            "auto_resize_after_propagation" : WavefrontAnalyzerModule.AUTO_RESIZE_AFTER_PROPAGATION,
+            "relative_precision_for_propagation_with_autoresizing" : WavefrontAnalyzerModule.RELATIVE_PRECISION_FOR_PROPAGATION_WITH_AUTORESIZING,
+            "allow_semianalytical_treatment_of_quadratic_phase_term" : WavefrontAnalyzerModule.ALLOW_SEMIANALYTICAL_TREATMENT_OF_QUADRATIC_PHASE_TERM,
+            "do_any_resizing_on_fourier_side_using_fft" : WavefrontAnalyzerModule.DO_ANY_RESIZING_ON_FOURIER_SIDE_USING_FFT,
+            "horizontal_range_modification_factor_at_resizing" : WavefrontAnalyzerModule.HORIZONTAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING,
+            "horizontal_resolution_modification_factor_at_resizing" : WavefrontAnalyzerModule.HORIZONTAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING,
+            "vertical_range_modification_factor_at_resizing" : WavefrontAnalyzerModule.VERTICAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING,
+            "vertical_resolution_modification_factor_at_resizing" : WavefrontAnalyzerModule.VERTICAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING,
             "rms_range_v" : WavefrontAnalyzerModule.RMS_RANGE_V,
             "rms_range_h" : WavefrontAnalyzerModule.RMS_RANGE_H,
-            "magnification_v" : WavefrontAnalyzerModule.MAGNIFICATION_V,
-            "magnification_h" : WavefrontAnalyzerModule.MAGNIFICATION_H,
-            "shift_half_pixel" : WavefrontAnalyzerModule.SHIFT_HALF_PIXEL,
             "scan_best_focus" : WavefrontAnalyzerModule.SCAN_BEST_FOCUS,
             "use_fit" : WavefrontAnalyzerModule.USE_FIT,
             "best_focus_from" : WavefrontAnalyzerModule.BEST_FOCUS_FROM,
@@ -171,7 +181,6 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
     wavefront_sensor_image_directory_batch = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory-Batch", default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
     simulated_mask_directory               = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory",               default=os.path.abspath(os.path.join(os.path.curdir, "wf_images", "simulated_mask")))
     simulated_mask_directory_batch         = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory-Batch",         default=os.path.abspath(os.path.join(os.path.curdir, "wf_images", "simulated_mask")))
-
 
     use_flat                         = ini.get_boolean_from_ini("Wavefront-Analyzer", "Use-Flat", default=False)
     use_dark                         = ini.get_boolean_from_ini("Wavefront-Analyzer", "Use-Dark", default=False)
@@ -289,12 +298,25 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     WavefrontAnalyzerModule.DISTANCE_H = back_propagation_configuration["distance_h"]        
     WavefrontAnalyzerModule.DELTA_F_V = back_propagation_configuration["delta_f_v"]          
     WavefrontAnalyzerModule.DELTA_F_H = back_propagation_configuration["delta_f_h"]          
-    WavefrontAnalyzerModule.RMS_RANGE_V = back_propagation_configuration["rms_range_v"]      
+    WavefrontAnalyzerModule.ENGINE = back_propagation_configuration["engine"]
+
+    WavefrontAnalyzerModule.MAGNIFICATION_V = back_propagation_configuration["magnification_v"]
+    WavefrontAnalyzerModule.MAGNIFICATION_H = back_propagation_configuration["magnification_h"]
+    WavefrontAnalyzerModule.SHIFT_HALF_PIXEL = back_propagation_configuration["shift_half_pixel"]
+
+    WavefrontAnalyzerModule.AUTO_RESIZE_BEFORE_PROPAGATION                         = back_propagation_configuration["auto_resize_before_propagation"]
+    WavefrontAnalyzerModule.AUTO_RESIZE_AFTER_PROPAGATION                          = back_propagation_configuration["auto_resize_after_propagation"]
+    WavefrontAnalyzerModule.RELATIVE_PRECISION_FOR_PROPAGATION_WITH_AUTORESIZING   = back_propagation_configuration["relative_precision_for_propagation_with_autoresizing"]
+    WavefrontAnalyzerModule.ALLOW_SEMIANALYTICAL_TREATMENT_OF_QUADRATIC_PHASE_TERM = back_propagation_configuration["allow_semianalytical_treatment_of_quadratic_phase_term"]
+    WavefrontAnalyzerModule.DO_ANY_RESIZING_ON_FOURIER_SIDE_USING_FFT              = back_propagation_configuration["do_any_resizing_on_fourier_side_using_fft"]
+    WavefrontAnalyzerModule.HORIZONTAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING       = back_propagation_configuration["horizontal_range_modification_factor_at_resizing"]
+    WavefrontAnalyzerModule.HORIZONTAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING  = back_propagation_configuration["horizontal_resolution_modification_factor_at_resizing"]
+    WavefrontAnalyzerModule.VERTICAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING         = back_propagation_configuration["vertical_range_modification_factor_at_resizing"]
+    WavefrontAnalyzerModule.VERTICAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING    = back_propagation_configuration["vertical_resolution_modification_factor_at_resizing"]
+
+    WavefrontAnalyzerModule.RMS_RANGE_V = back_propagation_configuration["rms_range_v"]
     WavefrontAnalyzerModule.RMS_RANGE_H = back_propagation_configuration["rms_range_h"]      
-    WavefrontAnalyzerModule.MAGNIFICATION_V = back_propagation_configuration["magnification_v"]   
-    WavefrontAnalyzerModule.MAGNIFICATION_H = back_propagation_configuration["magnification_h"]   
-    WavefrontAnalyzerModule.SHIFT_HALF_PIXEL = back_propagation_configuration["shift_half_pixel"] 
-    WavefrontAnalyzerModule.SCAN_BEST_FOCUS = back_propagation_configuration["scan_best_focus"]   
+    WavefrontAnalyzerModule.SCAN_BEST_FOCUS = back_propagation_configuration["scan_best_focus"]
     WavefrontAnalyzerModule.USE_FIT = back_propagation_configuration["use_fit"]                  
     WavefrontAnalyzerModule.BEST_FOCUS_FROM = back_propagation_configuration["best_focus_from"]   
     WavefrontAnalyzerModule.BEST_FOCUS_SCAN_RANGE = back_propagation_configuration["best_focus_scan_range"]     
