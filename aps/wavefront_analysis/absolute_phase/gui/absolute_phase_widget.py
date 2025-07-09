@@ -47,6 +47,8 @@
 import copy
 import os
 import sys
+import threading
+import time
 
 import numpy as np
 
@@ -61,13 +63,18 @@ from matplotlib.figure import Figure
 from matplotlib.ticker import FuncFormatter
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.widgets import RectangleSelector
+from matplotlib.gridspec import GridSpec
 from cmasher import cm as cmm
 
 from PyQt5.QtWidgets import QWidget, QPushButton, QApplication, QHBoxLayout, QVBoxLayout, QScrollArea, QSlider
-from PyQt5.QtCore import QRect, Qt, pyqtSignal
+from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
 
+from aps.wavefront_analysis.common.gui.util import ShowWaitDialog
 from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager_initialization import get_data_from_int_to_string, get_data_from_string_to_int
+
+import warnings
+warnings.filterwarnings("ignore")
 
 DEBUG_MODE = int(os.environ.get("DEBUG_MODE", 0)) == 1
 
@@ -108,7 +115,6 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self.wavefront_sensor_changed.connect(self._wavefront_sensor_changed)
         self.profile_clicked.connect(self._on_profile_clicked)
-
 
     def _set_values_from_initialization_parameters(self):
         self.working_directory = self._working_directory
@@ -636,8 +642,9 @@ class AbsolutePhaseWidget(GenericWidget):
         self.le_working_directory.setFont(font)
         self.le_working_directory.setStyleSheet("QLineEdit {color : darkgreen; background : rgb(243, 240, 160)}")
 
-        tab_box    = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=self._out_box.height() - 55, orientation="vertical")
-        self._out_tab_widget = gui.tabWidget(tab_box)
+        self._tab_box    = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=self._out_box.height() - 55, orientation="vertical")
+
+        self._out_tab_widget = gui.tabWidget(self._tab_box)
 
         self._out_tab_0 = gui.createTabPage(self._out_tab_widget, "Image")
         self._out_tab_1 = gui.createTabPage(self._out_tab_widget, "Wavefront")
@@ -645,7 +652,7 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self._image_box     = gui.widgetBox(self._out_tab_0, "")
         self._wavefront_box = gui.widgetBox(self._out_tab_1, "")
-        self._log_box       = gui.widgetBox(self._out_tab_2, "Log", width=tab_box.width() - 20, height=tab_box.height() - 40)
+        self._log_box       = gui.widgetBox(self._out_tab_2, "Log", width=self._tab_box.width() - 20, height=self._tab_box.height() - 40)
 
         if sys.platform == 'darwin':  self._image_figure = Figure(figsize=(9.65, 5.9), constrained_layout=True)
         else:                         self._image_figure = Figure(figsize=(9.65, 6.9), constrained_layout=True)
@@ -1032,118 +1039,200 @@ class AbsolutePhaseWidget(GenericWidget):
     # Online -------------------------------------------
 
     def _take_shot_callback(self):
-        try:
-            self._collect_initialization_parameters(raise_errors=True)
-            h_coord, v_coord, image = self._take_shot(self._initialization_parameters)
-            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
-            if DEBUG_MODE: raise exception
+        dialog = ShowWaitDialog(text="Taking Shot", parent=self._tab_box)
+        dialog.show()
+
+        def _execute():
+            try:
+                self._collect_initialization_parameters(raise_errors=True)
+                h_coord, v_coord, image = self._take_shot(self._initialization_parameters)
+                if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+            except ValueError as error:
+                MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+                if DEBUG_MODE: raise error
+            except Exception as exception:
+                MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+                if DEBUG_MODE: raise exception
+            finally:
+                dialog.accept()
+
+        try:    QTimer.singleShot(100, _execute)
+        except: pass
 
     def _take_shot_as_flat_image_callback(self):
-        try:
-            self._collect_initialization_parameters(raise_errors=True)
-            h_coord, v_coord, image = self._take_shot_as_flat_image(self._initialization_parameters)
-            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
-            if DEBUG_MODE: raise exception
+        dialog = ShowWaitDialog(text="Taking Shot as Flat Image", parent=self._tab_box)
+        dialog.show()
+
+        def _execute():
+            try:
+                self._collect_initialization_parameters(raise_errors=True)
+                h_coord, v_coord, image = self._take_shot_as_flat_image(self._initialization_parameters)
+                if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+            except ValueError as error:
+                MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+                if DEBUG_MODE: raise error
+            except Exception as exception:
+                MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+                if DEBUG_MODE: raise exception
+            finally:
+                dialog.accept()
+
+        try:    QTimer.singleShot(100, _execute)
+        except: pass
 
     def _take_shot_and_generate_mask_callback(self):
-        try:
-            self._collect_initialization_parameters(raise_errors=True)
-            h_coord, v_coord, image, image_transfer_matrix = self._take_shot_and_generate_mask(self._initialization_parameters)
-            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
-            self._manage_generate_mask_result(image_transfer_matrix)
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
-            if DEBUG_MODE: raise exception
+        dialog = ShowWaitDialog(text="Taking Shot and Generating Mask", parent=self._tab_box)
+        dialog.show()
+
+        def _execute():
+            try:
+                self._collect_initialization_parameters(raise_errors=True)
+                h_coord, v_coord, image, image_transfer_matrix = self._take_shot_and_generate_mask(self._initialization_parameters)
+                if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+                self._manage_generate_mask_result(image_transfer_matrix)
+            except ValueError as error:
+                MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+                if DEBUG_MODE: raise error
+            except Exception as exception:
+                MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+                if DEBUG_MODE: raise exception
+            finally:
+                dialog.accept()
+
+        try:    QTimer.singleShot(100, _execute)
+        except: pass
 
     def _take_shot_and_process_image_callback(self):
-        try:
-            self._collect_initialization_parameters(raise_errors=True)
-            h_coord, v_coord, image, wavefront_at_detector_data = self._take_shot_and_process_image(self._initialization_parameters)
-            if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
-            self.__plot_wavefront_at_detector(wavefront_at_detector_data)
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
-            if DEBUG_MODE: raise exception
+        dialog = ShowWaitDialog(text="Taking Shot and Processing Image", parent=self._tab_box)
+        dialog.show()
+
+        def _execute():
+            try:
+                self._collect_initialization_parameters(raise_errors=True)
+                h_coord, v_coord, image, wavefront_at_detector_data = self._take_shot_and_process_image(self._initialization_parameters)
+                if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
+                self.__plot_wavefront_at_detector(wavefront_at_detector_data)
+            except ValueError as error:
+                MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+                if DEBUG_MODE: raise error
+            except Exception as exception:
+                MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+                if DEBUG_MODE: raise exception
+            finally:
+                dialog.accept()
+
+        try:    QTimer.singleShot(100, _execute)
+        except: pass
 
     def _take_shot_and_back_propagate_callback(self):
-        try:
-            self._collect_initialization_parameters(raise_errors=True)
-            h_coord, v_coord, image, wavefront_at_detector_data, propagated_wavefront_data = self._take_shot_and_back_propagate(self._initialization_parameters)
-            if bool(self.plot_raw_image): self.__plot_shot_image(h_coord, v_coord, image)
-            self.__plot_wavefront_at_detector(wavefront_at_detector_data)
-            self._manage_back_propagate_result(propagated_wavefront_data)
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
-            if DEBUG_MODE: raise exception
+        dialog = ShowWaitDialog(text="Taking Shot and Back-Propagating", parent=self._tab_box)
+        dialog.show()
+
+        def _execute():
+            try:
+                self._collect_initialization_parameters(raise_errors=True)
+                h_coord, v_coord, image, wavefront_at_detector_data, propagated_wavefront_data = self._take_shot_and_back_propagate(self._initialization_parameters)
+                if bool(self.plot_raw_image): self.__plot_shot_image(h_coord, v_coord, image)
+                self.__plot_wavefront_at_detector(wavefront_at_detector_data)
+                self._manage_back_propagate_result(propagated_wavefront_data)
+            except ValueError as error:
+                MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+                if DEBUG_MODE: raise error
+            except Exception as exception:
+                MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+                if DEBUG_MODE: raise exception
+            finally:
+                dialog.accept()
+
+        try:    QTimer.singleShot(100, _execute)
+        except: pass
 
     # Offline -------------------------------------------
 
     def _read_image_from_file_callback(self):
-        try:
-            self._collect_initialization_parameters(raise_errors=True)
-            h_coord, v_coord, image = self._read_image_from_file(self._initialization_parameters)
-            self.__plot_shot_image(h_coord, v_coord, image)
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
-            if DEBUG_MODE: raise exception
+        dialog = ShowWaitDialog(text="Reading Image From File", parent=self._tab_box)
+        dialog.show()
+
+        def _execute():
+            try:
+                self._collect_initialization_parameters(raise_errors=True)
+                h_coord, v_coord, image = self._read_image_from_file(self._initialization_parameters)
+                self.__plot_shot_image(h_coord, v_coord, image)
+            except ValueError as error:
+                MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+                if DEBUG_MODE: raise error
+            except Exception as exception:
+                MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+                if DEBUG_MODE: raise exception
+            finally:
+                dialog.accept()
+
+        try:    QTimer.singleShot(100, _execute)
+        except: pass
 
     def _generate_mask_from_file_callback(self):
-        try:
-            self._collect_initialization_parameters(raise_errors=True)
-            image_transfer_matrix = self._generate_mask_from_file(self._initialization_parameters)
-            self._manage_generate_mask_result(image_transfer_matrix)
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
-            if DEBUG_MODE: raise exception
+        dialog = ShowWaitDialog(text="Generating Mask From File", parent=self._tab_box)
+        dialog.show()
+
+        def _execute():
+            try:
+                self._collect_initialization_parameters(raise_errors=True)
+                image_transfer_matrix = self._generate_mask_from_file(self._initialization_parameters)
+                self._manage_generate_mask_result(image_transfer_matrix)
+            except ValueError as error:
+                MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+                if DEBUG_MODE: raise error
+            except Exception as exception:
+                MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+                if DEBUG_MODE: raise exception
+            finally:
+                dialog.accept()
+
+        try:    QTimer.singleShot(100, _execute)
+        except: pass
 
     def _process_image_from_file_callback(self):
-        try:
-            self._collect_initialization_parameters(raise_errors=True)
-            wavefront_at_detector_data = self._process_image_from_file(self._initialization_parameters)
-            self.__plot_wavefront_at_detector(wavefront_at_detector_data)
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error), type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception), type="critical", height=400, width=700)
-            if DEBUG_MODE: raise exception
+        dialog = ShowWaitDialog(text="Processing Image From File", parent=self._tab_box)
+        dialog.show()
+
+        def _execute():
+            try:
+                self._collect_initialization_parameters(raise_errors=True)
+                wavefront_at_detector_data = self._process_image_from_file(self._initialization_parameters)
+                self.__plot_wavefront_at_detector(wavefront_at_detector_data)
+            except ValueError as error:
+                MessageDialog.message(self, title="Input Error", message=str(error), type="critical", width=500)
+                if DEBUG_MODE: raise error
+            except Exception as exception:
+                MessageDialog.message(self, title="Unexpected Exception", message=str(exception), type="critical", height=400, width=700)
+                if DEBUG_MODE: raise exception
+            finally:
+                dialog.accept()
+
+        try:    QTimer.singleShot(100, _execute)
+        except: pass
 
     def _back_propagate_from_file_callback(self):
-        try:
-            self._collect_initialization_parameters(raise_errors=True)
-            propagated_wavefront_data = self._back_propagate_from_file(self._initialization_parameters)
-            self._manage_back_propagate_result(propagated_wavefront_data)
-        except ValueError as error:
-            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
-            if DEBUG_MODE: raise error
-        except Exception as exception:
-            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
-            if DEBUG_MODE: raise exception
+        dialog = ShowWaitDialog(text="Back-Propagating From File", parent=self._tab_box)
+        dialog.show()
+
+        def _execute():
+            try:
+                self._collect_initialization_parameters(raise_errors=True)
+                propagated_wavefront_data = self._back_propagate_from_file(self._initialization_parameters)
+                self._manage_back_propagate_result(propagated_wavefront_data)
+
+            except ValueError as error:
+                MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+                if DEBUG_MODE: raise error
+            except Exception as exception:
+                MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+                if DEBUG_MODE: raise exception
+            finally:
+                dialog.accept()
+
+        try:    QTimer.singleShot(100, _execute)
+        except: pass
 
     def _manage_generate_mask_result(self, image_transfer_matrix):
         MessageDialog.message(self, title="Mask Generation", message=f"Image Transfer Matrix: {image_transfer_matrix}", type="information", width=500)
@@ -1335,9 +1424,9 @@ class AbsolutePhaseWidget(GenericWidget):
                                    ["fwhm(x)", "fwhm(y)", "rms(x)", "rms(y)", "shift(x)", "shift(y)"]):
                 text += "\n" + rf"{label:<8}: {wavefront_data[prop]*1e6 : 3.3f} $\mu$m"
 
-            if sys.platform == 'darwin': ax.text(1.5, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="Courier",
+            if sys.platform == 'darwin': ax.text(0.05, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="Courier",
                                                  bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
-            else:                        ax.text(1.25, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="DejaVu Sans",
+            else:                        ax.text(0.05, 0.55, text, color="black", alpha=0.9, fontsize=12, fontname="DejaVu Sans",
                                                  bbox=dict(facecolor="white", edgecolor="gray", alpha=0.7), transform=ax.transAxes)
 
         def add_text_1D(ax, dir):
@@ -1363,10 +1452,18 @@ class AbsolutePhaseWidget(GenericWidget):
 
             fig = self._wf_int_prop_figure.figure
             fig.clear()
+
+            gs = GridSpec(nrows=1, ncols=2, width_ratios=[3, 1], wspace=0.05)
+
+            ax     = fig.add_subplot(gs[0, 0])
+            ax_txt = fig.add_subplot(gs[0, 1], frame_on=False)
+            ax_txt.axis('off')
+
             def custom_formatter(x, pos): return f'{x:.2f}'
-            ax = fig.gca()
+
             if self.bp_plot_shift: image = ax.pcolormesh(coords[0], coords[1], intensity.T, cmap=cmm.sunburst_r, rasterized=True)
             else:                  image = ax.pcolormesh(coords_orig[0], coords_orig[1], intensity.T, cmap=cmm.sunburst_r, rasterized=True)
+
             ax.set_xlim(coords_orig[0][0], coords_orig[0][-1])
             ax.set_ylim(coords_orig[1][0], coords_orig[1][-1])
             ax.set_xticks(np.linspace(coords_orig[0][0], coords_orig[0][-1], 6, endpoint=True))
@@ -1379,21 +1476,24 @@ class AbsolutePhaseWidget(GenericWidget):
             ax.set_xlabel('x ($\mu$m)')
             ax.set_ylabel('y ($\mu$m)')
             ax.set_aspect("equal")
-            if sys.platform == 'darwin': ax.set_position([-0.375, 0.15, 1.0, 0.8])
-            else:                        ax.set_position([-0.02, 0.15, 0.8, 0.8])
-            add_text_2D(ax)
-            cbar = fig.colorbar(mappable=image, ax=ax, pad=0.04, aspect=30, shrink=0.6)
+
+            cbar = fig.colorbar(mappable=image, ax=ax, pad=0.1, aspect=30, shrink=0.6)
             cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
+
+            add_text_2D(ax_txt)
+
             self._wf_int_prop_figure_canvas.draw()
 
             if self.bp_plot_shift: axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords)
             else:                  axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords_orig)
+
             axes[0].set_xlim(coords_orig[0][0], coords_orig[0][-1])
             axes[1].set_xlim(coords_orig[1][0], coords_orig[1][-1])
             axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
             axes[1].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
             add_text_1D(axes[0], "x")
             add_text_1D(axes[1], "y")
+
             self._wf_ipr_prop_figure_canvas.draw()
         elif wavefront_data['kind'] == '1D':
             intensity_x   = wavefront_data['intensity_x']
@@ -1406,17 +1506,19 @@ class AbsolutePhaseWidget(GenericWidget):
             coords_orig = [(x_coordinates)*1e6, (y_coordinates)*1e6]
             coords      = [(x_coordinates + wf_position_x)*1e6, (y_coordinates + wf_position_y)*1e6]
 
-            self._wf_int_prop_figure.figure.clear()
+            self._wf_int_prop_figure.figure.clear() # left empty
             self._wf_int_prop_figure_canvas.draw()
 
             if self.bp_plot_shift: axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords)
             else:                  axes = plot_1D(self._wf_ipr_prop_figure.figure, intensity_x, intensity_y, "[counts]", None, coords=coords_orig)
+
             axes[0].set_xlim(coords_orig[0][0], coords_orig[0][-1])
             axes[1].set_xlim(coords_orig[1][0], coords_orig[1][-1])
             axes[0].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
             axes[1].axvline(0, color="gray", ls="--", linewidth=1, alpha=0.7)
             add_text_1D(axes[0], "x")
             add_text_1D(axes[1], "y")
+
             self._wf_ipr_prop_figure_canvas.draw()
 
         self._out_tab_widget.setCurrentIndex(1)
