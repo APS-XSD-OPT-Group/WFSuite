@@ -51,17 +51,21 @@ from PyQt5.QtCore import Qt
 class ShowWaitDialog(QDialog):
     def __init__(self, title="", text="", width=500, height=80, parent=None, color_string="139, 0, 0"):
         QDialog.__init__(self, parent)
+
         self.setModal(True)
         self.setWindowTitle(title)
-        layout = QVBoxLayout(self)
         self.setFixedWidth(int(width))
         self.setFixedHeight(int(height))
+
+        layout = QVBoxLayout(self)
+
         label = QLabel()
         label.setFixedWidth(int(width * 0.95))
         label.setText(text)
         label.setAlignment(Qt.AlignCenter)
         label.setStyleSheet("font: 14px")
         layout.addWidget(label)
+
         label = QLabel()
         label.setFixedWidth(int(width * 0.95))
         label.setText("Please wait....")
