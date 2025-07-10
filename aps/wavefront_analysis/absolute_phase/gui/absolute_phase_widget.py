@@ -1039,7 +1039,7 @@ class AbsolutePhaseWidget(GenericWidget):
     # Online -------------------------------------------
 
     def _take_shot_callback(self):
-        dialog = ShowWaitDialog(text="Taking Shot", parent=self._tab_box)
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Taking Shot", parent=self._tab_box)
         dialog.show()
 
         def _execute():
@@ -1060,7 +1060,7 @@ class AbsolutePhaseWidget(GenericWidget):
         except: pass
 
     def _take_shot_as_flat_image_callback(self):
-        dialog = ShowWaitDialog(text="Taking Shot as Flat Image", parent=self._tab_box)
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Taking Shot as Flat Image", parent=self._tab_box)
         dialog.show()
 
         def _execute():
@@ -1081,7 +1081,7 @@ class AbsolutePhaseWidget(GenericWidget):
         except: pass
 
     def _take_shot_and_generate_mask_callback(self):
-        dialog = ShowWaitDialog(text="Taking Shot and Generating Mask", parent=self._tab_box)
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Taking Shot and Generating Mask", parent=self._tab_box)
         dialog.show()
 
         def _execute():
@@ -1103,7 +1103,7 @@ class AbsolutePhaseWidget(GenericWidget):
         except: pass
 
     def _take_shot_and_process_image_callback(self):
-        dialog = ShowWaitDialog(text="Taking Shot and Processing Image", parent=self._tab_box)
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Taking Shot and Processing Image", parent=self._tab_box)
         dialog.show()
 
         def _execute():
@@ -1125,7 +1125,7 @@ class AbsolutePhaseWidget(GenericWidget):
         except: pass
 
     def _take_shot_and_back_propagate_callback(self):
-        dialog = ShowWaitDialog(text="Taking Shot and Back-Propagating", parent=self._tab_box)
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Taking Shot and Back-Propagating", parent=self._tab_box)
         dialog.show()
 
         def _execute():
@@ -1150,7 +1150,7 @@ class AbsolutePhaseWidget(GenericWidget):
     # Offline -------------------------------------------
 
     def _read_image_from_file_callback(self):
-        dialog = ShowWaitDialog(text="Reading Image From File", parent=self._tab_box)
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Reading Image From File", parent=self._tab_box)
         dialog.show()
 
         def _execute():
@@ -1171,7 +1171,7 @@ class AbsolutePhaseWidget(GenericWidget):
         except: pass
 
     def _generate_mask_from_file_callback(self):
-        dialog = ShowWaitDialog(text="Generating Mask From File", parent=self._tab_box)
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Generating Mask From File", parent=self._tab_box)
         dialog.show()
 
         def _execute():
@@ -1192,7 +1192,7 @@ class AbsolutePhaseWidget(GenericWidget):
         except: pass
 
     def _process_image_from_file_callback(self):
-        dialog = ShowWaitDialog(text="Processing Image From File", parent=self._tab_box)
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Processing Image From File", parent=self._tab_box)
         dialog.show()
 
         def _execute():
@@ -1213,7 +1213,7 @@ class AbsolutePhaseWidget(GenericWidget):
         except: pass
 
     def _back_propagate_from_file_callback(self):
-        dialog = ShowWaitDialog(text="Back-Propagating From File", parent=self._tab_box)
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Back-Propagating From File", parent=self._tab_box)
         dialog.show()
 
         def _execute():
