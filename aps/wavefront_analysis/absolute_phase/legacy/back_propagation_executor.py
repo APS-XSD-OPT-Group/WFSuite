@@ -67,7 +67,11 @@ from aps.wavefront_analysis.common.arguments import Args
 from aps.common.plot.image import rebin_1D, rebin_2D
 from aps.common.utilities import energy_to_wavelength
 
-from scipy.ndimage import gaussian_filter
+#from scipy.ndimage import gaussian_filter
+
+from scipy.ndimage.filters import gaussian_filter, uniform_filter
+from scipy.ndimage.interpolation import spline_filter
+
 from scipy.interpolate import CubicSpline
 from scipy.optimize import fminbound
 
@@ -415,6 +419,8 @@ def execute_back_propagation(**arguments) -> dict:
     arguments["rebinning"]              = arguments.get("rebinning", 1)
     arguments["smooth_intensity"]       = arguments.get("smooth_intensity", False)
     arguments["smooth_phase"]           = arguments.get("smooth_phase", False)
+    arguments["filter_intensity"]       = arguments.get("filter_intensity", "gaussian")
+    arguments["filter_phase"]           = arguments.get("filter_phase", "gaussian")
     arguments["sigma_intensity"]        = arguments.get("sigma_intensity", 21)
     arguments["sigma_phase"]            = arguments.get("sigma_phase", 21)
 
@@ -478,8 +484,12 @@ def execute_back_propagation(**arguments) -> dict:
             dim_x          = dim_x // rebin_factor
             dim_y          = dim_y // rebin_factor
 
-        if args.smooth_intensity: intensity = gaussian_filter(intensity, args.sigma_intensity)
-        if args.smooth_phase:     phase     = gaussian_filter(phase, args.sigma_phase)
+        if args.smooth_intensity:
+            if   args.filter_intensity == "gaussian": intensity = gaussian_filter(input=intensity, sigma=args.sigma_intensity, mode='constant', cval=intensity[0, 0])
+            elif args.filter_intensity == "uniform":  intensity = uniform_filter(input=intensity, size=args.sigma_intensity, mode='constant', cval=intensity[0, 0])
+        if args.smooth_phase:
+            if   args.filter_phase == "gaussian": phase     = gaussian_filter(input=phase, sigma=args.sigma_phase, mode='constant', cval=phase[0, 0])
+            elif args.filter_phase == "uniform":  phase     = uniform_filter(input=phase, size=args.sigma_phase, mode='constant', cval=phase[0, 0])
 
         # crop wavefront before propagate
         start_x = max((phase.shape[0] - dim_x) // 2 + shift_x, 0)

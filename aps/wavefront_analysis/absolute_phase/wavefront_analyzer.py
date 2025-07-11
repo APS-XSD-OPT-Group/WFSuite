@@ -119,8 +119,10 @@ N_GROUP               = ini_file.get_int_from_ini(    section="Reconstruction", 
 KIND                    = ini_file.get_string_from_ini( section="Back-Propagation", key="Kind",                        default="1D")
 REBINNING_BP            = ini_file.get_float_from_ini(  section="Back-Propagation", key="Rebinning",                   default=1.0)
 SMOOTH_INTENSITY        = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Smooth-Intensity",            default=False)
+FILTER_INTENSITY        = ini_file.get_string_from_ini( section="Back-Propagation", key="Filter-Intensity",            default="gaussian")
 SIGMA_INTENSITY         = ini_file.get_int_from_ini(    section="Back-Propagation", key="Sigma-Intensity",             default=21)
 SMOOTH_PHASE            = ini_file.get_boolean_from_ini(section="Back-Propagation", key="Smooth-Phase",                default=False)
+FILTER_PHASE            = ini_file.get_string_from_ini( section="Back-Propagation", key="Filter-Phase",                default="gaussian")
 SIGMA_PHASE             = ini_file.get_int_from_ini(    section="Back-Propagation", key="Sigma-Phase",                 default=21)
 CROP_V                  = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-V",                      default=500)
 CROP_H                  = ini_file.get_int_from_ini(    section="Back-Propagation", key="Crop-H",                      default=500)
@@ -185,8 +187,10 @@ def store():
     ini_file.set_value_at_ini(section="Back-Propagation", key="Kind",                       value=KIND)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Rebinning",                  value=REBINNING_BP)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Smooth-Intensity",           value=SMOOTH_INTENSITY)
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Filter-Intensity",           value=FILTER_INTENSITY)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Sigma-Intensity",            value=SIGMA_INTENSITY )
     ini_file.set_value_at_ini(section="Back-Propagation", key="Smooth-Phase",               value=SMOOTH_PHASE)
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Filter-Phase",               value=FILTER_PHASE)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Sigma-Phase",                value=SIGMA_PHASE)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-H",                     value=CROP_H)
     ini_file.set_value_at_ini(section="Back-Propagation", key="Crop-V",                     value=CROP_V)
@@ -575,6 +579,8 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_d
                                     rebinning              = kwargs.get("rebinning", REBINNING_BP),
                                     smooth_intensity       = kwargs.get("smooth_intensity", SMOOTH_INTENSITY),
                                     smooth_phase           = kwargs.get("smooth_phase", SMOOTH_PHASE),
+                                    filter_intensity       = kwargs.get("filter_intensity", FILTER_INTENSITY),
+                                    filter_phase           = kwargs.get("filter_phase", FILTER_PHASE),
                                     sigma_intensity        = kwargs.get("sigma_intensity", SIGMA_INTENSITY),
                                     sigma_phase            = kwargs.get("sigma_phase", SIGMA_PHASE),
                                     dim_x                  = kwargs.get("crop_h", CROP_H),

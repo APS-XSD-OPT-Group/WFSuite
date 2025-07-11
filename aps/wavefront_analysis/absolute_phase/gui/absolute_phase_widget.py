@@ -211,8 +211,10 @@ class AbsolutePhaseWidget(GenericWidget):
         self.kind = back_propagation_configuration["kind"]
         self.rebinning_bp = back_propagation_configuration["rebinning_bp"]
         self.smooth_intensity = back_propagation_configuration["smooth_intensity"]
+        self.filter_intensity = back_propagation_configuration["filter_intensity"]
         self.sigma_intensity = back_propagation_configuration["sigma_intensity"]
         self.smooth_phase = back_propagation_configuration["smooth_phase"]
+        self.filter_phase = back_propagation_configuration["filter_phase"]
         self.sigma_phase = back_propagation_configuration["sigma_phase"]
         self.crop_v = back_propagation_configuration["crop_v"]
         self.crop_h = back_propagation_configuration["crop_h"]
@@ -542,10 +544,12 @@ class AbsolutePhaseWidget(GenericWidget):
 
         box = gui.widgetBox(bp_box_2, "", orientation="horizontal")
         gui.checkBox(box, self, "smooth_intensity", "Smooth Intensity")
+        gui.lineEdit(box, self, "filter_intensity", label="filter", labelWidth=50, orientation='horizontal', valueType=str)
         gui.lineEdit(box, self, "sigma_intensity", label="\u03c3", labelWidth=20, orientation='horizontal', valueType=float)
 
         box = gui.widgetBox(bp_box_2, "", orientation="horizontal")
         gui.checkBox(box, self, "smooth_phase", "Smooth Phase    ")
+        gui.lineEdit(box, self, "filter_phase", label="filter", labelWidth=50, orientation='horizontal', valueType=str)
         gui.lineEdit(box, self, "sigma_phase", label="\u03c3", labelWidth=20, orientation='horizontal', valueType=float)
 
         box = gui.widgetBox(bp_box_2, "", orientation="horizontal")
@@ -948,8 +952,10 @@ class AbsolutePhaseWidget(GenericWidget):
         back_propagation_configuration["kind"]         = self.kind
         back_propagation_configuration["rebinning_bp"] = self.rebinning_bp
         back_propagation_configuration["smooth_intensity"] = self.smooth_intensity
+        back_propagation_configuration["filter_intensity"] = self.filter_intensity
         back_propagation_configuration["sigma_intensity"] = self.sigma_intensity
         back_propagation_configuration["smooth_phase"] = self.smooth_phase
+        back_propagation_configuration["filter_phase"] = self.filter_phase
         back_propagation_configuration["sigma_phase"] = self.sigma_phase
         back_propagation_configuration["crop_v"] = self.crop_v
         back_propagation_configuration["crop_h"] = self.crop_h

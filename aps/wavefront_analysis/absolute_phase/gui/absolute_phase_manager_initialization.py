@@ -142,6 +142,8 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
             "sigma_intensity" : WavefrontAnalyzerModule.SIGMA_INTENSITY,
             "smooth_phase" : WavefrontAnalyzerModule.SMOOTH_PHASE,
             "sigma_phase" : WavefrontAnalyzerModule.SIGMA_PHASE,
+            "filter_intensity" : WavefrontAnalyzerModule.FILTER_INTENSITY,
+            "filter_phase" : WavefrontAnalyzerModule.FILTER_PHASE,
             "crop_v" : WavefrontAnalyzerModule.CROP_V,
             "crop_h" : WavefrontAnalyzerModule.CROP_H,
             "crop_shift_v" : WavefrontAnalyzerModule.CROP_SHIFT_V,
@@ -286,8 +288,10 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     WavefrontAnalyzerModule.KIND = back_propagation_configuration["kind"]
     WavefrontAnalyzerModule.REBINNING_BP = back_propagation_configuration["rebinning_bp"]
     WavefrontAnalyzerModule.SMOOTH_INTENSITY = back_propagation_configuration["smooth_intensity"]
+    WavefrontAnalyzerModule.FILTER_INTENSITY = back_propagation_configuration["filter_intensity"]
     WavefrontAnalyzerModule.SIGMA_INTENSITY = back_propagation_configuration["sigma_intensity"]
     WavefrontAnalyzerModule.SMOOTH_PHASE = back_propagation_configuration["smooth_phase"]
+    WavefrontAnalyzerModule.FILTER_PHASE = back_propagation_configuration["filter_phase"]
     WavefrontAnalyzerModule.SIGMA_PHASE = back_propagation_configuration["sigma_phase"]
     WavefrontAnalyzerModule.CROP_V = back_propagation_configuration["crop_v"]                
     WavefrontAnalyzerModule.CROP_H = back_propagation_configuration["crop_h"]                
