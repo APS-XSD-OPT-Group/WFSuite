@@ -62,15 +62,15 @@ import scipy.signal as ssignal
 
 from aps.wavefront_analysis.common.legacy.func import prColor, load_image, slop_tracking, write_json, auto_crop, image_align
 from aps.wavefront_analysis.common.legacy.integration import frankotchellappa
-from aps.wavefront_analysis.wxst.legacy.WXST import WXST, save_data, save_figure, save_figure_1D
-from aps.wavefront_analysis.spinnet.legacy.SPINNet_estimate import SPINNet_estimate as SPINNet_estimate_legacy
-from aps.wavefront_analysis.spinnet.speckle_displacement.SPINNet_estimate import SPINNet_estimate as SPINNet_estimate_sd
-
-
-from aps.wavefront_analysis.absolute_phase.legacy.diffraction_process import prop_TF_2d
 from aps.wavefront_analysis.common.legacy.gui_func import crop_gui
 from aps.wavefront_analysis.common.legacy.utils import fft2, ifft2
 from aps.wavefront_analysis.common.legacy.func import read_h5
+
+from aps.wavefront_analysis.spinnet.legacy.SPINNet_estimate import SPINNet_estimate as SPINNet_estimate_legacy
+from aps.wavefront_analysis.spinnet.speckle_displacement.SPINNet_estimate import SPINNet_estimate as SPINNet_estimate_sd
+
+from aps.wavefront_analysis.absolute_phase.legacy.WXST_simplified import WXST, save_data, save_figure, save_figure_1D
+from aps.wavefront_analysis.absolute_phase.legacy.diffraction_process import prop_TF_2d
 
 from matplotlib import pyplot as plt
 
