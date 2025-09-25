@@ -44,9 +44,13 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
+import numpy as np
+import sys
 
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QDialog, QLabel, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QSlider
+from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
+from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
+
 
 class ShowWaitDialog(QDialog):
     def __init__(self, title="", text="", width=500, height=80, parent=None, color_string="139, 0, 0"):
@@ -72,3 +76,89 @@ class ShowWaitDialog(QDialog):
         label.setAlignment(Qt.AlignCenter)
         label.setStyleSheet(f"font: bold italic 16px; color: rgb({color_string});")
         layout.addWidget(label)
+
+
+def plot_2D(fig, image, label, p_x, extent_data=None):
+    extent_data = np.array([
+        -image.shape[1] / 2 * p_x * 1e6,
+        image.shape[1] / 2 * p_x * 1e6,
+        -image.shape[0] / 2 * p_x * 1e6,
+        image.shape[0] / 2 * p_x * 1e6]) if extent_data is None else extent_data
+
+    fig.clear()
+    im = fig.gca().imshow(image, interpolation='bilinear', extent=extent_data)
+    if sys.platform == 'darwin':  fig.gca().set_position([-0.175, 0.15, 1.0, 0.8])
+    else:                         fig.gca().set_position([0.1, 0.15, 0.8, 0.8])
+    fig.gca().set_xlabel('x ($\mu$m)', fontsize=22)
+    fig.gca().set_ylabel('y ($\mu$m)', fontsize=22)
+    cbar = fig.colorbar(mappable=im, ax=fig.gca())
+    cbar.set_label(label, rotation=90, fontsize=20)
+    fig.gca().set_aspect('equal')
+
+def plot_1D(fig, line_x, line_y, label, p_x, coords=None):
+    coords = [(np.arange(len(line_x)) - len(line_x) / 2) * p_x * 1e6,
+            (np.arange(len(line_y)) - len(line_y) / 2) * p_x * 1e6] if coords is None else coords
+
+    fig.clear()
+    axes = fig.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
+    axes[0].plot(coords[0], line_x, 'k')
+    axes[0].set_xlabel('x ($\mu$m)', fontsize=22)
+    axes[0].set_ylabel(label, fontsize=22)
+    axes[1].plot(coords[1], line_y, 'k')
+    axes[1].set_xlabel('y ($\mu$m)', fontsize=22)
+    axes[1].set_ylabel(label, fontsize=22)
+    fig.tight_layout()
+
+    return axes
+
+class SliderWithButtons(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        main_layout = QHBoxLayout()
+
+        # Slider
+        self.slider = QSlider(Qt.Horizontal)
+
+        # Buttons layout
+        button_layout_left  = QHBoxLayout()
+        button_layout_right = QHBoxLayout()
+        self.btn_minus = QPushButton("-")
+        self.btn_plus  = QPushButton("+")
+        self.btn_min   = QPushButton("Min")
+        self.btn_max   = QPushButton("Max")
+
+        self.btn_minus.setFixedWidth(20)
+        self.btn_plus.setFixedWidth(20)
+        self.btn_min.setFixedWidth(30)
+        self.btn_max.setFixedWidth(30)
+
+        self.btn_minus.clicked.connect(self.decrease_value)
+        self.btn_plus.clicked.connect(self.increase_value)
+        self.btn_min.clicked.connect(lambda: self.slider.setValue(self.slider.minimum()))
+        self.btn_max.clicked.connect(lambda: self.slider.setValue(self.slider.maximum()))
+
+        button_layout_left.addWidget(self.btn_min)
+        button_layout_left.addWidget(self.btn_minus)
+        button_layout_right.addWidget(self.btn_plus)
+        button_layout_right.addWidget(self.btn_max)
+
+        main_layout.addLayout(button_layout_left)
+        main_layout.addWidget(self.slider)
+        main_layout.addLayout(button_layout_right)
+
+        self.setLayout(main_layout)
+
+    def setMinimum(self, value=0):   self.slider.setMinimum(value)
+    def setMaximum(self, value=100): self.slider.setMaximum(value)
+    def setValue(self, value=50):    self.slider.setValue(value)
+    def setTickPosition(self, tick_position=QSlider.TicksBelow): self.slider.setTickPosition(tick_position)
+    def setTickInterval(self, value=10): self.slider.setTickInterval(value)
+
+    def increase_value(self):
+        self.slider.setValue(self.slider.value() + self.slider.singleStep())
+
+    def decrease_value(self):
+        self.slider.setValue(self.slider.value() - self.slider.singleStep())
+
+    def value_changed(self): return self.slider.valueChanged

@@ -44,44 +44,44 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-import traceback
-
 from aps.common.initializer import get_registered_ini_instance, IniMode
 from aps.common.plotter import get_registered_plotter_instance
 from aps.common.plot.qt_application import get_registered_qt_application_instance
 from aps.common.scripts.generic_qt_script import GenericQTScript
 from aps.common.widgets.log_stream_widget import LogStreamWidget
-from aps.common.widgets.context_widget import PlottingProperties
 from aps.common.logger import register_logger_pool_instance, register_logger_single_instance, DEFAULT_STREAM
 from aps.common.io.printout import datetime_now_str
 
-from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager import APPLICATION_NAME, SHOW_ABSOLUTE_PHASE, create_absolute_phase_manager
+from aps.wavefront_analysis.launcher.launcher_manager import SHOW_LAUNCHER, create_launcher_manager
 
-class MainAbsolutePhase(GenericQTScript):
-    SCRIPT_ID = "Absolute-Phase"
+APPLICATION_NAME = "Launcher"
+
+class MainLauncher(GenericQTScript):
+    SCRIPT_ID = "Launcher"
 
     def _parse_additional_parameters(self, **kwargs):
-        __args = super(MainAbsolutePhase, self)._parse_additional_parameters(**kwargs)
+        __args = super(MainLauncher, self)._parse_additional_parameters(**kwargs)
         __args["INI_MODE"] = IniMode.LOCAL_JSON_FILE
-        __args["STANDALONE"] = kwargs.get("standalone", True)
 
         return __args
 
-    def _get_script_id(self): return MainAbsolutePhase.SCRIPT_ID
-    def _get_ini_file_name(self): return ".GUI_absolute_phase.json"
+    def _get_script_id(self): return MainLauncher.SCRIPT_ID
+    def _get_ini_file_name(self): return ".launcher.json"
     def _get_application_name(self): return APPLICATION_NAME
     def _get_script_package(self): return "aps.wavefront_analysis"
 
-    def activate_manager(self, **args):
+    def _run_script(self, **args):
+        plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
+
+        launcher_manager = create_launcher_manager(log_stream_widget=self._log_stream_widget,
+                                                   working_directory=self._working_directory)
+
         # ==========================================================================
         # %% Initialization parameters
         # ==========================================================================
+        args["sys_argv"] = self.sys_argv()
 
-        plotting_properties = PlottingProperties()
-        plotting_properties.set_parameter("add_context_label", False)
-        plotting_properties.set_parameter("use_unique_id", True)
-
-        unique_id = self.__absolute_phase_manager.activate_absolute_phase_manager(plotting_properties=plotting_properties, **args)
+        launcher_manager.activate_launcher_manager(**args)
 
         # ==========================================================================
         # %% Final Operations
@@ -91,19 +91,9 @@ class MainAbsolutePhase(GenericQTScript):
 
         # ==========================================================================
 
-        self.__plotter.raise_context_window(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id, close_button=False)
+        plotter.raise_context_window(context_key=SHOW_LAUNCHER, close_button=False)
 
-
-    def _run_script(self, **args):
-        self.__plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
-
-        self.__absolute_phase_manager = create_absolute_phase_manager(log_stream_widget=self._log_stream_widget,
-                                                                      working_directory=self._working_directory)
-
-
-        if not self.__plotter.is_active(): self.activate_manager(**args) # batch
-
-        return self.__absolute_phase_manager
+        if plotter.is_active(): get_registered_qt_application_instance().run_qt_application()
 
     def _parse_additional_sys_argument(self, sys_argument, args):
         if "-m" == sys_argument[:2]:   args["LOG_POOL"] = int(sys_argument[2:])
@@ -125,7 +115,7 @@ class MainAbsolutePhase(GenericQTScript):
     def _register_logger_instance(self, logger_mode, application_name, **args):
         self._manage_working_directory(**args)
 
-        log_stream_prefix = "absolute_phase"
+        log_stream_prefix = "launcher"
 
         if args.get("LOG_POOL") is None: args["LOG_POOL"] = 0
 
@@ -156,8 +146,9 @@ class MainAbsolutePhase(GenericQTScript):
                 register_logger_pool_instance(stream_list=[self._log_stream_default, self._log_stream_file],
                                               logger_mode=logger_mode, application_name=application_name)
 
+
 import os, sys
 
 if __name__=="__main__":
-    if os.getenv('OC_DEBUG', "0") == "1": MainAbsolutePhase(sys_argv=sys.argv).run_script()
-    else: MainAbsolutePhase().show_help()
+    if os.getenv('OC_DEBUG', "0") == "1": MainLauncher(sys_argv=sys.argv).run_script()
+    else: MainLauncher().show_help()

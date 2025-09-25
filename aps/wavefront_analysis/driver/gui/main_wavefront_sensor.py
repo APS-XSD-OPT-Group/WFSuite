@@ -44,44 +44,55 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
+import os
 import traceback
+
+from PyQt5.QtCore import Qt
 
 from aps.common.initializer import get_registered_ini_instance, IniMode
 from aps.common.plotter import get_registered_plotter_instance
 from aps.common.plot.qt_application import get_registered_qt_application_instance
 from aps.common.scripts.generic_qt_script import GenericQTScript
 from aps.common.widgets.log_stream_widget import LogStreamWidget
-from aps.common.widgets.context_widget import PlottingProperties
 from aps.common.logger import register_logger_pool_instance, register_logger_single_instance, DEFAULT_STREAM
 from aps.common.io.printout import datetime_now_str
 
-from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager import APPLICATION_NAME, SHOW_ABSOLUTE_PHASE, create_absolute_phase_manager
+from aps.wavefront_analysis.driver.gui.wavefront_sensor_manager import APPLICATION_NAME, SHOW_WAVEFRONT_SENSOR, create_wavefront_sensor_manager
 
-class MainAbsolutePhase(GenericQTScript):
-    SCRIPT_ID = "Absolute-Phase"
+class MainWavefrontSensor(GenericQTScript):
+    SCRIPT_ID = "Wavefront-Sensor"
 
     def _parse_additional_parameters(self, **kwargs):
-        __args = super(MainAbsolutePhase, self)._parse_additional_parameters(**kwargs)
+        __args = super(MainWavefrontSensor, self)._parse_additional_parameters(**kwargs)
         __args["INI_MODE"] = IniMode.LOCAL_JSON_FILE
         __args["STANDALONE"] = kwargs.get("standalone", True)
 
         return __args
 
-    def _get_script_id(self): return MainAbsolutePhase.SCRIPT_ID
-    def _get_ini_file_name(self): return ".GUI_absolute_phase.json"
+    def _get_script_id(self): return MainWavefrontSensor.SCRIPT_ID
+    def _get_ini_file_name(self): return ".GUI_wavefront_sensor.json"
     def _get_application_name(self): return APPLICATION_NAME
     def _get_script_package(self): return "aps.wavefront_analysis"
+
+    def _run_script(self, **args):
+        self.__plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
+
+        self.__wavefront_sensor_manager = create_wavefront_sensor_manager(log_stream_widget=self._log_stream_widget,
+                                                                          working_directory=self._working_directory)
+
+
+        if not self.__plotter.is_active(): raise ValueError("This application cann run only with a GUI")
+
+
+
+        return self.__wavefront_sensor_manager
 
     def activate_manager(self, **args):
         # ==========================================================================
         # %% Initialization parameters
         # ==========================================================================
 
-        plotting_properties = PlottingProperties()
-        plotting_properties.set_parameter("add_context_label", False)
-        plotting_properties.set_parameter("use_unique_id", True)
-
-        unique_id = self.__absolute_phase_manager.activate_absolute_phase_manager(plotting_properties=plotting_properties, **args)
+        self.__wavefront_sensor_manager.activate_wavefront_sensor_manager(**args)
 
         # ==========================================================================
         # %% Final Operations
@@ -91,19 +102,7 @@ class MainAbsolutePhase(GenericQTScript):
 
         # ==========================================================================
 
-        self.__plotter.raise_context_window(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id, close_button=False)
-
-
-    def _run_script(self, **args):
-        self.__plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
-
-        self.__absolute_phase_manager = create_absolute_phase_manager(log_stream_widget=self._log_stream_widget,
-                                                                      working_directory=self._working_directory)
-
-
-        if not self.__plotter.is_active(): self.activate_manager(**args) # batch
-
-        return self.__absolute_phase_manager
+        self.__plotter.raise_context_window(context_key=SHOW_WAVEFRONT_SENSOR, close_button=False)
 
     def _parse_additional_sys_argument(self, sys_argument, args):
         if "-m" == sys_argument[:2]:   args["LOG_POOL"] = int(sys_argument[2:])
@@ -125,7 +124,7 @@ class MainAbsolutePhase(GenericQTScript):
     def _register_logger_instance(self, logger_mode, application_name, **args):
         self._manage_working_directory(**args)
 
-        log_stream_prefix = "absolute_phase"
+        log_stream_prefix = "wavefront_sensor"
 
         if args.get("LOG_POOL") is None: args["LOG_POOL"] = 0
 
@@ -156,8 +155,6 @@ class MainAbsolutePhase(GenericQTScript):
                 register_logger_pool_instance(stream_list=[self._log_stream_default, self._log_stream_file],
                                               logger_mode=logger_mode, application_name=application_name)
 
-import os, sys
 
 if __name__=="__main__":
-    if os.getenv('OC_DEBUG', "0") == "1": MainAbsolutePhase(sys_argv=sys.argv).run_script()
-    else: MainAbsolutePhase().show_help()
+    MainWavefrontSensor().show_help()

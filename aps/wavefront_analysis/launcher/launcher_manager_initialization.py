@@ -1,9 +1,10 @@
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # ----------------------------------------------------------------------- #
-# Copyright (c) 2022, UChicago Argonne, LLC. All rights reserved.         #
+# Copyright (c) 2024, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2022. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2024. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -44,54 +45,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-import numpy as np
-from aps.common.driver.beamline.generic_camera import GenericCamera, CameraInitializationFile, get_default_file_name_prefix as __gdfnp, get_image_data as __gid, get_image_file_path as __gifp
 
-WAVEFRONT_SENSOR_STATUS_FILE = "wavefront_sensor_status.pkl"
+from aps.common.initializer import IniFacade
+from aps.common.scripts.script_data import ScriptData
 
-class WavefrontSensorInitializationFile(CameraInitializationFile):
-    @classmethod
-    def initialize(cls):
-        super().initialize(application_name="WAVEFRONT-SENSOR",
-                           ini_file_name=".wavefront_sensor.json")
+def generate_initialization_parameters_from_ini(ini: IniFacade):
+    return ScriptData()
 
-WavefrontSensorInitializationFile.initialize()
-WavefrontSensorInitializationFile.store()
-
-PIXEL_SIZE          = WavefrontSensorInitializationFile.PIXEL_SIZE
-DETECTOR_RESOLUTION = WavefrontSensorInitializationFile.DETECTOR_RESOLUTION
-INDEX_DIGITS        = WavefrontSensorInitializationFile.INDEX_DIGITS
-IS_STREAM_AVAILABLE = WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE
-
-def get_default_file_name_prefix(exposure_time=None):
-    return __gdfnp(exposure_time=(exposure_time if not exposure_time is None else WavefrontSensorInitializationFile.EXPOSURE_TIME))
-
-def get_image_data(measurement_directory, file_name_prefix, image_index: int, **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
-    return __gid(measurement_directory=measurement_directory,
-                 file_name_prefix=file_name_prefix,
-                 image_index=image_index,
-                 configuration_file=WavefrontSensorInitializationFile, **kwargs)
-
-def get_image_file_path(measurement_directory, file_name_prefix, image_index: int, **kwargs) -> str:
-    return __gifp(measurement_directory=measurement_directory,
-                  file_name_prefix=file_name_prefix,
-                  image_index=image_index,
-                  configuration_file=WavefrontSensorInitializationFile, **kwargs)
-
-class WavefrontSensor(GenericCamera):
-    def __init__(self,
-                 measurement_directory: str = None,
-                 exposure_time: int = None,
-                 status_file: str = WAVEFRONT_SENSOR_STATUS_FILE,
-                 file_name_prefix: str = None,
-                 detector_delay: float = None,
-                 mocking_mode: bool = False):
-        super(WavefrontSensor, self).__init__(
-            measurement_directory,
-            exposure_time,
-            status_file,
-            file_name_prefix,
-            detector_delay,
-            mocking_mode,
-            configuration_file=WavefrontSensorInitializationFile
-        )
+def set_ini_from_initialization_parameters(initialization_parameters: ScriptData, ini: IniFacade):
+    ini.push()

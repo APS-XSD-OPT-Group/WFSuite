@@ -49,51 +49,10 @@
 import os
 from aps.common.initializer import IniFacade
 from aps.common.scripts.script_data import ScriptData
-
-from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensorInitializationFile
+from aps.wavefront_analysis.driver.beamline.wavefront_sensor import WavefrontSensorInitializationFile
 from aps.wavefront_analysis.absolute_phase import wavefront_analyzer as WavefrontAnalyzerModule
 
-def get_data_from_int_to_string(data_from : int):
-    if   data_from == 0: return "stream"
-    elif data_from == 1: return "file"
-    else: raise ValueError("Data From not recognized")
-
-def get_data_from_string_to_int(data_from : str):
-    if   data_from == "stream": return 0
-    elif data_from == "file":   return 1
-    else: raise ValueError("Data From not recognized")
-
-def generate_initialization_parameters_from_ini(ini: IniFacade):    
-    # -----------------------------------------------------
-    # Wavefront Sensor
-
-    wavefront_sensor_configuration = {
-        "send_stop_command" : WavefrontSensorInitializationFile.SEND_STOP_COMMAND, 
-        "send_save_command" : WavefrontSensorInitializationFile.SEND_SAVE_COMMAND, 
-        "remove_image" : WavefrontSensorInitializationFile.REMOVE_IMAGE, 
-        "wait_time" : WavefrontSensorInitializationFile.WAIT_TIME, 
-        "exposure_time" : WavefrontSensorInitializationFile.EXPOSURE_TIME, 
-        "pause_after_shot" : WavefrontSensorInitializationFile.PAUSE_AFTER_SHOT,
-        "pixel_format" : WavefrontSensorInitializationFile.PIXEL_FORMAT,
-        "index_digits" : WavefrontSensorInitializationFile.INDEX_DIGITS, 
-        "is_stream_available" : WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE, 
-        "transpose_stream_ima" : WavefrontSensorInitializationFile.TRANSPOSE_STREAM_IMAGE, 
-        "pixel_size" : WavefrontSensorInitializationFile.PIXEL_SIZE, 
-        "detector_resolution" : WavefrontSensorInitializationFile.DETECTOR_RESOLUTION, 
-        "cam_pixel_format" : WavefrontSensorInitializationFile.CAM_PIXEL_FORMAT, 
-        "cam_acquire" : WavefrontSensorInitializationFile.CAM_ACQUIRE, 
-        "cam_exposure_time" : WavefrontSensorInitializationFile.CAM_EXPOSURE_TIME, 
-        "cam_image_mode" : WavefrontSensorInitializationFile.CAM_IMAGE_MODE, 
-        "tiff_enable_callback" : WavefrontSensorInitializationFile.TIFF_ENABLE_CALLBACKS, 
-        "tiff_filename" : WavefrontSensorInitializationFile.TIFF_FILENAME, 
-        "tiff_filepath" : WavefrontSensorInitializationFile.TIFF_FILEPATH, 
-        "tiff_filenumber" : WavefrontSensorInitializationFile.TIFF_FILENUMBER, 
-        "tiff_autosave" : WavefrontSensorInitializationFile.TIFF_AUTOSAVE, 
-        "tiff_savefile" : WavefrontSensorInitializationFile.TIFF_SAVEFILE, 
-        "tiff_autoincrement" : WavefrontSensorInitializationFile.TIFF_AUTOINCREMENT, 
-        "pva_image" : WavefrontSensorInitializationFile.PVA_IMAGE
-    }
-
+def generate_initialization_parameters_from_ini(ini: IniFacade):
     # -----------------------------------------------------
     # Wavefront Analyzer
 
@@ -178,18 +137,16 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
     }
 
     # Here GUI specific ini
-
-    wavefront_sensor_image_directory       = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory",       default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
-    wavefront_sensor_image_directory_batch = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory-Batch", default=os.path.abspath(os.path.join(os.path.curdir, "wf_images")))
-    simulated_mask_directory               = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory",               default=os.path.abspath(os.path.join(os.path.curdir, "wf_images", "simulated_mask")))
-    simulated_mask_directory_batch         = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory-Batch",         default=os.path.abspath(os.path.join(os.path.curdir, "wf_images", "simulated_mask")))
+    wavefront_sensor_image_directory       = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory",       default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images")))
+    wavefront_sensor_image_directory_batch = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory-Batch", default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images")))
+    simulated_mask_directory               = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory",               default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images", "simulated_mask")))
+    simulated_mask_directory_batch         = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory-Batch",         default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images", "simulated_mask")))
 
     use_flat                         = ini.get_boolean_from_ini("Wavefront-Analyzer", "Use-Flat", default=False)
     use_dark                         = ini.get_boolean_from_ini("Wavefront-Analyzer", "Use-Dark", default=False)
     save_images                      = ini.get_boolean_from_ini("Wavefront-Analyzer", "Save-Images", default=True)
     plot_raw_image                   = ini.get_boolean_from_ini("Wavefront-Analyzer", "Plot-Raw-Image", default=True)
-    plot_rebinning_factor            = ini.get_int_from_ini("Wavefront-Analyzer", "Plot-Rebinning-Factor", default=4)
-    data_from                        = ini.get_int_from_ini("Wavefront-Analyzer",     "Data-From", default=1) # file
+    plot_rebinning_factor            = ini.get_int_from_ini(    "Wavefront-Analyzer", "Plot-Rebinning-Factor", default=4)
     bp_calibration_mode              = ini.get_boolean_from_ini("Wavefront-Analyzer", "Back-Propagation-Calibration-Mode", default=False)
     bp_plot_shift                    = ini.get_boolean_from_ini("Wavefront-Analyzer", "Back-Propagation-Plot-Shift", default=True)
 
@@ -202,46 +159,12 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
                       save_images=save_images,
                       plot_raw_image=plot_raw_image,
                       plot_rebinning_factor=plot_rebinning_factor,
-                      data_from=data_from,
                       bp_calibration_mode=bp_calibration_mode,
                       bp_plot_shift=bp_plot_shift,
-                      wavefront_sensor_configuration=wavefront_sensor_configuration,
                       wavefront_analyzer_configuration=wavefront_analyzer_configuration)
 
 
 def set_ini_from_initialization_parameters(initialization_parameters: ScriptData, ini: IniFacade):
-    # -----------------------------------------------------
-    # Wavefront Sensor
-
-    wavefront_sensor_configuration   = initialization_parameters.get_parameter("wavefront_sensor_configuration")
-
-    WavefrontSensorInitializationFile.SEND_STOP_COMMAND      = wavefront_sensor_configuration["send_stop_command"]
-    WavefrontSensorInitializationFile.SEND_SAVE_COMMAND      = wavefront_sensor_configuration["send_save_command"]
-    WavefrontSensorInitializationFile.REMOVE_IMAGE           = wavefront_sensor_configuration["remove_image"]
-    WavefrontSensorInitializationFile.WAIT_TIME              = wavefront_sensor_configuration["wait_time"]
-    WavefrontSensorInitializationFile.EXPOSURE_TIME          = wavefront_sensor_configuration["exposure_time"]
-    WavefrontSensorInitializationFile.PAUSE_AFTER_SHOT       = wavefront_sensor_configuration["pause_after_shot"]
-    WavefrontSensorInitializationFile.PIXEL_FORMAT           = wavefront_sensor_configuration["pixel_format"]
-    WavefrontSensorInitializationFile.INDEX_DIGITS           = wavefront_sensor_configuration["index_digits"]
-    WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE    = wavefront_sensor_configuration["is_stream_available"]
-    WavefrontSensorInitializationFile.TRANSPOSE_STREAM_IMAGE = wavefront_sensor_configuration["transpose_stream_ima"]
-    WavefrontSensorInitializationFile.PIXEL_SIZE             = wavefront_sensor_configuration["pixel_size"]
-    WavefrontSensorInitializationFile.DETECTOR_RESOLUTION    = wavefront_sensor_configuration["detector_resolution"]
-    WavefrontSensorInitializationFile.CAM_PIXEL_FORMAT       = wavefront_sensor_configuration["cam_pixel_format"]
-    WavefrontSensorInitializationFile.CAM_ACQUIRE            = wavefront_sensor_configuration["cam_acquire"]
-    WavefrontSensorInitializationFile.CAM_EXPOSURE_TIME      = wavefront_sensor_configuration["cam_exposure_time"]
-    WavefrontSensorInitializationFile.CAM_IMAGE_MODE         = wavefront_sensor_configuration["cam_image_mode"]
-    WavefrontSensorInitializationFile.TIFF_ENABLE_CALLBACKS  = wavefront_sensor_configuration["tiff_enable_callback"]
-    WavefrontSensorInitializationFile.TIFF_FILENAME          = wavefront_sensor_configuration["tiff_filename"]
-    WavefrontSensorInitializationFile.TIFF_FILEPATH          = wavefront_sensor_configuration["tiff_filepath"]
-    WavefrontSensorInitializationFile.TIFF_FILENUMBER        = wavefront_sensor_configuration["tiff_filenumber"]
-    WavefrontSensorInitializationFile.TIFF_AUTOSAVE          = wavefront_sensor_configuration["tiff_autosave"]
-    WavefrontSensorInitializationFile.TIFF_SAVEFILE          = wavefront_sensor_configuration["tiff_savefile"]
-    WavefrontSensorInitializationFile.TIFF_AUTOINCREMENT     = wavefront_sensor_configuration["tiff_autoincrement"]
-    WavefrontSensorInitializationFile.PVA_IMAGE              = wavefront_sensor_configuration["pva_image"]
-
-    WavefrontSensorInitializationFile.store()
-    
     # -----------------------------------------------------
     # Wavefront Analyzer
 
@@ -264,8 +187,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     WavefrontAnalyzerModule.CROP = data_analysis_configuration["crop"]
     WavefrontAnalyzerModule.ESTIMATION_METHOD = data_analysis_configuration["estimation_method"]     
     WavefrontAnalyzerModule.PROPAGATOR = data_analysis_configuration["propagator"]            
-    WavefrontAnalyzerModule.IMAGE_OPS = data_analysis_configuration["image_ops"]             
-    WavefrontAnalyzerModule.CALIBRATION_PATH = data_analysis_configuration["calibration_path"]      
+    WavefrontAnalyzerModule.CALIBRATION_PATH = data_analysis_configuration["calibration_path"]
     WavefrontAnalyzerModule.MODE = data_analysis_configuration["mode"]                  
     WavefrontAnalyzerModule.LINE_WIDTH = data_analysis_configuration["line_width"]            
     WavefrontAnalyzerModule.REBINNING = data_analysis_configuration["rebinning"]             
@@ -340,7 +262,6 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     ini.set_value_at_ini("Wavefront-Analyzer", "Save-Images", value=initialization_parameters.get_parameter("save_images"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Plot-Raw-Image", value=initialization_parameters.get_parameter("plot_raw_image"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Plot-Rebinning-Factor", value=initialization_parameters.get_parameter("plot_rebinning_factor"))
-    ini.set_value_at_ini("Wavefront-Analyzer", "Data-From", value=initialization_parameters.get_parameter("data_from"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Back-Propagation-Calibration-Mode", value=initialization_parameters.get_parameter("bp_calibration_mode"))
     ini.set_value_at_ini("Wavefront-Analyzer", "Back-Propagation-Plot-Shift", value=initialization_parameters.get_parameter("bp_plot_shift"))
 

@@ -58,11 +58,11 @@ from aps.wavefront_analysis.absolute_phase.legacy.process_images_executor import
 from aps.wavefront_analysis.absolute_phase.legacy.back_propagation_executor import execute_back_propagation
 
 from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer, ProcessingMode, MAX_THREADS
-from aps.wavefront_analysis.driver.wavefront_sensor import get_default_file_name_prefix, get_image_data, \
+from aps.wavefront_analysis.driver.beamline.wavefront_sensor import get_default_file_name_prefix, get_image_data, \
     PIXEL_SIZE, DETECTOR_RESOLUTION, INDEX_DIGITS
 
 from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
-from aps.common.plot.image import apply_transformations
+
 
 APPLICATION_NAME = "WAVEFRONT-ANALYSIS"
 
@@ -283,14 +283,10 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
         return image_transfer_matrix, is_new_mask
 
     def get_wavefront_data(self, image_index: int, data_collection_directory: str = None, **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
-        image_ops = kwargs.get("image_ops", [])
-
         image, hh, vv = get_image_data(measurement_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
                                        file_name_prefix=self.__file_name_prefix,
                                        image_index=image_index,
-                                       **(kwargs))
-        hh, vv, image = apply_transformations(hh, vv, image, image_ops)
-
+                                       **kwargs)
         return hh, vv, image
 
 
