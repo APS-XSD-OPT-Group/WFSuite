@@ -427,8 +427,13 @@ class pattern_search:
                     number_of_iterations, termination_eps)
 
         # Run the ECC algorithm. The results are stored in warp_matrix.
-        (cc, warp_matrix) = cv2.findTransformECC(im1, im2, warp_matrix,
-                                                 warp_mode, criteria)
+
+
+        try:
+            # Run the ECC algorithm
+            (cc, warp_matrix) = cv2.findTransformECC(im1, im2, warp_matrix, warp_mode, criteria)
+        except cv2.error as e:
+            raise Exception(f"ECC algorithm failed to converge:\n{e}")
 
         # assuming the affine transformation matrix as ski-image package order: https://scikit-image.org/docs/stable/api/skimage.transform.html#skimage.transform.AffineTransform
 
