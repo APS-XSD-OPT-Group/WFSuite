@@ -85,6 +85,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
     take_shot_received = pyqtSignal()
     take_shot_as_flat_image_received = pyqtSignal()
     read_image_from_file_received = pyqtSignal()
+    image_directory_changed_received = pyqtSignal(str)
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -106,6 +107,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
             "take_shot":               self.take_shot_received,
             "take_shot_as_flat_image": self.take_shot_as_flat_image_received,
             "read_image_from_file":    self.read_image_from_file_received,
+            "image_directory_changed": self.image_directory_changed_received,
         }
 
     def activate_wavefront_sensor_manager(self, plotting_properties=PlottingProperties(), **kwargs):
@@ -130,6 +132,8 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
                                                 take_shot_as_flat_image_signal=self.take_shot_as_flat_image_received,
                                                 read_image_from_file_method=self.read_image_from_file,
                                                 read_image_from_file_signal=self.read_image_from_file_received,
+                                                image_directory_changed_method=self.image_directory_changed,
+                                                image_directory_changed_signal=self.image_directory_changed_received,
                                                 allows_saving=False,
                                                 **kwargs)
 
@@ -149,7 +153,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
 
         try:
             wavefront_sensor_configuration = initialization_parameters.get_parameter("wavefront_sensor_configuration")
-            self.__wavefront_sensor = create_wavefront_sensor(measurement_directory=wavefront_sensor_configuration["default_image_directory"])
+            self.__wavefront_sensor = create_wavefront_sensor(measurement_directory=wavefront_sensor_configuration["current_image_directory"])
         except Exception as e:
             self.__wavefront_sensor = None
             raise e
@@ -166,6 +170,9 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
         image, hh, vv = get_image_data(image_index=1, units="mm")
 
         return hh, vv, image
+
+    def image_directory_changed(self, initialization_parameters: ScriptData):
+        set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
 
     # --------------------------------------------------------------------------------------
     # PRIVATE METHODS

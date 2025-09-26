@@ -75,9 +75,9 @@ class IAbsolutePhaseManager(GenericProcessManager):
     def take_shot(self): raise NotImplementedError() # delegated
     def take_shot_as_flat_image(self): raise NotImplementedError() # delegated
     def read_from_file(self): raise NotImplementedError() # delegated
-    def generate_mask_from_file(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
-    def process_image_from_file(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
-    def back_propagate_from_file(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
+    def generate_mask(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
+    def process_image(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
+    def back_propagate(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
 
 def create_absolute_phase_manager(**kwargs): return _AbsolutePhaseManager(**kwargs)
 
@@ -112,6 +112,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
             "take_shot":               self.take_shot_sent,
             "take_shot_as_flat_image": self.take_shot_as_flat_image_sent,
             "read_image_from_file":    self.read_image_from_file_sent,
+            "image_directory_changed": self.image_directory_changed_sent,
         }
 
     def activate_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs):
@@ -131,17 +132,20 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
                                                                        working_directory=self.__working_directory,
                                                                        initialization_parameters=initialization_parameters,
                                                                        close_method=self.close,
+                                                                       image_directory_changed_method=self.image_directory_changed,
                                                                        take_shot_method=self.take_shot,
                                                                        take_shot_as_flat_image_method=self.take_shot_as_flat_image,
                                                                        read_image_from_file_method=self.read_image_from_file,
-                                                                       generate_mask_from_file_method=self.generate_mask_from_file,
-                                                                       process_image_from_file_method=self.process_image_from_file,
-                                                                       back_propagate_from_file_method=self.back_propagate_from_file,
+                                                                       generate_mask_method=self.generate_mask,
+                                                                       process_image_method=self.process_image,
+                                                                       back_propagate_method=self.back_propagate,
                                                                        allows_saving=False,
                                                                        **kwargs)
 
             self.__plotter.draw_context(SHOW_ABSOLUTE_PHASE, add_context_label=add_context_label, unique_id=unique_id, **kwargs)
             self.__plotter.show_context_window(SHOW_ABSOLUTE_PHASE, unique_id)
+
+            self.image_directory_changed(initialization_parameters) # change directory at startup
 
             self.__forms_registry[plot_widget_instance] = unique_id
         else:
@@ -174,6 +178,10 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
 
             self.__plotter.get_context_container_widget(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id).parent().close()
 
+    def image_directory_changed(self, initialization_parameters: ScriptData):
+        self.image_directory_changed_sent.emit("image_directory_changed",
+                                               initialization_parameters.get_parameter("wavefront_sensor_image_directory"))
+
     def take_shot(self):
         self.take_shot_sent.emit("take_shot")
 
@@ -183,43 +191,25 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
     def read_image_from_file(self):
         self.read_image_from_file_sent.emit("read_image_from_file")
 
-    def generate_mask_from_file(self, initialization_parameters: ScriptData):
-        image_ops, data_from = self.__set_wavefront_ready(initialization_parameters)
-
-        if data_from == "stream":
-            _, _, image = self.__load_stream_image(initialization_parameters)
-            image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_data=image, 
-                                                                                                   use_dark=initialization_parameters.get_parameter("use_dark", False),
-                                                                                                   use_flat=initialization_parameters.get_parameter("use_flat", False))
-        elif data_from == "file":
-            image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1, 
-                                                                                                   use_dark=initialization_parameters.get_parameter("use_dark", False),
-                                                                                                   use_flat=initialization_parameters.get_parameter("use_flat", False))
+    def generate_mask(self, initialization_parameters: ScriptData):
+        self.__set_wavefront_ready(initialization_parameters)
+        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1,
+                                                                                               use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                                                               use_flat=initialization_parameters.get_parameter("use_flat", False))
 
         if not is_new_mask: raise ValueError("Simulated Mask is already present in the Wavefront Image Directory")
         else:               return image_transfer_matrix
 
-    def process_image_from_file(self, initialization_parameters: ScriptData):
-        image_ops, data_from = self.__set_wavefront_ready(initialization_parameters)
-        
-        if data_from == "stream":
-            _, _, image = self.__load_stream_image(initialization_parameters)
-            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
-                                                                                 image_data=image,
-                                                                                 image_ops=image_ops,
-                                                                                 use_dark=initialization_parameters.get_parameter("use_dark", False),
-                                                                                 use_flat=initialization_parameters.get_parameter("use_flat", False),
-                                                                                 save_images=initialization_parameters.get_parameter("save_result", True))
-        else:
-            wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
-                                                                                 image_ops=image_ops,
-                                                                                 use_dark=initialization_parameters.get_parameter("use_dark", False),
-                                                                                 use_flat=initialization_parameters.get_parameter("use_flat", False),
-                                                                                 save_images=initialization_parameters.get_parameter("save_result", True))
+    def process_image(self, initialization_parameters: ScriptData):
+        self.__set_wavefront_ready(initialization_parameters)
+        wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
+                                                                             use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                                             use_flat=initialization_parameters.get_parameter("use_flat", False),
+                                                                             save_images=initialization_parameters.get_parameter("save_result", True))
 
         return wavefront_at_detector_data
 
-    def back_propagate_from_file(self, initialization_parameters: ScriptData, **kwargs):
+    def back_propagate(self, initialization_parameters: ScriptData, **kwargs):
         self.__set_wavefront_ready(initialization_parameters)
         propagated_wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
                                                                                        show_figure=False,
@@ -254,47 +244,3 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
         if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory,
                                                                            simulated_mask_directory=simulated_mask_directory,
                                                                            energy=energy)
-
-    def __backup_image_file(self, initialization_parameters, data_from, flat=False):
-        index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
-        data_collection_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
-
-        if data_from == "stream":
-            file_path = os.path.join(data_collection_directory,
-                                     f"stream_image_%0{index_digits}i.json" % 1 if not flat \
-                                         else f"flat_stream_image_%0{index_digits}i.json" % 1)
-        elif data_from == "file":
-            file_path = self.__wavefront_sensor.get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index=1)
-            file_path = os.path.join(os.path.dirname(file_path),
-                                     os.path.basename(file_path) if not flat \
-                                         else "flat_" + os.path.basename(file_path))
-
-        if os.path.exists(file_path): shutil.copyfile(file_path, file_path + ".bkp")
-
-    def __save_stream_image(self, h_coord, v_coord, image, initialization_parameters, flat=False):
-        index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
-        data_collection_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
-
-        data_dict = {"h_coord" : {"array" : h_coord.tolist(), "shape" : h_coord.shape, "dtype" : str(h_coord.dtype)}, 
-                     "v_coord" : {"array" : v_coord.tolist(), "shape" : v_coord.shape, "dtype" : str(v_coord.dtype)},
-                     "image"   : {"array" : image.flatten().tolist(), "shape" : image.shape, "dtype" : str(image.dtype)}}
-
-        file_name = os.path.join(data_collection_directory, f"stream_image_%0{index_digits}i.json" % 1) if not flat else \
-                    os.path.join(data_collection_directory, f"flat_stream_image_%0{index_digits}i.json" % 1)
-
-        with open(file_name, "w") as f: json.dump(data_dict, f)
-
-    def __load_stream_image(self, initialization_parameters):
-        index_digits              = initialization_parameters.get_parameter("wavefront_sensor_configuration")["index_digits"]
-        data_collection_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory")
-
-        with open(os.path.join(data_collection_directory, f"stream_image_%0{index_digits}i.json" % 1), 'r') as f: data_dict = json.load(f)
-
-        h_coord = np.array(data_dict["h_coord"]["array"], dtype=data_dict["h_coord"]['dtype'])
-        h_coord = h_coord.reshape(data_dict["h_coord"]["shape"])
-        v_coord = np.array(data_dict["v_coord"]["array"], dtype=data_dict["v_coord"]['dtype'])
-        v_coord = v_coord.reshape(data_dict["v_coord"]["shape"])
-        image = np.array(data_dict["image"]["array"], dtype=data_dict["image"]['dtype'])
-        image = image.reshape(data_dict["image"]["shape"])
-
-        return h_coord, v_coord, image

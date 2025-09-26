@@ -44,32 +44,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-import copy
-import sys
-
-import numpy as np
-
 from aps.common.plot import gui
 from aps.common.plot.gui import MessageDialog
 from aps.common.widgets.generic_widget import GenericWidget
 from aps.common.widgets.congruence import *
-from aps.common.scripts.script_data import ScriptData
-from aps.common.utilities import list_to_string, string_to_list
 
-from matplotlib.figure import Figure
-from matplotlib.ticker import FuncFormatter
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
-from matplotlib.widgets import RectangleSelector
-from matplotlib.gridspec import GridSpec
-from cmasher import cm as cmm
-
-from PyQt5.QtWidgets import QWidget, QPushButton, QApplication, QHBoxLayout, QVBoxLayout, QScrollArea, QSlider
-from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
-
-from aps.common.plot.event_dispatcher import EventDispacther
-from aps.common.driver.beamline.generic_camera import get_data_from_int_to_string, get_data_from_string_to_int
-from aps.wavefront_analysis.common.gui.util import ShowWaitDialog
+from PyQt5.QtWidgets import QVBoxLayout
+from PyQt5.QtCore import QRect, Qt
+from PyQt5.QtGui import QFont, QPalette, QColor
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -80,9 +62,9 @@ class LauncherWidget(GenericWidget):
     def __init__(self, parent, application_name: str, **kwargs):
         super(LauncherWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
 
-        self._open_absolute_phase = kwargs["open_absolute_phase_method"]
-        self._open_wavelets       = kwargs["open_wavelets_method"]
-        self._close               = kwargs["close_method"]
+        self._open_absolute_phase         = kwargs["open_absolute_phase_method"]
+        self._open_wavelets               = kwargs["open_wavelets_method"]
+        self._close                       = kwargs["close_method"]
         self.__initialization_parameters  = kwargs["initialization_parameters"]
 
         self.set_values_from_initialization_parameters(self.__initialization_parameters)
@@ -94,7 +76,7 @@ class LauncherWidget(GenericWidget):
 
     def build_widget(self, **kwargs):
         try:    widget_width = kwargs["widget_width"]
-        except: widget_width = 520
+        except: widget_width = 320
         try:    widget_height = kwargs["widget_height"]
         except: widget_height = 350
 
@@ -106,17 +88,26 @@ class LauncherWidget(GenericWidget):
         self.setFixedWidth(widget_width)
         self.setFixedHeight(widget_height)
 
+        current = self
+        while current is not None:
+
+            parent = current.parent()
+
+            if not parent is None: print(parent.size())
+
+            current = parent
+
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignLeft)
         self.setLayout(layout)
 
-        button_width = self.width() - 23
-        button_height = 50
-        font_size = 20
-        separator = 10
-        tab_box_width = self.width() - 23
+        button_width      = self.width() - 23
+        button_height    = 50
+        font_size        = 20
+        separator        = 10
+        tab_box_width    = self.width() - 23
         close_box_height = 60
-        main_box_height = self.height() - close_box_height
+        main_box_height  = self.height() - close_box_height
 
         def set_button(button, italic=False, bold=False, color=None):
             font = QFont(button.font())
@@ -149,7 +140,6 @@ class LauncherWidget(GenericWidget):
 
         button = gui.button(collection_box, None, "Wavelets", callback=self.__open_wavelets_callback, width=button_width, height=button_height)
         set_button(button)
-
 
     def __open_absolute_phase_callback(self):
         try: self._open_absolute_phase(self.__initialization_parameters)

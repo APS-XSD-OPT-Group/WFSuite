@@ -72,6 +72,8 @@ from aps.wavefront_analysis.spinnet.speckle_displacement.SPINNet_estimate import
 from aps.wavefront_analysis.absolute_phase.legacy.WXST_simplified import WXST, save_data, save_figure, save_figure_1D
 from aps.wavefront_analysis.absolute_phase.legacy.diffraction_process import prop_TF_2d
 
+from aps.common.driver.beamline.generic_camera import get_image_data
+
 from matplotlib import pyplot as plt
 
 import threading
@@ -1041,7 +1043,6 @@ def execute_process_image(**arguments):
     arguments["dark"]                  = arguments.get("dark", None) # file path to the dark image
     arguments["flat"]                  = arguments.get("flat", None) # file path to the flat image
     arguments["image_data"]            = arguments.get("image_data", None) # numpy array with the image data from streaming
-    arguments["image_ops"]             = arguments.get("image_ops", [])
     arguments["result_folder"]         = arguments.get("result_folder", './images/results') # saving folder
     arguments["pattern_path"]          = arguments.get("pattern_path", './mask/RanMask5umB0.npy') # path to mask design pattern
     arguments["propagated_pattern"]    = arguments.get("propagated_pattern", './images/propagated_pattern.npz') # if None, will create one in the data folder
@@ -1166,8 +1167,15 @@ def execute_process_image(**arguments):
 
     # =====================  start to find the pattern   ================================================
 
-    if args.image_data is None: _, _, I_img_raw = apply_transformations(None, None, load_image(file_img), args.image_ops)
-    else:                       _, _, I_img_raw = apply_transformations(None, None, args.image_data, args.image_ops)
+    def _load_image(file_img):
+        extension = os.path.splitext(file_img.lower())[1]
+        if   extension == ".tif":  return load_image(file_img)
+        elif extension == ".hdf5":
+            _, _, image = get_image_data(file_img)
+            return image
+
+    if args.image_data is None: I_img_raw = _load_image(file_img)
+    else:                       I_img_raw = args.image_data
 
     #I_img_raw = I_img_raw.T
 
@@ -1192,26 +1200,17 @@ def execute_process_image(**arguments):
         para_simulation['det_size'] = [int(I_img_raw.shape[0]), int(I_img_raw.shape[1])]
         para_simulation['p_x']      = args.p_x
 
-    def load_stream_image(file_name):
-        with open(file_name, 'r') as f: data_dict = json.load(f)
 
-        image = np.array(data_dict["image"]["array"], dtype=data_dict["image"]['dtype'])
-        image = image.reshape(data_dict["image"]["shape"])
-
-        return image
-
-    if args.dark is None: dark = np.zeros(I_img_raw.shape)
+    if args.dark is None:
+        dark = np.zeros(I_img_raw.shape)
     else:
-        if os.path.splitext(str(args.dark).lower())[1] == ".json": dark = load_stream_image(args.dark)
-        else:                                                  dark = load_image(args.dark)
-
+        dark = _load_image(args.dark)
         if args.rebinning > 1: _, _, dark = rebin_2D(None, None, dark, args.rebinning, exact=True)
 
-    if args.flat is None: flat = snd.uniform_filter(I_img_raw, size = 10 * (args.pattern_size / args.p_x))  # XSHI Feb 2024 change from 5 to 10
+    if args.flat is None:
+        flat = snd.uniform_filter(I_img_raw, size = 10 * (args.pattern_size / args.p_x))  # XSHI Feb 2024 change from 5 to 10
     else:
-        if os.path.splitext(str(args.flat).lower())[1] == ".json": flat = load_stream_image(args.flat)
-        else:                                                  flat = load_image(args.flat)
-
+        flat = _load_image(args.flat)
         if args.rebinning > 1: _, _, flat = rebin_2D(None, None, flat, args.rebinning, exact=True)
 
     if len(args.crop) == 4:

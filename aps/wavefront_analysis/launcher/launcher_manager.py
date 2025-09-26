@@ -44,13 +44,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-import json
-import os.path
 import sys
-import shutil
 
-import numpy as np
-from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtCore import QObject
 
 from aps.common.scripts.generic_process_manager import GenericProcessManager
 from aps.common.widgets.context_widget import PlottingProperties, DefaultMainWindow
@@ -58,7 +54,6 @@ from aps.common.plotter import get_registered_plotter_instance
 from aps.common.initializer import get_registered_ini_instance
 from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
-from aps.common.driver.beamline.generic_camera import get_data_from_int_to_string
 from aps.common.plot.event_dispatcher import EventDispacther
 
 from aps.wavefront_analysis.launcher.launcher_manager_initialization import generate_initialization_parameters_from_ini, set_ini_from_initialization_parameters

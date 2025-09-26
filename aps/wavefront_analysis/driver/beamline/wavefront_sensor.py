@@ -64,11 +64,11 @@ class WavefrontSensorInitializationFile(CameraInitializationFile):
 WavefrontSensorInitializationFile.initialize()
 WavefrontSensorInitializationFile.store()
 
-PIXEL_SIZE          = WavefrontSensorInitializationFile.PIXEL_SIZE
-DETECTOR_RESOLUTION = WavefrontSensorInitializationFile.DETECTOR_RESOLUTION
-INDEX_DIGITS        = WavefrontSensorInitializationFile.INDEX_DIGITS
-IS_STREAM_AVAILABLE = WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE
-
+def __getattr__(name):
+    if   name == 'PIXEL_SIZE':          return WavefrontSensorInitializationFile.PIXEL_SIZE
+    elif name == 'DETECTOR_RESOLUTION': return WavefrontSensorInitializationFile.DETECTOR_RESOLUTION
+    elif name == 'INDEX_DIGITS':        return WavefrontSensorInitializationFile.INDEX_DIGITS
+    else: raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 def get_default_file_name_prefix(exposure_time=None):
     return __gdfnp(exposure_time=(exposure_time if not exposure_time is None else WavefrontSensorInitializationFile.EXPOSURE_TIME))
@@ -81,7 +81,7 @@ def get_image_data(measurement_directory=None,
                                     file_name_prefix=file_name_prefix,
                                     image_index=image_index,
                                     index_digits=index_digits,
-                                    extension="json",
+                                    extension="hdf5",
                                     **kwargs)
 
     if os.path.exists(file_name): return __gid(file_name)
@@ -106,8 +106,7 @@ def get_image_data(measurement_directory=None,
                                                                          pixel_size=pixel_size,
                                                                          image_ops=image_ops,
                                                                          **kwargs)
-
-            with open(file_name, "w") as f: json.dump(GenericCamera._get_data_dict(h_coord, image, v_coord), f)
+            GenericCamera._store_image_data(h_coord, v_coord, image, file_name)
 
             return image, h_coord, v_coord
         else:

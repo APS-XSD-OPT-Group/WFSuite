@@ -58,8 +58,7 @@ from aps.wavefront_analysis.absolute_phase.legacy.process_images_executor import
 from aps.wavefront_analysis.absolute_phase.legacy.back_propagation_executor import execute_back_propagation
 
 from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer, ProcessingMode, MAX_THREADS
-from aps.wavefront_analysis.driver.beamline.wavefront_sensor import get_default_file_name_prefix, get_image_data, \
-    PIXEL_SIZE, DETECTOR_RESOLUTION, INDEX_DIGITS
+import aps.wavefront_analysis.driver.beamline.wavefront_sensor as ws
 
 from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
 
@@ -261,7 +260,7 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
                  simulated_mask_directory=None,
                  energy=ENERGY):
         self.__data_collection_directory = data_collection_directory
-        self.__file_name_prefix          = file_name_prefix if not file_name_prefix is None else get_default_file_name_prefix()
+        self.__file_name_prefix          = file_name_prefix if not file_name_prefix is None else ws.get_default_file_name_prefix()
         self.__simulated_mask_directory  = simulated_mask_directory
         self.__energy                    = energy
 
@@ -283,10 +282,10 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
         return image_transfer_matrix, is_new_mask
 
     def get_wavefront_data(self, image_index: int, data_collection_directory: str = None, **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
-        image, hh, vv = get_image_data(measurement_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
-                                       file_name_prefix=self.__file_name_prefix,
-                                       image_index=image_index,
-                                       **kwargs)
+        image, hh, vv = ws.get_image_data(measurement_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
+                                          file_name_prefix=self.__file_name_prefix,
+                                          image_index=image_index,
+                                          **kwargs)
         return hh, vv, image
 
 
@@ -303,8 +302,12 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
 
         if mode == ProcessingMode.LIVE:
             for file in os.listdir(data_collection_directory):
-                if pathlib.Path(file).suffix == ".tif" and self.__file_name_prefix in file:
-                    self.process_image(image_index=int(file.split('.tif')[0][-INDEX_DIGITS:]), verbose=kwargs.get("verbose", False))
+
+                if   pathlib.Path(file).suffix == ".tif" and self.__file_name_prefix in file: extension = ".tif"
+                elif pathlib.Path(file).suffix == ".hdf5" and self.__file_name_prefix in file: extension = ".hdf5"
+                else: continue
+
+                self.process_image(image_index=int(file.split(extension)[0][-ws.INDEX_DIGITS:]), verbose=kwargs.get("verbose", False))
         else:
             os.environ["CUDA_VISIBLE_DEVICES"] = "{}".format(1)
 
@@ -362,11 +365,11 @@ class ProcessingThread(Thread):
         result_folder_list = [os.path.basename(f) for f in result_folder_list]
 
         for image in images_list:
-            image_directory = os.path.basename(image).split('.tif')[0]
+            image_directory = os.path.basename(image).split(pathlib.Path(image).suffix)[0]
             if image_directory in result_folder_list:
                 continue
             else:
-                image_indexes.append(int(image_directory[-INDEX_DIGITS:]))
+                image_indexes.append(int(image_directory[-ws.INDEX_DIGITS:]))
         return image_indexes
 
     def run(self):
@@ -374,7 +377,11 @@ class ProcessingThread(Thread):
         waiting_cycles     = 0
 
         while waiting_cycles < max_waiting_cycles:
-            images_list = glob.glob(os.path.join(self.__data_collection_directory, self.__file_name_prefix + '_*.tif'), recursive=False)
+            images_list_tif  = glob.glob(os.path.join(self.__data_collection_directory, self.__file_name_prefix + '_*.tif'), recursive=False)
+            images_list_hdf5 = glob.glob(os.path.join(self.__data_collection_directory, self.__file_name_prefix + '_*.hdf5'), recursive=False)
+
+            images_list = list(set(images_list_tif + images_list_hdf5))
+
             if len(images_list) == 0:
                 waiting_cycles += 1
                 print('Thread #' + str(self.__thread_id) + ' waiting for 1s for new data....')
@@ -400,7 +407,7 @@ class ProcessingThread(Thread):
         print('Thread #' + str(self.__thread_id) + ' completed')
 
 def _process_image(data_collection_directory, file_name_prefix, mask_directory, energy, image_index, **kwargs):
-    index_digits = kwargs.get("index_digits", INDEX_DIGITS)
+    index_digits = kwargs.get("index_digits", ws.INDEX_DIGITS)
     verbose      = kwargs.get("verbose", False)
     img          = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
     image_data   = kwargs.get("image_data", None)
@@ -440,8 +447,8 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
                                  crop=kwargs.get("crop", CROP),
                                  img_transfer_matrix=kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
                                  find_transferMatrix=False, # always false for just processing images
-                                 p_x=kwargs.get("pixel_size", PIXEL_SIZE),
-                                 det_res=kwargs.get("detector_resolution",DETECTOR_RESOLUTION),
+                                 p_x=kwargs.get("pixel_size", ws.PIXEL_SIZE),
+                                 det_res=kwargs.get("detector_resolution", ws.DETECTOR_RESOLUTION),
                                  energy=energy,
                                  pattern_size=kwargs.get("pattern_size", PATTERN_SIZE),
                                  pattern_thickness=kwargs.get("pattern_thickness", PATTERN_THICKNESS),
@@ -479,7 +486,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     print("Image " + file_name_prefix + "_%05i.tif" % image_index + " processed")
 
 def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_directory, energy, image_index=1, **kwargs) -> [list, bool]:
-    index_digits = kwargs.get("index_digits", INDEX_DIGITS)
+    index_digits = kwargs.get("index_digits", ws.INDEX_DIGITS)
     verbose      = kwargs.get("verbose", False)
 
     use_flat = kwargs.get("use_flat")
@@ -515,8 +522,8 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
                               crop=kwargs.get("crop", CROP),
                               img_transfer_matrix=None,
                               find_transferMatrix=FIND_TRANSFER_MATRIX,
-                              p_x=kwargs.get("pixel_size", PIXEL_SIZE),
-                              det_res=kwargs.get("detector_resolution", DETECTOR_RESOLUTION),
+                              p_x=kwargs.get("pixel_size", ws.PIXEL_SIZE),
+                              det_res=kwargs.get("detector_resolution", ws.DETECTOR_RESOLUTION),
                               energy=energy,
                               pattern_size=kwargs.get("pattern_size", PATTERN_SIZE),
                               pattern_thickness=kwargs.get("pattern_thickness", PATTERN_THICKNESS),
@@ -558,7 +565,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
     return parameters["image_transfer_matrix"], is_new_mask
 
 def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_directory, image_index, **kwargs) -> dict:
-    index_digits = kwargs.get("index_digits", INDEX_DIGITS)
+    index_digits = kwargs.get("index_digits", ws.INDEX_DIGITS)
 
     folder = os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i") % image_index)
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
@@ -567,7 +574,7 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_d
                                     reference_folder=mask_directory,
                                     kind                   = kwargs.get("kind", KIND),
                                     mask_detector_distance = kwargs.get("mask_detector_distance", PROPAGATION_DISTANCE),
-                                    pixel_size             = kwargs.get("pixel_size", PIXEL_SIZE),
+                                    pixel_size             = kwargs.get("pixel_size", ws.PIXEL_SIZE),
                                     image_rebinning        = kwargs.get("image_rebinning", REBINNING),
                                     distance               = kwargs.get("propagation_distance", DISTANCE),
                                     distance_x             = kwargs.get("propagation_distance_h", DISTANCE_H),

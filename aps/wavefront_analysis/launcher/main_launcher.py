@@ -91,7 +91,7 @@ class MainLauncher(GenericQTScript):
 
         # ==========================================================================
 
-        plotter.raise_context_window(context_key=SHOW_LAUNCHER, close_button=False)
+        plotter.raise_context_window(context_key=SHOW_LAUNCHER, close_button=False, width=360)
 
         if plotter.is_active(): get_registered_qt_application_instance().run_qt_application()
 

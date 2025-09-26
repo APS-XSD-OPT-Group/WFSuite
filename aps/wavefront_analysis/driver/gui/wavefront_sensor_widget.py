@@ -67,7 +67,7 @@ from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QScrollArea
 from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
 
-from aps.common.driver.beamline.generic_camera import get_data_from_int_to_string, get_data_from_string_to_int
+from aps.common.driver.beamline.generic_camera import get_data_from_int_to_string
 from aps.wavefront_analysis.common.gui.util import ShowWaitDialog
 
 import warnings
@@ -79,23 +79,24 @@ class WavefrontSensorWidget(GenericWidget):
     wavefront_sensor_changed = pyqtSignal()
 
     def __init__(self, parent, application_name=None, **kwargs):
-        self._log_stream_widget             = kwargs["log_stream_widget"]
-        self._working_directory             = kwargs["working_directory"]
-        self._initialization_parameters     = kwargs["initialization_parameters"]
-
+        self._log_stream_widget         = kwargs["log_stream_widget"]
+        self._working_directory         = kwargs["working_directory"]
+        self._initialization_parameters = kwargs["initialization_parameters"]
         # METHODS
-        self._connect_wavefront_sensor      = kwargs["connect_wavefront_sensor_method"]
-        self._take_shot                     = kwargs["take_shot_method"]
-        self._take_shot_as_flat_image       = kwargs["take_shot_as_flat_image_method"]
-        self._read_image_from_file          = kwargs["read_image_from_file_method"]
-
-        take_shot_signal                     = kwargs["take_shot_signal"]
-        take_shot_as_flat_image_signal       = kwargs["take_shot_as_flat_image_signal"]
-        read_image_from_file_signal          = kwargs["read_image_from_file_signal"]
+        self._connect_wavefront_sensor  = kwargs["connect_wavefront_sensor_method"]
+        self._take_shot                 = kwargs["take_shot_method"]
+        self._take_shot_as_flat_image   = kwargs["take_shot_as_flat_image_method"]
+        self._read_image_from_file      = kwargs["read_image_from_file_method"]
+        self._image_directory_changed   = kwargs["image_directory_changed_method"]
+        take_shot_signal                = kwargs["take_shot_signal"]
+        take_shot_as_flat_image_signal  = kwargs["take_shot_as_flat_image_signal"]
+        read_image_from_file_signal     = kwargs["read_image_from_file_signal"]
+        image_directory_changed_signal  = kwargs["image_directory_changed_signal"]
 
         take_shot_signal.connect(self._take_shot_callback)
         take_shot_as_flat_image_signal.connect(self._take_shot_as_flat_image_callback)
         read_image_from_file_signal.connect(self._read_image_from_file_callback)
+        image_directory_changed_signal.connect(self._image_directory_changed_callback)
 
         self._set_values_from_initialization_parameters()
 
@@ -148,7 +149,7 @@ class WavefrontSensorWidget(GenericWidget):
         self.tiff_savefile = wavefront_sensor_configuration["tiff_savefile"]
         self.tiff_autoincrement = wavefront_sensor_configuration["tiff_autoincrement"]
         self.pva_image = wavefront_sensor_configuration["pva_image"]
-        self.default_image_directory = wavefront_sensor_configuration["default_image_directory"]
+        self.current_image_directory = wavefront_sensor_configuration["current_image_directory"]
         self.data_from = wavefront_sensor_configuration["data_from"]
 
         self._image_ops = wavefront_sensor_configuration["image_ops"]
@@ -218,9 +219,9 @@ class WavefrontSensorWidget(GenericWidget):
 
         gui.separator(self._ws_box)
 
-        self._default_image_directory_box = gui.widgetBox(self._ws_box, "", width=self._ws_box.width(), orientation='horizontal', addSpace=False)
-        self.le_default_image_directory  = gui.lineEdit(self._default_image_directory_box, self, "default_image_directory", "Store image from detector at", orientation='vertical', valueType=str)
-        gui.button(self._default_image_directory_box, self, "...", width=30, callback=self._set_default_image_directory)
+        self._current_image_directory_box = gui.widgetBox(self._ws_box, "", width=self._ws_box.width(), orientation='horizontal', addSpace=False)
+        self.le_current_image_directory  = gui.lineEdit(self._current_image_directory_box, self, "current_image_directory", "Store image from detector at", orientation='vertical', valueType=str)
+        gui.button(self._current_image_directory_box, self, "...", width=30, callback=self._set_current_image_directory)
 
         tab_widget = gui.tabWidget( self._ws_box)
         ws_tab_1     = gui.createTabPage(tab_widget, "Image Capture")
@@ -374,12 +375,11 @@ class WavefrontSensorWidget(GenericWidget):
 
         self._set_wavefront_sensor_icon()
 
-    def _set_default_image_directory(self):
-        self.le_default_image_directory.setText(
+    def _set_current_image_directory(self):
+        self.le_current_image_directory.setText(
             gui.selectDirectoryFromDialog(self,
-                                          previous_directory_path=self.default_image_directory,
+                                          previous_directory_path=self.current_image_directory,
                                           start_directory=self.working_directory))
-
 
     def _set_data_from(self):
         data_from = get_data_from_int_to_string(self.data_from)
@@ -428,7 +428,7 @@ class WavefrontSensorWidget(GenericWidget):
         wavefront_sensor_configuration["tiff_savefile"] = self.tiff_savefile
         wavefront_sensor_configuration["tiff_autoincrement"] = self.tiff_autoincrement
         wavefront_sensor_configuration["pva_image"] = self.pva_image
-        wavefront_sensor_configuration["default_image_directory"] = self.default_image_directory
+        wavefront_sensor_configuration["current_image_directory"] = self.current_image_directory
         wavefront_sensor_configuration["data_from"] = self.data_from
         wavefront_sensor_configuration["image_ops"] = self._image_ops
 
@@ -532,6 +532,14 @@ class WavefrontSensorWidget(GenericWidget):
 
         try:    QTimer.singleShot(100, _execute)
         except: pass
+
+    def _image_directory_changed_callback(self, new_image_directory):
+        self.current_image_directory = new_image_directory
+        self.le_current_image_directory.setText(new_image_directory)
+
+        self._collect_initialization_parameters(raise_errors=True)
+
+        self._image_directory_changed(self._initialization_parameters)
 
     # ----------------------------------------------------
     # PLOT METHODS

@@ -44,7 +44,6 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-
 import os
 import h5py
 import numpy as np
@@ -67,10 +66,7 @@ from aps.wavefront_analysis.common.arguments import Args
 from aps.common.plot.image import rebin_1D, rebin_2D
 from aps.common.utilities import energy_to_wavelength
 
-#from scipy.ndimage import gaussian_filter
-
 from scipy.ndimage.filters import gaussian_filter, uniform_filter
-from scipy.ndimage.interpolation import spline_filter
 
 from scipy.interpolate import CubicSpline
 from scipy.optimize import fminbound

@@ -80,6 +80,7 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
         "tiff_autoincrement" : WavefrontSensorInitializationFile.TIFF_AUTOINCREMENT, 
         "pva_image" : WavefrontSensorInitializationFile.PVA_IMAGE,
         "default_image_directory" : WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY,
+        "current_image_directory" : WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY,
         "data_from" : WavefrontSensorInitializationFile.DATA_FROM,
         "image_ops": WavefrontSensorInitializationFile.IMAGE_OPS,
     }
@@ -122,6 +123,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     WavefrontSensorInitializationFile.TIFF_AUTOINCREMENT     = wavefront_sensor_configuration["tiff_autoincrement"]
     WavefrontSensorInitializationFile.PVA_IMAGE              = wavefront_sensor_configuration["pva_image"]
     WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY = wavefront_sensor_configuration["default_image_directory"]
+    WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY = wavefront_sensor_configuration["current_image_directory"]
     WavefrontSensorInitializationFile.DATA_FROM               = wavefront_sensor_configuration["data_from"]
     WavefrontSensorInitializationFile.IMAGE_OPS               = wavefront_sensor_configuration["image_ops"]
 

@@ -68,6 +68,7 @@ from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor
 
 from aps.wavefront_analysis.common.gui.util import ShowWaitDialog, SliderWithButtons, plot_1D, plot_2D
+import aps.wavefront_analysis.driver.beamline.wavefront_sensor as ws
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -85,12 +86,13 @@ class AbsolutePhaseWidget(GenericWidget):
 
         # METHODS
         self._close                         = kwargs["close_method"]
+        self._image_directory_changed       = kwargs["image_directory_changed_method"]
         self._take_shot                     = kwargs["take_shot_method"]
         self._take_shot_as_flat_image       = kwargs["take_shot_as_flat_image_method"]
         self._read_image_from_file          = kwargs["read_image_from_file_method"]
-        self._generate_mask_from_file       = kwargs["generate_mask_from_file_method"]
-        self._process_image_from_file       = kwargs["process_image_from_file_method"]
-        self._back_propagate_from_file      = kwargs["back_propagate_from_file_method"]
+        self._generate_mask                 = kwargs["generate_mask_method"]
+        self._process_image                 = kwargs["process_image_method"]
+        self._back_propagate                = kwargs["back_propagate_method"]
 
         self._set_values_from_initialization_parameters()
 
@@ -199,7 +201,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self.best_focus_scan_range_v = list_to_string(back_propagation_configuration["best_focus_scan_range_v"])
         self.best_focus_scan_range_h = list_to_string(back_propagation_configuration["best_focus_scan_range_h"])
 
-    def get_plot_tab_name(self): return "Wavefront Sensor Driver and Data Analysis"
+    def get_plot_tab_name(self): return "Wavefront Data Analysis"
 
     def build_widget(self, **kwargs):
         try:    widget_width = kwargs["widget_width"]
@@ -468,8 +470,8 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.separator(self._ex_box)
 
         ex_box_0 = gui.widgetBox(self._ex_box , "Application",       width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
-        ex_box_1 = gui.widgetBox(self._ex_box , "Online",            width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
-        ex_box_2 = gui.widgetBox(self._ex_box , "Offline (no W.S.)", width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
+        ex_box_1 = gui.widgetBox(self._ex_box , "Wavefront Sensor",  width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
+        ex_box_2 = gui.widgetBox(self._ex_box , "Data Analysis",     width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
 
         exit_button = gui.button(ex_box_0, None, "Exit GUI", callback=self._close_callback, width=ex_box_0.width()-20, height=35)
         font = QFont(exit_button.font())
@@ -482,11 +484,11 @@ class AbsolutePhaseWidget(GenericWidget):
 
         gui.button(ex_box_1, None, "Take Shot",                    callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
         gui.button(ex_box_1, None, "Take Shot As Flat Image",      callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
-        gui.button(ex_box_2, None, "Read Image From File",         callback=self._read_image_from_file_callback, width=ex_box_2.width()-20, height=35)
-        gui.separator(ex_box_2)
-        gui.button(ex_box_2, None, "Generate Mask From File",  callback=self._generate_mask_from_file_callback, width=ex_box_2.width()-20, height=35)
-        gui.button(ex_box_2, None, "Process Image From File",  callback=self._process_image_from_file_callback, width=ex_box_2.width()-20, height=35)
-        gui.button(ex_box_2, None, "Back-Propagate From File", callback=self._back_propagate_from_file_callback, width=ex_box_2.width()-20, height=35)
+        gui.button(ex_box_1, None, "Read Image From File",         callback=self._read_image_from_file_callback, width=ex_box_1.width()-20, height=35)
+
+        gui.button(ex_box_2, None, "Generate Mask", callback=self._generate_mask_callback, width=ex_box_2.width() - 20, height=35)
+        gui.button(ex_box_2, None, "Process Image", callback=self._process_image_callback, width=ex_box_2.width() - 20, height=35)
+        gui.button(ex_box_2, None, "Back-Propagate", callback=self._back_propagate_callback, width=ex_box_2.width() - 20, height=35)
 
         #########################################################################################
         #########################################################################################
@@ -496,9 +498,6 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self._out_box     = gui.widgetBox(self, "", width=self.width() - main_box_width - 20, height=self.height() - 20, orientation="vertical")
         self._ws_dir_box  = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=50, orientation="horizontal")
-
-        self._ws_text  = gui.widgetLabel(self._ws_dir_box, "Wavefront Sensor  ")
-        self._ws_label = gui.widgetLabel(self._ws_dir_box)
 
         self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Working Directory", labelWidth=120, orientation='horizontal', valueType=str)
         self.le_working_directory.setReadOnly(True)
@@ -512,22 +511,11 @@ class AbsolutePhaseWidget(GenericWidget):
 
         self._out_tab_widget = gui.tabWidget(self._tab_box)
 
-        self._out_tab_0 = gui.createTabPage(self._out_tab_widget, "Image")
         self._out_tab_1 = gui.createTabPage(self._out_tab_widget, "Wavefront")
         self._out_tab_2 = gui.createTabPage(self._out_tab_widget, "Log")
 
-        self._image_box     = gui.widgetBox(self._out_tab_0, "")
         self._wavefront_box = gui.widgetBox(self._out_tab_1, "")
         self._log_box       = gui.widgetBox(self._out_tab_2, "Log", width=self._tab_box.width() - 20, height=self._tab_box.height() - 40)
-
-        if sys.platform == 'darwin':  self._image_figure = Figure(figsize=(9.65, 5.9), constrained_layout=True)
-        else:                         self._image_figure = Figure(figsize=(9.65, 6.9), constrained_layout=True)
-
-        self._image_figure_canvas = FigureCanvas(self._image_figure)
-        self._image_scroll = QScrollArea(self._image_box)
-        self._image_scroll.setWidget(self._image_figure_canvas)
-        self._image_box.layout().addWidget(NavigationToolbar(self._image_figure_canvas, self))
-        self._image_box.layout().addWidget(self._image_scroll)
 
         self._wf_tab_widget = gui.tabWidget(self._wavefront_box)
 
@@ -676,6 +664,9 @@ class AbsolutePhaseWidget(GenericWidget):
             gui.selectDirectoryFromDialog(self,
                                           previous_directory_path=self.wavefront_sensor_image_directory,
                                           start_directory=self.working_directory))
+
+        self._collect_initialization_parameters(raise_errors=False)
+        self._image_directory_changed(self._initialization_parameters)
 
     def _set_simulated_mask_directory(self):
         self.le_simulated_mask_directory.setText(
@@ -841,14 +832,14 @@ class AbsolutePhaseWidget(GenericWidget):
 
     # Offline -------------------------------------------
 
-    def _generate_mask_from_file_callback(self):
-        dialog = ShowWaitDialog(title="Operation in Progress", text="Generating Mask From File", parent=self._tab_box)
+    def _generate_mask_callback(self):
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Generating Mask", parent=self._tab_box)
         dialog.show()
 
         def _execute():
             try:
                 self._collect_initialization_parameters(raise_errors=True)
-                image_transfer_matrix = self._generate_mask_from_file(self._initialization_parameters)
+                image_transfer_matrix = self._generate_mask(self._initialization_parameters)
                 self._manage_generate_mask_result(image_transfer_matrix)
             except ValueError as error:
                 MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
@@ -862,14 +853,14 @@ class AbsolutePhaseWidget(GenericWidget):
         try:    QTimer.singleShot(100, _execute)
         except: pass
 
-    def _process_image_from_file_callback(self):
-        dialog = ShowWaitDialog(title="Operation in Progress", text="Processing Image From File", parent=self._tab_box)
+    def _process_image_callback(self):
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Processing Image", parent=self._tab_box)
         dialog.show()
 
         def _execute():
             try:
                 self._collect_initialization_parameters(raise_errors=True)
-                wavefront_at_detector_data = self._process_image_from_file(self._initialization_parameters)
+                wavefront_at_detector_data = self._process_image(self._initialization_parameters)
                 self.__plot_wavefront_at_detector(wavefront_at_detector_data)
             except ValueError as error:
                 MessageDialog.message(self, title="Input Error", message=str(error), type="critical", width=500)
@@ -883,14 +874,14 @@ class AbsolutePhaseWidget(GenericWidget):
         try:    QTimer.singleShot(100, _execute)
         except: pass
 
-    def _back_propagate_from_file_callback(self):
-        dialog = ShowWaitDialog(title="Operation in Progress", text="Back-Propagating From File", parent=self._tab_box)
+    def _back_propagate_callback(self):
+        dialog = ShowWaitDialog(title="Operation in Progress", text="Back-Propagating", parent=self._tab_box)
         dialog.show()
 
         def _execute():
             try:
                 self._collect_initialization_parameters(raise_errors=True)
-                propagated_wavefront_data = self._back_propagate_from_file(self._initialization_parameters)
+                propagated_wavefront_data = self._back_propagate(self._initialization_parameters)
                 self._manage_back_propagate_result(propagated_wavefront_data)
 
             except ValueError as error:
@@ -943,7 +934,7 @@ class AbsolutePhaseWidget(GenericWidget):
     # PLOT METHODS
 
     def __plot_wavefront_at_detector(self, wavefront_data):
-        p_x = self.pixel_size*self.rebinning
+        p_x = ws.PIXEL_SIZE*self.rebinning
 
         if wavefront_data['mode'] == 'area':
             intensity     = wavefront_data['intensity']
