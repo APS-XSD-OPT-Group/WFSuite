@@ -126,6 +126,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
                                                 working_directory=self.__working_directory,
                                                 initialization_parameters=initialization_parameters,
                                                 connect_wavefront_sensor_method=self.connect_wavefront_sensor,
+                                                save_configuration_method=self.save_configuration,
                                                 take_shot_method=self.take_shot,
                                                 take_shot_signal=self.take_shot_received,
                                                 take_shot_as_flat_image_method=self.take_shot_as_flat_image,
@@ -142,6 +143,9 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
         else:
            raise ValueError(f"Batch Mode not possible")
 
+    def save_configuration(self, initialization_parameters: ScriptData):
+        set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
+
     def connect_wavefront_sensor(self, initialization_parameters: ScriptData):
         if not self.__wavefront_sensor is None:
             try:    self.__wavefront_sensor.set_idle()
@@ -149,7 +153,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
             try:    self.__wavefront_sensor.save_status()
             except: pass
 
-        set_ini_from_initialization_parameters(initialization_parameters, self.__ini)  # Wavefront Sensor/Analyzer are initialized from their own ini.
+        set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
 
         try:
             wavefront_sensor_configuration = initialization_parameters.get_parameter("wavefront_sensor_configuration")

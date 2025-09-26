@@ -93,7 +93,7 @@ def get_image_data(measurement_directory=None,
                                             extension="tif",
                                             **kwargs)
         if os.path.exists(file_name_old):
-            measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY
+            measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY
             file_name_prefix      = file_name_prefix if not file_name_prefix is None else get_default_file_name_prefix()
             index_digits          = index_digits if not index_digits is None else WavefrontSensorInitializationFile.INDEX_DIGITS
             image_ops             = WavefrontSensorInitializationFile.IMAGE_OPS[DataSource.File]
@@ -114,7 +114,7 @@ def get_image_data(measurement_directory=None,
 
 
 def get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index = 1, index_digits=None, extension="json", **kwargs) -> str:
-    measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY
+    measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY
     file_name_prefix      = file_name_prefix if not file_name_prefix is None else get_default_file_name_prefix()
     index_digits          = index_digits if not index_digits is None else WavefrontSensorInitializationFile.INDEX_DIGITS
 

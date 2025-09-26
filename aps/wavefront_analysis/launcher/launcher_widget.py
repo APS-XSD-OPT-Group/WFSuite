@@ -78,7 +78,7 @@ class LauncherWidget(GenericWidget):
         try:    widget_width = kwargs["widget_width"]
         except: widget_width = 320
         try:    widget_height = kwargs["widget_height"]
-        except: widget_height = 350
+        except: widget_height = 280
 
         self.setGeometry(QRect(10,
                                10,

@@ -974,7 +974,7 @@ class AbsolutePhaseWidget(GenericWidget):
         else:
             MessageDialog.message(self, title="Unexpected Error", message=f"Data not plottable, mode not recognized {wavefront_data['mode']}", type="critical", width=500)
 
-        self._out_tab_widget.setCurrentIndex(1)
+        self._out_tab_widget.setCurrentIndex(0)
         self._wf_tab_widget.setCurrentIndex(0)
         self._wf_tab_0_widget.setCurrentIndex(0)
 
@@ -1082,7 +1082,7 @@ class AbsolutePhaseWidget(GenericWidget):
 
             self._wf_ipr_prop_figure_canvas.draw()
 
-        self._out_tab_widget.setCurrentIndex(1)
+        self._out_tab_widget.setCurrentIndex(0)
         self._wf_tab_widget.setCurrentIndex(1)
         self._wf_tab_1_widget.setCurrentIndex(0)
 

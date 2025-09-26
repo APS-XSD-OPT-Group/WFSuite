@@ -50,7 +50,7 @@ import sys
 import numpy as np
 
 from aps.common.plot import gui
-from aps.common.plot.gui import MessageDialog
+from aps.common.plot.gui import MessageDialog, BlinkingBorderButton
 from aps.common.plot.splitter import ToggleSplitter, ToggleDirection
 from aps.common.widgets.generic_widget import GenericWidget
 from aps.common.widgets.congruence import *
@@ -76,7 +76,7 @@ warnings.filterwarnings("ignore")
 DEBUG_MODE = int(os.environ.get("DEBUG_MODE", 0)) == 1
 
 class WavefrontSensorWidget(GenericWidget):
-    wavefront_sensor_changed = pyqtSignal()
+    configuration_changed = pyqtSignal()
 
     def __init__(self, parent, application_name=None, **kwargs):
         self._log_stream_widget         = kwargs["log_stream_widget"]
@@ -84,6 +84,7 @@ class WavefrontSensorWidget(GenericWidget):
         self._initialization_parameters = kwargs["initialization_parameters"]
         # METHODS
         self._connect_wavefront_sensor  = kwargs["connect_wavefront_sensor_method"]
+        self._save_configuration        = kwargs["save_configuration_method"]
         self._take_shot                 = kwargs["take_shot_method"]
         self._take_shot_as_flat_image   = kwargs["take_shot_as_flat_image_method"]
         self._read_image_from_file      = kwargs["read_image_from_file_method"]
@@ -111,7 +112,7 @@ class WavefrontSensorWidget(GenericWidget):
 
         super(WavefrontSensorWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
 
-        self.wavefront_sensor_changed.connect(self._wavefront_sensor_changed)
+        self.configuration_changed.connect(self._configuration_changed)
 
     def _set_values_from_initialization_parameters(self):
         self.working_directory = self._working_directory
@@ -271,33 +272,34 @@ class WavefrontSensorWidget(GenericWidget):
         ws_tiff_autoincrement    = gui.lineEdit(ws_box_3, self, "tiff_autoincrement",    "Tiff: Auto-Increment",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
         ws_pva_image             = gui.lineEdit(ws_box_3, self, "pva_image",             "Pva Image",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
 
-        def emit_wavefront_sensor_changed(): self.wavefront_sensor_changed.emit()
+        def emit_configuration_changed():
+            self.configuration_changed.emit()
 
-        ws_send_stop_command.stateChanged.connect(emit_wavefront_sensor_changed)
-        ws_send_save_command.stateChanged.connect(emit_wavefront_sensor_changed)
-        ws_remove_image.stateChanged.connect(emit_wavefront_sensor_changed)
-        ws_is_stream_available.stateChanged.connect(emit_wavefront_sensor_changed)
-        ws_wait_time.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_exposure_time.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_pause_after_shot.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_pixel_format.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_index_digits.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_pixel_size.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_detector_resolution.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_data_from.currentIndexChanged.connect(emit_wavefront_sensor_changed)
-        self.le_ws_image_ops.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_cam_pixel_format.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_cam_acquire.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_cam_exposure_time.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_cam_image_mode.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_tiff_enable_callback.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_tiff_filename.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_tiff_filepath.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_tiff_filenumber.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_tiff_autosave.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_tiff_savefile.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_tiff_autoincrement.textChanged.connect(emit_wavefront_sensor_changed)
-        ws_pva_image.textChanged.connect(emit_wavefront_sensor_changed)
+        ws_send_stop_command.stateChanged.connect(emit_configuration_changed)
+        ws_send_save_command.stateChanged.connect(emit_configuration_changed)
+        ws_remove_image.stateChanged.connect(emit_configuration_changed)
+        ws_is_stream_available.stateChanged.connect(emit_configuration_changed)
+        ws_wait_time.textChanged.connect(emit_configuration_changed)
+        ws_exposure_time.textChanged.connect(emit_configuration_changed)
+        ws_pause_after_shot.textChanged.connect(emit_configuration_changed)
+        ws_pixel_format.textChanged.connect(emit_configuration_changed)
+        ws_index_digits.textChanged.connect(emit_configuration_changed)
+        ws_pixel_size.textChanged.connect(emit_configuration_changed)
+        ws_detector_resolution.textChanged.connect(emit_configuration_changed)
+        ws_data_from.currentIndexChanged.connect(emit_configuration_changed)
+        self.le_ws_image_ops.textChanged.connect(emit_configuration_changed)
+        ws_cam_pixel_format.textChanged.connect(emit_configuration_changed)
+        ws_cam_acquire.textChanged.connect(emit_configuration_changed)
+        ws_cam_exposure_time.textChanged.connect(emit_configuration_changed)
+        ws_cam_image_mode.textChanged.connect(emit_configuration_changed)
+        ws_tiff_enable_callback.textChanged.connect(emit_configuration_changed)
+        ws_tiff_filename.textChanged.connect(emit_configuration_changed)
+        ws_tiff_filepath.textChanged.connect(emit_configuration_changed)
+        ws_tiff_filenumber.textChanged.connect(emit_configuration_changed)
+        ws_tiff_autosave.textChanged.connect(emit_configuration_changed)
+        ws_tiff_savefile.textChanged.connect(emit_configuration_changed)
+        ws_tiff_autoincrement.textChanged.connect(emit_configuration_changed)
+        ws_pva_image.textChanged.connect(emit_configuration_changed)
 
         #########################################################################################
         # Execution
@@ -310,15 +312,36 @@ class WavefrontSensorWidget(GenericWidget):
         ex_box_1 = gui.widgetBox(self._ex_box , "Online",            width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
         ex_box_2 = gui.widgetBox(self._ex_box , "Offline (no W.S.)", width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
 
-        ws_button = gui.button(ex_box_0, None, "Reconnect\nWavefront Sensor", callback=self._connect_wavefront_sensor_callback, width=ex_box_0.width()-20, height=60)
-        font = QFont(ws_button.font())
+        self._ws_button = BlinkingBorderButton(text="Reconnect\nWavefront Sensor",
+                                                 color="darkblue",
+                                                 border_width=4,
+                                                 minimum_size=[ex_box_0.width()-20, 60])
+        font = QFont(self._ws_button.font())
         font.setBold(True)
         font.setItalic(False)
         font.setPixelSize(16)
-        ws_button.setFont(font)
-        palette = QPalette(ws_button.palette())
+        self._ws_button.setFont(font)
+        palette = QPalette(self._ws_button.palette())
         palette.setColor(QPalette.ButtonText, QColor('Dark Red'))
-        ws_button.setPalette(palette)
+        self._ws_button.setPalette(palette)
+        self._ws_button.clicked.connect(self._connect_wavefront_sensor_callback)
+
+        self._conf_button = BlinkingBorderButton(text="Save Configuration",
+                                                 color="darkblue",
+                                                 border_width=4,
+                                                 minimum_size=[ex_box_0.width()-20, 60])
+        font = QFont(self._conf_button.font())
+        font.setBold(True)
+        font.setItalic(False)
+        font.setPixelSize(16)
+        self._conf_button.setFont(font)
+        palette = QPalette(self._conf_button.palette())
+        palette.setColor(QPalette.ButtonText, QColor('Dark Blue'))
+        self._conf_button.setPalette(palette)
+        self._conf_button.clicked.connect(self._save_configuration_callback)
+
+        ex_box_0.layout().addWidget(self._ws_button)
+        ex_box_0.layout().addWidget(self._conf_button)
 
         gui.button(ex_box_1, None, "Take Shot",                    callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
         gui.button(ex_box_1, None, "Take Shot As Flat Image",      callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
@@ -336,6 +359,9 @@ class WavefrontSensorWidget(GenericWidget):
 
         self._ws_text  = gui.widgetLabel(self._ws_dir_box, "Wavefront Sensor  ")
         self._ws_label = gui.widgetLabel(self._ws_dir_box)
+
+        self._conf_text  = gui.widgetLabel(self._ws_dir_box, "Configuration")
+        self._conf_label = gui.widgetLabel(self._ws_dir_box)
 
         self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Working Directory", labelWidth=120, orientation='horizontal', valueType=str)
         self.le_working_directory.setReadOnly(True)
@@ -374,6 +400,7 @@ class WavefrontSensorWidget(GenericWidget):
             self._log_box.layout().addWidget(QLabel("Log on file only"))
 
         self._set_wavefront_sensor_icon()
+        self._set_configuration_icon(changed=False)
 
     def _set_current_image_directory(self):
         self.le_current_image_directory.setText(
@@ -435,6 +462,18 @@ class WavefrontSensorWidget(GenericWidget):
         initialization_parameters.set_parameter("plot_raw_image",                   bool(self.plot_raw_image))
         initialization_parameters.set_parameter("plot_rebinning_factor",            self.plot_rebinning_factor)
 
+    def _save_configuration_callback(self):
+        try:
+            self._collect_initialization_parameters(raise_errors=True)
+            self._save_configuration(self._initialization_parameters)
+
+            MessageDialog.message(self, title="Wavefront Sensor", message="Wavefront Sensor Configuration has been updated", type="information", width=500)
+            self._set_configuration_icon(changed=False)
+        except ValueError as error:
+            MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+        except Exception as exception:
+            MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+
     def _connect_wavefront_sensor_callback(self):
         try:
             self._collect_initialization_parameters(raise_errors=True)
@@ -443,27 +482,46 @@ class WavefrontSensorWidget(GenericWidget):
             MessageDialog.message(self, title="Wavefront Sensor", message="Wavefront Sensor is connected", type="information", width=500)
 
             self.__is_wavefront_sensor_initialized = True
+            configuration_changed                  = False
         except ValueError as error:
             self.__is_wavefront_sensor_initialized = False
+            configuration_changed                  = True
             MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
         except Exception as exception:
             self.__is_wavefront_sensor_initialized = False
+            configuration_changed                  = True
             MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
 
         self._set_wavefront_sensor_icon()
+        self._set_configuration_icon(configuration_changed)
 
     def _set_wavefront_sensor_icon(self):
         if self.__is_wavefront_sensor_initialized:
             self._ws_text.setText("Wavefront Sensor  \n(Connected)")
             self._ws_label.setPixmap(self.__ws_pixmaps["green"])
+            self._ws_button.setBlinking(False)
         else:
             self._ws_text.setText("Wavefront Sensor  \n(NOT CONNECTED)")
             self._ws_label.setPixmap(self.__ws_pixmaps["red"])
+            self._ws_button.setBlinking(False)
 
-    def _wavefront_sensor_changed(self):
+    def _set_configuration_icon(self, changed=False):
+        if not changed:
+            self._conf_text.setText("Configuration\n(Up to Date)")
+            self._conf_label.setPixmap(self.__ws_pixmaps["green"])
+            self._conf_button.setBlinking(False)
+        else:
+            self._conf_text.setText("Configuration\n(MODIFIED)")
+            self._conf_label.setPixmap(self.__ws_pixmaps["red"])
+            self._conf_button.setBlinking(True)
+
+    def _configuration_changed(self):
         if self.__is_wavefront_sensor_initialized:
             self._ws_label.setPixmap(self.__ws_pixmaps["orange"])
             self._ws_text.setText("Wavefront Sensor  \n(Reconnect if changed)")
+            self._ws_button.setBlinking(True)
+        self._set_configuration_icon(changed=True)
+
 
     # Online -------------------------------------------
 
@@ -475,6 +533,7 @@ class WavefrontSensorWidget(GenericWidget):
             try:
                 self._collect_initialization_parameters(raise_errors=True)
                 h_coord, v_coord, image = self._take_shot(self._initialization_parameters)
+                self._set_configuration_icon(changed=False)
                 if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
             except ValueError as error:
                 MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
@@ -496,6 +555,7 @@ class WavefrontSensorWidget(GenericWidget):
             try:
                 self._collect_initialization_parameters(raise_errors=True)
                 h_coord, v_coord, image = self._take_shot_as_flat_image(self._initialization_parameters)
+                self._set_configuration_icon(changed=False)
                 if self.plot_raw_image: self.__plot_shot_image(h_coord, v_coord, image)
             except ValueError as error:
                 MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
@@ -520,6 +580,7 @@ class WavefrontSensorWidget(GenericWidget):
             try:
                 self._collect_initialization_parameters(raise_errors=True)
                 h_coord, v_coord, image = self._read_image_from_file(self._initialization_parameters)
+                self._set_configuration_icon(changed=False)
                 self.__plot_shot_image(h_coord, v_coord, image)
             except ValueError as error:
                 MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
@@ -536,10 +597,9 @@ class WavefrontSensorWidget(GenericWidget):
     def _image_directory_changed_callback(self, new_image_directory):
         self.current_image_directory = new_image_directory
         self.le_current_image_directory.setText(new_image_directory)
-
         self._collect_initialization_parameters(raise_errors=True)
-
         self._image_directory_changed(self._initialization_parameters)
+        self._set_configuration_icon(changed=False)
 
     # ----------------------------------------------------
     # PLOT METHODS

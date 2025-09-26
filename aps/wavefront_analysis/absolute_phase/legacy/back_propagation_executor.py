@@ -538,6 +538,10 @@ def execute_back_propagation(**arguments) -> dict:
                                      fresnel_propagator,
                                      propagation_distance,
                                      args)
+
+            if bf_x_coordinates is None or bf_y_coordinates is None:
+                raise Exception("Best focus position cannot be calculated with the selected criteria")
+
             focus_z_position_x = -(propagation_distance - best_distance_x)
             focus_z_position_y = -(propagation_distance - best_distance_y)
         else:
@@ -750,6 +754,10 @@ def execute_back_propagation(**arguments) -> dict:
                                        "Y",
                                        args.show_figure,
                                        args.verbose)
+
+            if bf_x_coordinates is None or bf_y_coordinates is None:
+                raise Exception("Best focus position cannot be calculated with the selected criteria")
+
             focus_z_position_x = -(propagation_distance_x - best_distance_x)
             focus_z_position_y = -(propagation_distance_y - best_distance_y)
         else:
