@@ -483,11 +483,15 @@ class AbsolutePhaseWidget(GenericWidget):
         exit_button.setPalette(palette)
 
         gui.button(ex_box_1, None, "Take Shot",                    callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
+        gui.separator(ex_box_1)
         gui.button(ex_box_1, None, "Take Shot As Flat Image",      callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
+        gui.separator(ex_box_1)
         gui.button(ex_box_1, None, "Read Image From File",         callback=self._read_image_from_file_callback, width=ex_box_1.width()-20, height=35)
 
         gui.button(ex_box_2, None, "Generate Mask", callback=self._generate_mask_callback, width=ex_box_2.width() - 20, height=35)
+        gui.separator(ex_box_2)
         gui.button(ex_box_2, None, "Process Image", callback=self._process_image_callback, width=ex_box_2.width() - 20, height=35)
+        gui.separator(ex_box_2)
         gui.button(ex_box_2, None, "Back-Propagate", callback=self._back_propagate_callback, width=ex_box_2.width() - 20, height=35)
 
         #########################################################################################
