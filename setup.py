@@ -88,17 +88,12 @@ INSTALL_REQUIRES = (
 
 SETUP_REQUIRES = (
     'setuptools',
-#    'cmasher',
-#    'bluesky',
-#    'ophyd',
-#    'ophy-async',
-#    'optuna==4.1.0',
-#    'ax==0.52.0',
-#    'ax-platform==0.3.3',
-#    'ruamel-yaml==0.16.7',
-#    'python-dateutil==2.8.1',
-#    'alembic==1.3.3',
-#    'SQLAlchemy==1.3.13'
+    'aps_common_libraries',
+    'PyWavelets',
+    'wofryImpl',
+    'wofrysrw',
+    'srwpy',
+    'cmasher',
 )
 
 PACKAGES = find_packages(exclude=('*.tests', '*.tests.*', 'tests.*', 'tests'))
