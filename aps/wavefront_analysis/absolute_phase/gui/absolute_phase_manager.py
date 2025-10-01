@@ -179,6 +179,9 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
             self.__plotter.get_context_container_widget(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id).parent().close()
 
     def image_files_parameters_changed(self, initialization_parameters: ScriptData):
+        set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
+        self.__ini.push()
+
         if initialization_parameters.get_parameter("wavefront_sensor_mode") == 0:
             parameters = {
                 "file_name_type": initialization_parameters.get_parameter("file_name_type"),
@@ -250,8 +253,9 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
     # --------------------------------------------------------------------------------------
 
     def __set_wavefront_ready(self, initialization_parameters: ScriptData):
-        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)  # all arguments are read from the Ini
+        set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)
         self.__check_wavefront_analyzer(initialization_parameters)
+        self.__ini.push()
 
     def __check_wavefront_analyzer(self, initialization_parameters: ScriptData, batch_mode=False):
         data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
@@ -269,7 +273,6 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
                        current_setup['energy'] != energy or \
                        current_setup['simulated_mask_directory'] != simulated_mask_directory or \
                        (file_name_prefix_type == 1 and current_setup['file_name_prefix'] != file_name_prefix)
-
 
         if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory,
                                                                            simulated_mask_directory=simulated_mask_directory,
