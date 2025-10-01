@@ -85,8 +85,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
     take_shot_received                = pyqtSignal()
     take_shot_as_flat_image_received  = pyqtSignal()
     read_image_from_file_received     = pyqtSignal()
-    image_directory_changed_received  = pyqtSignal(str)
-    file_name_prefix_changed_received = pyqtSignal(str)
+    image_files_parameters_changed_received  = pyqtSignal(dict)
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -105,11 +104,10 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
 
     def get_delegate_signals(self):
         return {
-            "take_shot":               self.take_shot_received,
-            "take_shot_as_flat_image": self.take_shot_as_flat_image_received,
-            "read_image_from_file":    self.read_image_from_file_received,
-            "image_directory_changed": self.image_directory_changed_received,
-            "file_name_prefix_changed": self.file_name_prefix_changed_received,
+            "take_shot":                      self.take_shot_received,
+            "take_shot_as_flat_image":        self.take_shot_as_flat_image_received,
+            "read_image_from_file":           self.read_image_from_file_received,
+            "image_files_parameters_changed": self.image_files_parameters_changed_received,
         }
 
     def activate_wavefront_sensor_manager(self, plotting_properties=PlottingProperties(), **kwargs):
@@ -135,8 +133,8 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
                                                 take_shot_as_flat_image_signal=self.take_shot_as_flat_image_received,
                                                 read_image_from_file_method=self.read_image_from_file,
                                                 read_image_from_file_signal=self.read_image_from_file_received,
-                                                image_directory_changed_method=self.image_directory_changed,
-                                                image_directory_changed_signal=self.image_directory_changed_received,
+                                                image_files_parameters_changed_method=self.image_files_parameters_changed,
+                                                image_files_parameters_changed_signal=self.image_files_parameters_changed_received,
                                                 allows_saving=False,
                                                 **kwargs)
 
@@ -176,7 +174,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
 
         return hh, vv, image
 
-    def image_directory_changed(self, initialization_parameters: ScriptData):
+    def image_files_parameters_changed(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
 
     # --------------------------------------------------------------------------------------

@@ -73,7 +73,6 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
             "crop" : WavefrontAnalyzerModule.CROP,
             "estimation_method" : WavefrontAnalyzerModule.ESTIMATION_METHOD,
             "propagator" : WavefrontAnalyzerModule.PROPAGATOR,
-            "image_ops" : WavefrontAnalyzerModule.IMAGE_OPS,
             "calibration_path" : WavefrontAnalyzerModule.CALIBRATION_PATH,
             "mode" : WavefrontAnalyzerModule.MODE,
             "line_width" : WavefrontAnalyzerModule.LINE_WIDTH,
@@ -137,21 +136,32 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
     }
 
     # Here GUI specific ini
-    wavefront_sensor_image_directory       = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory",       default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images")))
-    wavefront_sensor_image_directory_batch = ini.get_string_from_ini("Wavefront-Sensor",   "Wavefront-Sensor-Image-Directory-Batch", default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images")))
-    simulated_mask_directory               = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory",               default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images", "simulated_mask")))
-    simulated_mask_directory_batch         = ini.get_string_from_ini("Wavefront-Sensor",   "Simulated-Mask-Directory-Batch",         default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images", "simulated_mask")))
 
-    use_flat                         = ini.get_boolean_from_ini("Wavefront-Analyzer", "Use-Flat", default=False)
-    use_dark                         = ini.get_boolean_from_ini("Wavefront-Analyzer", "Use-Dark", default=False)
-    save_images                      = ini.get_boolean_from_ini("Wavefront-Analyzer", "Save-Images", default=True)
-    plot_raw_image                   = ini.get_boolean_from_ini("Wavefront-Analyzer", "Plot-Raw-Image", default=True)
-    plot_rebinning_factor            = ini.get_int_from_ini(    "Wavefront-Analyzer", "Plot-Rebinning-Factor", default=4)
-    bp_calibration_mode              = ini.get_boolean_from_ini("Wavefront-Analyzer", "Back-Propagation-Calibration-Mode", default=False)
-    bp_plot_shift                    = ini.get_boolean_from_ini("Wavefront-Analyzer", "Back-Propagation-Plot-Shift", default=True)
+    wavefront_sensor_mode            = ini.get_int_from_ini( "Wavefront-Sensor", "Wavefront-Sensor-Mode", default=0) # if offline, the file name can be built
 
-    return ScriptData(wavefront_sensor_image_directory=wavefront_sensor_image_directory,
-                      wavefront_sensor_image_directory_batch=wavefront_sensor_image_directory_batch,
+    image_index                      = ini.get_int_from_ini(    section="Wavefront-Analyzer", key="Image-Index",                       default=1)
+    file_name_type                   = ini.get_int_from_ini(    section="Wavefront-Analyzer", key="File-Name-Type",                    default=0)
+    index_digits_custom              = ini.get_int_from_ini(    section="Wavefront-Analyzer", key="Index-Digits-Custom",               default=5)
+    file_name_prefix_custom          = ini.get_string_from_ini( section="Wavefront-Analyzer", key="File-Name-Prefix-Custom",           default="custom_file_prefix")
+    image_directory                  = ini.get_string_from_ini( section="Wavefront-Analyzer", key="Image-Directory",                   default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images")))
+    image_directory_batch            = ini.get_string_from_ini( section="Wavefront-Analyzer", key="Image-Directory-Batch",             default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images")))
+    simulated_mask_directory         = ini.get_string_from_ini( section="Wavefront-Analyzer", key="Simulated-Mask-Directory",          default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images", "simulated_mask")))
+    simulated_mask_directory_batch   = ini.get_string_from_ini( section="Wavefront-Analyzer", key="Simulated-Mask-Directory-Batch",    default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images", "simulated_mask")))
+    use_flat                         = ini.get_boolean_from_ini(section="Wavefront-Analyzer", key="Use-Flat",                          default=False)
+    use_dark                         = ini.get_boolean_from_ini(section="Wavefront-Analyzer", key="Use-Dark",                          default=False)
+    save_images                      = ini.get_boolean_from_ini(section="Wavefront-Analyzer", key="Save-Images",                       default=True)
+    plot_raw_image                   = ini.get_boolean_from_ini(section="Wavefront-Analyzer", key="Plot-Raw-Image",                    default=True)
+    plot_rebinning_factor            = ini.get_int_from_ini(    section="Wavefront-Analyzer", key="Plot-Rebinning-Factor",             default=4)
+    bp_calibration_mode              = ini.get_boolean_from_ini(section="Wavefront-Analyzer", key="Back-Propagation-Calibration-Mode", default=False)
+    bp_plot_shift                    = ini.get_boolean_from_ini(section="Wavefront-Analyzer", key="Back-Propagation-Plot-Shift",       default=True)
+
+    return ScriptData(wavefront_sensor_mode=wavefront_sensor_mode,
+                      image_index=image_index,
+                      index_digits_custom=index_digits_custom,
+                      file_name_type=file_name_type,
+                      file_name_prefix_custom=file_name_prefix_custom,
+                      image_directory=image_directory,
+                      image_directory_batch=image_directory_batch,
                       simulated_mask_directory=simulated_mask_directory,
                       simulated_mask_directory_batch=simulated_mask_directory_batch,
                       use_dark=use_dark,
@@ -253,16 +263,22 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     
     # Here GUI specific ini
 
-    ini.set_value_at_ini("Wavefront-Sensor", "Wavefront-Sensor-Image-Directory", value=initialization_parameters.get_parameter("wavefront_sensor_image_directory"))
-    ini.set_value_at_ini("Wavefront-Sensor", "Wavefront-Sensor-Image-Directory-Batch", value=initialization_parameters.get_parameter("wavefront_sensor_image_directory_batch"))
-    ini.set_value_at_ini("Wavefront-Sensor", "Simulated-Mask-Directory", value=initialization_parameters.get_parameter("simulated_mask_directory"))
-    ini.set_value_at_ini("Wavefront-Sensor", "Simulated-Mask-Directory-Batch", value=initialization_parameters.get_parameter("simulated_mask_directory_batch"))
-    ini.set_value_at_ini("Wavefront-Analyzer", "Use-Flat", value=initialization_parameters.get_parameter("use_flat"))
-    ini.set_value_at_ini("Wavefront-Analyzer", "Use-Dark", value=initialization_parameters.get_parameter("use_dark"))
-    ini.set_value_at_ini("Wavefront-Analyzer", "Save-Images", value=initialization_parameters.get_parameter("save_images"))
-    ini.set_value_at_ini("Wavefront-Analyzer", "Plot-Raw-Image", value=initialization_parameters.get_parameter("plot_raw_image"))
-    ini.set_value_at_ini("Wavefront-Analyzer", "Plot-Rebinning-Factor", value=initialization_parameters.get_parameter("plot_rebinning_factor"))
-    ini.set_value_at_ini("Wavefront-Analyzer", "Back-Propagation-Calibration-Mode", value=initialization_parameters.get_parameter("bp_calibration_mode"))
-    ini.set_value_at_ini("Wavefront-Analyzer", "Back-Propagation-Plot-Shift", value=initialization_parameters.get_parameter("bp_plot_shift"))
+    ini.set_value_at_ini(section="Wavefront-Sensor", key="Wavefront-Sensor-Mode", value=initialization_parameters.get_parameter("wavefront_sensor_mode"))
+
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Image-Index",                       value=initialization_parameters.get_parameter("image_index"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="File-Name-Type",                    value=initialization_parameters.get_parameter("file_name_type"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Index-Digits-Custom",               value=initialization_parameters.get_parameter("index_digits_custom"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="File-Name-Prefix-Custom",           value=initialization_parameters.get_parameter("file_name_prefix_custom_batch"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Image-Directory",                   value=initialization_parameters.get_parameter("wavefront_sensor_image_directory"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Image-Directory-Batch",             value=initialization_parameters.get_parameter("wavefront_sensor_image_directory_batch"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Simulated-Mask-Directory",          value=initialization_parameters.get_parameter("simulated_mask_directory"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Simulated-Mask-Directory-Batch",    value=initialization_parameters.get_parameter("simulated_mask_directory_batch"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Use-Flat",                          value=initialization_parameters.get_parameter("use_flat"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Use-Dark",                          value=initialization_parameters.get_parameter("use_dark"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Save-Images",                       value=initialization_parameters.get_parameter("save_images"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Plot-Raw-Image",                    value=initialization_parameters.get_parameter("plot_raw_image"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Plot-Rebinning-Factor",             value=initialization_parameters.get_parameter("plot_rebinning_factor"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Back-Propagation-Calibration-Mode", value=initialization_parameters.get_parameter("bp_calibration_mode"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Back-Propagation-Plot-Shift",       value=initialization_parameters.get_parameter("bp_plot_shift"))
 
     ini.push()

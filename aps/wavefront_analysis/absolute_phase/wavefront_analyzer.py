@@ -572,8 +572,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
     return parameters["image_transfer_matrix"], is_new_mask
 
 def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_directory, image_index, **kwargs) -> dict:
-    index_digits = kwargs.get("index_digits", ws.INDEX_DIGITS)
-
+    index_digits   = kwargs.get("index_digits", ws.INDEX_DIGITS)
     folder         = kwargs.get("folder_name", os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i") % image_index))
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
 

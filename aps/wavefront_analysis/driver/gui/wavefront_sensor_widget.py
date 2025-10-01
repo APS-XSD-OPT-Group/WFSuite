@@ -82,22 +82,24 @@ class WavefrontSensorWidget(GenericWidget):
         self._log_stream_widget         = kwargs["log_stream_widget"]
         self._working_directory         = kwargs["working_directory"]
         self._initialization_parameters = kwargs["initialization_parameters"]
+
         # METHODS
-        self._connect_wavefront_sensor  = kwargs["connect_wavefront_sensor_method"]
-        self._save_configuration        = kwargs["save_configuration_method"]
-        self._take_shot                 = kwargs["take_shot_method"]
-        self._take_shot_as_flat_image   = kwargs["take_shot_as_flat_image_method"]
-        self._read_image_from_file      = kwargs["read_image_from_file_method"]
-        self._image_directory_changed   = kwargs["image_directory_changed_method"]
-        take_shot_signal                = kwargs["take_shot_signal"]
-        take_shot_as_flat_image_signal  = kwargs["take_shot_as_flat_image_signal"]
-        read_image_from_file_signal     = kwargs["read_image_from_file_signal"]
-        image_directory_changed_signal  = kwargs["image_directory_changed_signal"]
+        self._connect_wavefront_sensor        = kwargs["connect_wavefront_sensor_method"]
+        self._save_configuration              = kwargs["save_configuration_method"]
+        self._take_shot                       = kwargs["take_shot_method"]
+        self._take_shot_as_flat_image         = kwargs["take_shot_as_flat_image_method"]
+        self._read_image_from_file            = kwargs["read_image_from_file_method"]
+        self._image_files_parameters_changed  = kwargs["image_files_parameters_changed_method"]
+
+        take_shot_signal                      = kwargs["take_shot_signal"]
+        take_shot_as_flat_image_signal        = kwargs["take_shot_as_flat_image_signal"]
+        read_image_from_file_signal           = kwargs["read_image_from_file_signal"]
+        image_files_parameters_changed_signal = kwargs["image_files_parameters_changed_signal"]
 
         take_shot_signal.connect(self._take_shot_callback)
         take_shot_as_flat_image_signal.connect(self._take_shot_as_flat_image_callback)
         read_image_from_file_signal.connect(self._read_image_from_file_callback)
-        image_directory_changed_signal.connect(self._image_directory_changed_callback)
+        image_files_parameters_changed_signal.connect(self.image_files_parameters_changed_callback)
 
         self._set_values_from_initialization_parameters()
 
@@ -215,6 +217,8 @@ class WavefrontSensorWidget(GenericWidget):
         labels_width_1 = 300
         labels_width_2 = 150
 
+        def emit_configuration_changed(): self.configuration_changed.emit()
+
         #########################################################################################
         # WAVEFRONT SENSOR
 
@@ -225,6 +229,7 @@ class WavefrontSensorWidget(GenericWidget):
         self._current_image_directory_box = gui.widgetBox(self._ws_box, "", width=self._ws_box.width(), orientation='horizontal', addSpace=False)
         self.le_current_image_directory  = gui.lineEdit(self._current_image_directory_box, self, "current_image_directory", "Store image from detector at", orientation='vertical', valueType=str)
         gui.button(self._current_image_directory_box, self, "...", width=30, callback=self._set_current_image_directory)
+        self.le_current_image_directory.textChanged.connect(emit_configuration_changed)
 
         tab_widget = gui.tabWidget( self._ws_box)
         ws_tab_1     = gui.createTabPage(tab_widget, "Image Capture")
@@ -244,10 +249,10 @@ class WavefrontSensorWidget(GenericWidget):
         ws_exposure_time    = gui.lineEdit(ws_box_1, self, "exposure_time", "Exposure Time [s]",     labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         ws_pause_after_shot = gui.lineEdit(ws_box_1, self, "pause_after_shot", "Pause After Shot [s]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         ws_pixel_format     = gui.lineEdit(ws_box_1, self, "pixel_format",  "Pixel Format",          labelWidth=labels_width_1, orientation='horizontal', valueType=int)
-        ws_index_digits     = gui.lineEdit(ws_box_1, self, "index_digits",  "Digits on Image Index", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+        self._le_ws_index_digits = gui.lineEdit(ws_box_1, self, "index_digits",  "Digits on Image Index", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
-        ws_file_name_prefix_type   = gui.comboBox(ws_box_1, self, "file_name_prefix_type", label="File Name Prefix", labelWidth=labels_width_1, orientation='horizontal', items=["Default", "Custom"], callback=self._set_file_name_prefix_type)
-        self.le_ws_file_name_prefix_custom = gui.lineEdit(ws_box_1, self, "file_name_prefix_custom",  "Custom Prefix", labelWidth=120, orientation='horizontal', valueType=str)
+        self._cb_ws_file_name_prefix_type   = gui.comboBox(ws_box_1, self, "file_name_prefix_type", label="File Name Prefix", labelWidth=labels_width_1, orientation='horizontal', items=["Default", "Custom"], callback=self._set_file_name_prefix_type)
+        self._le_ws_file_name_prefix_custom = gui.lineEdit(ws_box_1, self, "file_name_prefix_custom", "Custom Prefix", labelWidth=120, orientation='horizontal', valueType=str)
 
         ws_box_2 = gui.widgetBox(ws_tab_1, "Detector", width=self._ws_box.width()-15, height=90)
 
@@ -257,7 +262,7 @@ class WavefrontSensorWidget(GenericWidget):
         ws_box_4 = gui.widgetBox(ws_tab_1, "Image", width=self._ws_box.width()-15, height=145)
 
         ws_data_from = gui.comboBox(ws_box_4, self, "data_from", label="Data From", labelWidth=labels_width_1, orientation='horizontal', items=["stream", "file"], callback=self._set_data_from)
-        self.le_ws_image_ops = gui.lineEdit(ws_box_4, self, "image_ops", "Image Transformations (T, FV, FH)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_image_ops)
+        self._le_ws_image_ops = gui.lineEdit(ws_box_4, self, "image_ops", "Image Transformations (T, FV, FH)", labelWidth=labels_width_1, orientation='horizontal', valueType=str, callback=self._set_image_ops)
         gui.checkBox(ws_box_4, self, "plot_raw_image", "Plot Raw Image after Shot")
         gui.lineEdit(ws_box_4, self, "plot_rebinning_factor", label="Rebinning Factor for plotting", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
@@ -277,8 +282,6 @@ class WavefrontSensorWidget(GenericWidget):
         ws_tiff_autoincrement    = gui.lineEdit(ws_box_3, self, "tiff_autoincrement",    "Tiff: Auto-Increment",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
         ws_pva_image             = gui.lineEdit(ws_box_3, self, "pva_image",             "Pva Image",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
 
-        def emit_configuration_changed(): self.configuration_changed.emit()
-
         ws_send_stop_command.stateChanged.connect(emit_configuration_changed)
         ws_send_save_command.stateChanged.connect(emit_configuration_changed)
         ws_remove_image.stateChanged.connect(emit_configuration_changed)
@@ -287,13 +290,13 @@ class WavefrontSensorWidget(GenericWidget):
         ws_exposure_time.textChanged.connect(emit_configuration_changed)
         ws_pause_after_shot.textChanged.connect(emit_configuration_changed)
         ws_pixel_format.textChanged.connect(emit_configuration_changed)
-        ws_index_digits.textChanged.connect(emit_configuration_changed)
-        ws_file_name_prefix_type.currentIndexChanged.connect(emit_configuration_changed)
-        self.le_ws_file_name_prefix_custom.textChanged.connect(emit_configuration_changed)
+        self._le_ws_index_digits.textChanged.connect(emit_configuration_changed)
+        self._cb_ws_file_name_prefix_type.currentIndexChanged.connect(emit_configuration_changed)
+        self._le_ws_file_name_prefix_custom.textChanged.connect(emit_configuration_changed)
         ws_pixel_size.textChanged.connect(emit_configuration_changed)
         ws_detector_resolution.textChanged.connect(emit_configuration_changed)
         ws_data_from.currentIndexChanged.connect(emit_configuration_changed)
-        self.le_ws_image_ops.textChanged.connect(emit_configuration_changed)
+        self._le_ws_image_ops.textChanged.connect(emit_configuration_changed)
         ws_cam_pixel_format.textChanged.connect(emit_configuration_changed)
         ws_cam_acquire.textChanged.connect(emit_configuration_changed)
         ws_cam_exposure_time.textChanged.connect(emit_configuration_changed)
@@ -410,7 +413,7 @@ class WavefrontSensorWidget(GenericWidget):
         self._set_configuration_icon(changed=False)
 
     def _set_file_name_prefix_type(self):
-        self.le_ws_file_name_prefix_custom.setEnabled(self.file_name_prefix_type==1)
+        self._le_ws_file_name_prefix_custom.setEnabled(self.file_name_prefix_type == 1)
 
     def _set_current_image_directory(self):
         self.le_current_image_directory.setText(
@@ -422,7 +425,7 @@ class WavefrontSensorWidget(GenericWidget):
         data_from = get_data_from_int_to_string(self.data_from)
 
         self.image_ops = list_to_string(self._image_ops.get(data_from, []))
-        self.le_ws_image_ops.setText(str(self.image_ops))
+        self._le_ws_image_ops.setText(str(self.image_ops))
 
     def _set_image_ops(self):
         data_from = get_data_from_int_to_string(self.data_from)
@@ -606,11 +609,25 @@ class WavefrontSensorWidget(GenericWidget):
         try:    QTimer.singleShot(100, _execute)
         except: pass
 
-    def _image_directory_changed_callback(self, new_image_directory):
-        self.current_image_directory = new_image_directory
-        self.le_current_image_directory.setText(new_image_directory)
+    def image_files_parameters_changed_callback(self, parameters):
+        print("VAFFANCULO", parameters)
+
+        if parameters["file_name_type"] == 1:
+            self.file_name_prefix_type   = 1
+            self.index_digits            = parameters["index_digits_custom"]
+            self.file_name_prefix_custom = parameters["file_name_prefix_custom"]
+            self._cb_ws_file_name_prefix_type.setCurrentIndex(1)
+            self._le_ws_index_digits.setText(str(parameters["index_digits_custom"]))
+            self._le_ws_file_name_prefix_custom.setText(parameters["file_name_prefix_custom"])
+
+        self._set_file_name_prefix_type()
+        self.current_image_directory = parameters["image_directory"]
+        self.le_current_image_directory.setText(parameters["image_directory"])
+
+        self.repaint()
+
         self._collect_initialization_parameters(raise_errors=True)
-        self._image_directory_changed(self._initialization_parameters)
+        self._image_files_parameters_changed(self._initialization_parameters)
         self._set_configuration_icon(changed=False)
 
     # ----------------------------------------------------

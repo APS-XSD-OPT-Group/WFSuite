@@ -76,8 +76,8 @@ warnings.filterwarnings("ignore")
 DEBUG_MODE = int(os.environ.get("DEBUG_MODE", 0)) == 1
 
 class AbsolutePhaseWidget(GenericWidget):
-    wavefront_sensor_changed = pyqtSignal()
-    profile_clicked          = pyqtSignal(str, int)
+    synchronize_wavefront_sensor = pyqtSignal()
+    profile_clicked              = pyqtSignal(str, int)
 
     def __init__(self, parent, application_name=None, **kwargs):
         self._log_stream_widget             = kwargs["log_stream_widget"]
@@ -85,33 +85,39 @@ class AbsolutePhaseWidget(GenericWidget):
         self._initialization_parameters     = kwargs["initialization_parameters"]
 
         # METHODS
-        self._close                         = kwargs["close_method"]
-        self._image_directory_changed       = kwargs["image_directory_changed_method"]
-        self._take_shot                     = kwargs["take_shot_method"]
-        self._take_shot_as_flat_image       = kwargs["take_shot_as_flat_image_method"]
-        self._read_image_from_file          = kwargs["read_image_from_file_method"]
-        self._generate_mask                 = kwargs["generate_mask_method"]
-        self._process_image                 = kwargs["process_image_method"]
-        self._back_propagate                = kwargs["back_propagate_method"]
+        self._close                          = kwargs["close_method"]
+        self._image_files_parameters_changed = kwargs["image_files_parameters_changed_method"]
+        self._take_shot                      = kwargs["take_shot_method"]
+        self._take_shot_as_flat_image        = kwargs["take_shot_as_flat_image_method"]
+        self._read_image_from_file           = kwargs["read_image_from_file_method"]
+        self._generate_mask                  = kwargs["generate_mask_method"]
+        self._process_image                  = kwargs["process_image_method"]
+        self._back_propagate                 = kwargs["back_propagate_method"]
 
         self._set_values_from_initialization_parameters()
 
         super(AbsolutePhaseWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
 
         self.profile_clicked.connect(self._on_profile_clicked)
+        self.synchronize_wavefront_sensor.connect(self._on_synchronize_wavefront_sensor)
 
     def _set_values_from_initialization_parameters(self):
         self.working_directory = self._working_directory
 
         initialization_parameters: ScriptData = self._initialization_parameters
 
-        self.wavefront_sensor_image_directory = initialization_parameters.get_parameter("wavefront_sensor_image_directory", os.path.join(os.path.abspath(os.curdir), "wf_images"))
-        self.simulated_mask_directory         = initialization_parameters.get_parameter("simulated_mask_directory", os.path.join(self.wavefront_sensor_image_directory, "simulated_mask"))
-        self.use_flat                         = initialization_parameters.get_parameter("use_flat", False)
-        self.use_dark                         = initialization_parameters.get_parameter("use_dark", False)
-        self.save_images                      = initialization_parameters.get_parameter("save_images", True)
-        self.bp_calibration_mode              = initialization_parameters.get_parameter("bp_calibration_mode", False)
-        self.bp_plot_shift                    = initialization_parameters.get_parameter("bp_plot_shift", True)
+        self.wavefront_sensor_mode     = initialization_parameters.get_parameter("wavefront_sensor_mode", 0)
+        self.image_index               = initialization_parameters.get_parameter("image_index", 1)
+        self.file_name_type            = initialization_parameters.get_parameter("file_name_type", 0)
+        self.index_digits_custom       = initialization_parameters.get_parameter("index_digits_custom", 5)
+        self.file_name_prefix_custom   = initialization_parameters.get_parameter("file_name_prefix_custom", "custom_file_prefix")
+        self.image_directory           = initialization_parameters.get_parameter("image_directory", os.path.join(os.path.abspath(os.curdir), "wf_images"))
+        self.simulated_mask_directory  = initialization_parameters.get_parameter("simulated_mask_directory", os.path.join(self.image_directory, "simulated_mask"))
+        self.use_flat                  = initialization_parameters.get_parameter("use_flat", False)
+        self.use_dark                  = initialization_parameters.get_parameter("use_dark", False)
+        self.save_images               = initialization_parameters.get_parameter("save_images", True)
+        self.bp_calibration_mode       = initialization_parameters.get_parameter("bp_calibration_mode", False)
+        self.bp_plot_shift             = initialization_parameters.get_parameter("bp_plot_shift", True)
 
         wavefront_analyzer_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")
         data_analysis_configuration = wavefront_analyzer_configuration["data_analysis"]
@@ -251,8 +257,6 @@ class AbsolutePhaseWidget(GenericWidget):
         self._input_tab_widget = gui.tabWidget(self._input_box)
         wa_tab     = gui.createTabPage(self._input_tab_widget, "Wavefront Analysis")
 
-
-
         self._command_tab_widget = gui.tabWidget(self._command_box)
         ex_tab     = gui.createTabPage(self._command_tab_widget, "Execution")
 
@@ -262,6 +266,8 @@ class AbsolutePhaseWidget(GenericWidget):
 
         #########################################################################################
         # WAVEFRONT ANALYSIS
+
+        def emit_synchronize_wavefront_sensor(): self.synchronize_wavefront_sensor.emit()
 
         if sys.platform == 'darwin' : self._wa_box  = gui.widgetBox(wa_tab, "", width=self._input_box.width()-10, height=self._input_box.height()-40)
         else:                         self._wa_box  = gui.widgetBox(wa_tab, "", width=self._input_box.width()-10, height=self._input_box.height()-40)
@@ -281,6 +287,31 @@ class AbsolutePhaseWidget(GenericWidget):
         wa_tab_5     = gui.createTabPage(self._wa_tab_widget_1, "Runtime")
         wa_tab_3     = gui.createTabPage(self._wa_tab_widget_2, "Propagation")
         wa_tab_4     = gui.createTabPage(self._wa_tab_widget_2, "Best Focus")
+
+        gui.comboBox(wa_tab_1, self, "wavefront_sensor_mode", label="Wavefront Sensor Mode",
+                     items=["Online", "Offline"], labelWidth=labels_width_2, sendSelectedValue=False, orientation="horizontal",
+                     callback=self._set_wavefront_sensor_mode)
+
+        if sys.platform == 'darwin' : wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=210)
+        else:                         wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=240)
+
+        self._image_directory_box = gui.widgetBox(wa_box_3, "", width=wa_box_3.width() - 20, orientation='horizontal', addSpace=False)
+        self._le_image_directory = gui.lineEdit(self._image_directory_box, self, "image_directory", "Image At", orientation='horizontal', valueType=str)
+        gui.button(self._image_directory_box, self, "...", width=30, callback=self._set_image_directory)
+        self._le_image_directory.textChanged.connect(emit_synchronize_wavefront_sensor)
+
+        self._le_image_index                = gui.lineEdit(wa_box_3, self, "image_index",  "Image Index", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+        self._cb_ws_file_name_type          = gui.comboBox(wa_box_3, self, "file_name_type", label="File Name From", labelWidth=labels_width_1, orientation='horizontal', items=["W.S. Configuration", "Custom"], callback=self._set_file_name_type)
+        self._le_ws_index_digits_custom     = gui.lineEdit(wa_box_3, self, "index_digits_custom",  "Digits on Image Index", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+        self._le_ws_file_name_prefix_custom = gui.lineEdit(wa_box_3, self, "file_name_prefix_custom", "Custom Prefix", labelWidth=120, orientation='horizontal', valueType=str)
+
+        self._cb_ws_file_name_type.currentIndexChanged.connect(emit_synchronize_wavefront_sensor)
+        self._le_ws_index_digits_custom.textChanged.connect(emit_synchronize_wavefront_sensor)
+        self._le_ws_file_name_prefix_custom.textChanged.connect(emit_synchronize_wavefront_sensor)
+
+        self._simulated_mask_directory_box = gui.widgetBox(wa_box_3, "", width=wa_box_3.width() - 20, orientation='horizontal', addSpace=False)
+        self._le_simulated_mask_directory = gui.lineEdit(self._simulated_mask_directory_box, self, "simulated_mask_directory", "Sim. Mask at", orientation='horizontal', valueType=str)
+        gui.button(self._simulated_mask_directory_box, self, "...", width=30, callback=self._set_simulated_mask_directory)
 
         if sys.platform == 'darwin': wa_box_1 = gui.widgetBox(wa_tab_1, "Mask", width=self._wa_box.width()-25, height=170)
         else:                        wa_box_1 = gui.widgetBox(wa_tab_1, "Mask", width=self._wa_box.width()-25, height=190)
@@ -305,17 +336,6 @@ class AbsolutePhaseWidget(GenericWidget):
         font.setPixelSize(14)
         le.setFont(font)
         le.setStyleSheet("QLineEdit {color : darkred}")
-
-        if sys.platform == 'darwin' : wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=150)
-        else:                         wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=180)
-
-        self._wavefront_sensor_image_directory_box = gui.widgetBox(wa_box_3, "", width=wa_box_3.width() - 20, orientation='horizontal', addSpace=False)
-        self.le_wavefront_sensor_image_directory = gui.lineEdit(self._wavefront_sensor_image_directory_box, self, "wavefront_sensor_image_directory", "Store image from detector at", orientation='vertical', valueType=str)
-        gui.button(self._wavefront_sensor_image_directory_box, self, "...", width=30, callback=self._set_wavefront_sensor_image_directory)
-
-        self._simulated_mask_directory_box = gui.widgetBox(wa_box_3, "", width=wa_box_3.width() - 20, orientation='horizontal', addSpace=False)
-        self.le_simulated_mask_directory = gui.lineEdit(self._simulated_mask_directory_box, self, "simulated_mask_directory", "Simulated Mask at", orientation='vertical', valueType=str)
-        gui.button(self._simulated_mask_directory_box, self, "...", width=30, callback=self._set_simulated_mask_directory)
 
         wa_box_7 = gui.widgetBox(wa_tab_5, "Processing", width=self._wa_box.width()-25, height=130)
 
@@ -456,6 +476,7 @@ class AbsolutePhaseWidget(GenericWidget):
 
         gui.checkBox(self._bp_box_3_1, self, "bp_calibration_mode", "Phase Shift Calibration")
 
+        self._set_file_name_type()
         self._set_method()
         self._set_d_source_recal()
         self._set_kind()
@@ -482,17 +503,19 @@ class AbsolutePhaseWidget(GenericWidget):
         palette.setColor(QPalette.ButtonText, QColor('Dark Blue'))
         exit_button.setPalette(palette)
 
-        gui.button(ex_box_1, None, "Take Shot",                    callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
+        self._btn_take_shot = gui.button(ex_box_1, None, "Take Shot", callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
         gui.separator(ex_box_1)
-        gui.button(ex_box_1, None, "Take Shot As Flat Image",      callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
+        self._btn_take_shot_as_flat_image = gui.button(ex_box_1, None, "Take Shot As Flat Image", callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
         gui.separator(ex_box_1)
-        gui.button(ex_box_1, None, "Read Image From File",         callback=self._read_image_from_file_callback, width=ex_box_1.width()-20, height=35)
+        gui.button(ex_box_1, None, "Read Image From File", callback=self._read_image_from_file_callback, width=ex_box_1.width()-20, height=35)
 
         gui.button(ex_box_2, None, "Generate Mask", callback=self._generate_mask_callback, width=ex_box_2.width() - 20, height=35)
         gui.separator(ex_box_2)
         gui.button(ex_box_2, None, "Process Image", callback=self._process_image_callback, width=ex_box_2.width() - 20, height=35)
         gui.separator(ex_box_2)
         gui.button(ex_box_2, None, "Back-Propagate", callback=self._back_propagate_callback, width=ex_box_2.width() - 20, height=35)
+
+        self._set_wavefront_sensor_mode()
 
         #########################################################################################
         #########################################################################################
@@ -663,20 +686,40 @@ class AbsolutePhaseWidget(GenericWidget):
         else:
             self._log_box.layout().addWidget(QLabel("Log on file only"))
 
-    def _set_wavefront_sensor_image_directory(self):
-        self.le_wavefront_sensor_image_directory.setText(
-            gui.selectDirectoryFromDialog(self,
-                                          previous_directory_path=self.wavefront_sensor_image_directory,
-                                          start_directory=self.working_directory))
+    def _on_synchronize_wavefront_sensor(self):
+        self.file_name_type = self._cb_ws_file_name_type.currentIndex()
 
         self._collect_initialization_parameters(raise_errors=False)
-        self._image_directory_changed(self._initialization_parameters)
+        self._image_files_parameters_changed(self._initialization_parameters)
+
+    def _set_wavefront_sensor_mode(self):
+        if self.wavefront_sensor_mode == 0: # online
+            self._btn_take_shot.setEnabled(True)
+            self._btn_take_shot_as_flat_image.setEnabled(True)
+            self._le_image_index.setEnabled(False)
+
+            self._collect_initialization_parameters(raise_errors=False)
+            self._image_files_parameters_changed(self._initialization_parameters)
+        else:
+            self._btn_take_shot.setEnabled(False)
+            self._btn_take_shot_as_flat_image.setEnabled(False)
+            self._le_image_index.setEnabled(True)
+
+    def _set_file_name_type(self):
+        self._le_ws_index_digits_custom.setEnabled(self.file_name_type == 1)
+        self._le_ws_file_name_prefix_custom.setEnabled(self.file_name_type == 1)
+
+    def _set_image_directory(self):
+        self._le_image_directory.setText(
+            gui.selectDirectoryFromDialog(self,
+                                          previous_directory_path=self.image_directory,
+                                          start_directory=self.working_directory))
 
     def _set_simulated_mask_directory(self):
-        self.le_simulated_mask_directory.setText(
+        self._le_simulated_mask_directory.setText(
             gui.selectDirectoryFromDialog(self,
                                           previous_directory_path=self.simulated_mask_directory,
-                                          start_directory=self.wavefront_sensor_image_directory))
+                                          start_directory=self.image_directory))
 
     def _set_d_source_recal(self):
         self.le_estimation_method.setEnabled(bool(self.d_source_recal))
@@ -806,13 +849,18 @@ class AbsolutePhaseWidget(GenericWidget):
 
         # Widget ini
 
-        initialization_parameters.set_parameter("wavefront_sensor_image_directory", self.wavefront_sensor_image_directory)
-        initialization_parameters.set_parameter("simulated_mask_directory",         self.simulated_mask_directory)
-        initialization_parameters.set_parameter("use_dark",                         bool(self.use_dark))
-        initialization_parameters.set_parameter("use_flat",                         bool(self.use_flat))
-        initialization_parameters.set_parameter("save_images",                      bool(self.save_images))
-        initialization_parameters.set_parameter("bp_calibration_mode",              bool(self.bp_calibration_mode))
-        initialization_parameters.set_parameter("bp_plot_shift",                    bool(self.bp_plot_shift))
+        initialization_parameters.set_parameter("wavefront_sensor_mode",    self.wavefront_sensor_mode)
+        initialization_parameters.set_parameter("image_index",              self.image_index)
+        initialization_parameters.set_parameter("file_name_type",           self.file_name_type)
+        initialization_parameters.set_parameter("index_digits_custom",      self.index_digits_custom)
+        initialization_parameters.set_parameter("file_name_prefix_custom",  self.file_name_prefix_custom)
+        initialization_parameters.set_parameter("image_directory",          self.image_directory)
+        initialization_parameters.set_parameter("simulated_mask_directory", self.simulated_mask_directory)
+        initialization_parameters.set_parameter("use_dark",                 bool(self.use_dark))
+        initialization_parameters.set_parameter("use_flat",                 bool(self.use_flat))
+        initialization_parameters.set_parameter("save_images",              bool(self.save_images))
+        initialization_parameters.set_parameter("bp_calibration_mode",      bool(self.bp_calibration_mode))
+        initialization_parameters.set_parameter("bp_plot_shift",            bool(self.bp_plot_shift))
 
     def _close_callback(self):
         if ConfirmDialog.confirmed(self, "Confirm Exit?"):

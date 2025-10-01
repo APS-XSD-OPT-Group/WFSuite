@@ -84,10 +84,10 @@ def create_absolute_phase_manager(**kwargs): return _AbsolutePhaseManager(**kwar
 class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
     interrupt = pyqtSignal()
 
-    take_shot_sent               = pyqtSignal(str)
-    take_shot_as_flat_image_sent = pyqtSignal(str)
-    read_image_from_file_sent    = pyqtSignal(str)
-    image_directory_changed_sent = pyqtSignal(str, str)
+    take_shot_sent                      = pyqtSignal(str)
+    take_shot_as_flat_image_sent        = pyqtSignal(str)
+    read_image_from_file_sent           = pyqtSignal(str)
+    image_files_parameters_changed_sent = pyqtSignal(str, dict)
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -112,7 +112,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
             "take_shot":               self.take_shot_sent,
             "take_shot_as_flat_image": self.take_shot_as_flat_image_sent,
             "read_image_from_file":    self.read_image_from_file_sent,
-            "image_directory_changed": self.image_directory_changed_sent,
+            "image_files_parameters_changed": self.image_files_parameters_changed_sent,
         }
 
     def activate_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs):
@@ -132,7 +132,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
                                                                        working_directory=self.__working_directory,
                                                                        initialization_parameters=initialization_parameters,
                                                                        close_method=self.close,
-                                                                       image_directory_changed_method=self.image_directory_changed,
+                                                                       image_files_parameters_changed_method=self.image_files_parameters_changed,
                                                                        take_shot_method=self.take_shot,
                                                                        take_shot_as_flat_image_method=self.take_shot_as_flat_image,
                                                                        read_image_from_file_method=self.read_image_from_file,
@@ -145,7 +145,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
             self.__plotter.draw_context(SHOW_ABSOLUTE_PHASE, add_context_label=add_context_label, unique_id=unique_id, **kwargs)
             self.__plotter.show_context_window(SHOW_ABSOLUTE_PHASE, unique_id)
 
-            self.image_directory_changed(initialization_parameters) # change directory at startup
+            self.image_files_parameters_changed(initialization_parameters) # change directory at startup
 
             self.__forms_registry[plot_widget_instance] = unique_id
         else:
@@ -178,9 +178,16 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
 
             self.__plotter.get_context_container_widget(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id).parent().close()
 
-    def image_directory_changed(self, initialization_parameters: ScriptData):
-        self.image_directory_changed_sent.emit("image_directory_changed",
-                                               initialization_parameters.get_parameter("wavefront_sensor_image_directory"))
+    def image_files_parameters_changed(self, initialization_parameters: ScriptData):
+        if initialization_parameters.get_parameter("wavefront_sensor_mode") == 0:
+            parameters = {
+                "file_name_type": initialization_parameters.get_parameter("file_name_type"),
+                "file_name_prefix_custom": initialization_parameters.get_parameter("file_name_prefix_custom"),
+                "index_digits_custom": initialization_parameters.get_parameter("index_digits_custom"),
+                "image_directory": initialization_parameters.get_parameter("image_directory"),
+            }
+
+            self.image_files_parameters_changed_sent.emit("image_files_parameters_changed", parameters)
 
     def take_shot(self):
         self.take_shot_sent.emit("take_shot")
@@ -193,30 +200,50 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
 
     def generate_mask(self, initialization_parameters: ScriptData):
         self.__set_wavefront_ready(initialization_parameters)
-        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=1,
-                                                                                               use_dark=initialization_parameters.get_parameter("use_dark", False),
-                                                                                               use_flat=initialization_parameters.get_parameter("use_flat", False))
+
+        wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode")
+        image_index_for_mask  = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
+        kwargs                = {
+            "use_dark": initialization_parameters.get_parameter("use_dark", False),
+            "use_flat": initialization_parameters.get_parameter("use_flat", False),
+        }
+        if wavefront_sensor_mode == 0:
+            kwargs["index_digits"] = initialization_parameters.get_parameter("index_digits")
+
+        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=image_index_for_mask, **kwargs)
 
         if not is_new_mask: raise ValueError("Simulated Mask is already present in the Wavefront Image Directory")
         else:               return image_transfer_matrix
 
     def process_image(self, initialization_parameters: ScriptData):
         self.__set_wavefront_ready(initialization_parameters)
-        wavefront_at_detector_data = self.__wavefront_analyzer.process_image(image_index=1,
-                                                                             use_dark=initialization_parameters.get_parameter("use_dark", False),
-                                                                             use_flat=initialization_parameters.get_parameter("use_flat", False),
-                                                                             save_images=initialization_parameters.get_parameter("save_result", True))
 
-        return wavefront_at_detector_data
+        wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode")
+        image_index           = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
+        kwargs                = {
+            "use_dark": initialization_parameters.get_parameter("use_dark", False),
+            "use_flat": initialization_parameters.get_parameter("use_flat", False),
+            "save_images": initialization_parameters.get_parameter("save_result", True),
+        }
+        if wavefront_sensor_mode == 0:
+            kwargs["index_digits"] = initialization_parameters.get_parameter("index_digits")
+
+        return self.__wavefront_analyzer.process_image(image_index=image_index, **kwargs)
 
     def back_propagate(self, initialization_parameters: ScriptData, **kwargs):
         self.__set_wavefront_ready(initialization_parameters)
-        propagated_wavefront_data = self.__wavefront_analyzer.back_propagate_wavefront(image_index=1,
-                                                                                       show_figure=False,
-                                                                                       save_result=True,
-                                                                                       verbose=True)
 
-        return propagated_wavefront_data
+        wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode")
+        image_index           = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
+        kwargs                = {
+            "verbose": True,
+            "show_figure" : False,
+            "save_result": initialization_parameters.get_parameter("save_result", True),
+        }
+        if wavefront_sensor_mode == 0:
+            kwargs["index_digits"] = initialization_parameters.get_parameter("index_digits")
+
+        return self.__wavefront_analyzer.back_propagate_wavefront(image_index=image_index, **kwargs)
 
     # --------------------------------------------------------------------------------------
     # PRIVATE METHODS
@@ -228,19 +255,23 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
 
     def __check_wavefront_analyzer(self, initialization_parameters: ScriptData, batch_mode=False):
         data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
-        data_collection_directory   = initialization_parameters.get_parameter("wavefront_sensor_image_directory" if not batch_mode else
-                                                                              "wavefront_sensor_image_directory_batch")
-        simulated_mask_directory    = initialization_parameters.get_parameter("simulated_mask_directory" if not batch_mode else
-                                                                              "simulated_mask_directory_batch")
+
+        data_collection_directory   = initialization_parameters.get_parameter("image_directory" if not batch_mode else "image_directory_batch")
+        simulated_mask_directory    = initialization_parameters.get_parameter("simulated_mask_directory" if not batch_mode else "simulated_mask_directory_batch")
         energy                      = data_analysis_configuration['energy']
+        file_name_prefix_type       = initialization_parameters.get_parameter("file_name_prefix_type")
+        file_name_prefix            = initialization_parameters.get_parameter("file_name_prefix_custom") if file_name_prefix_type == 1 else None
 
         if self.__wavefront_analyzer is None: generate = True
         else:
             current_setup = self.__wavefront_analyzer.get_current_setup()
             generate = current_setup['data_collection_directory'] != data_collection_directory or \
                        current_setup['energy'] != energy or \
-                       current_setup['simulated_mask_directory'] != simulated_mask_directory
+                       current_setup['simulated_mask_directory'] != simulated_mask_directory or \
+                       (file_name_prefix_type == 1 and current_setup['file_name_prefix'] != file_name_prefix)
+
 
         if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory,
                                                                            simulated_mask_directory=simulated_mask_directory,
+                                                                           file_name_prefix=file_name_prefix,
                                                                            energy=energy)
