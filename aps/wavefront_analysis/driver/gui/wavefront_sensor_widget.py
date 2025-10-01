@@ -135,6 +135,8 @@ class WavefrontSensorWidget(GenericWidget):
         self.pause_after_shot = wavefront_sensor_configuration["pause_after_shot"]
         self.pixel_format = wavefront_sensor_configuration["pixel_format"]
         self.index_digits = wavefront_sensor_configuration["index_digits"]
+        self.file_name_prefix_type = wavefront_sensor_configuration["file_name_prefix_type"]
+        self.file_name_prefix_custom = wavefront_sensor_configuration["file_name_prefix_custom"]
         self.is_stream_available = wavefront_sensor_configuration["is_stream_available"]
         self.pixel_size = wavefront_sensor_configuration["pixel_size"]
         self.detector_resolution = wavefront_sensor_configuration["detector_resolution"]
@@ -228,8 +230,8 @@ class WavefrontSensorWidget(GenericWidget):
         ws_tab_1     = gui.createTabPage(tab_widget, "Image Capture")
         ws_tab_2     = gui.createTabPage(tab_widget, "IOC")
 
-        if sys.platform == 'darwin' : ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=290)
-        else:                         ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=320)
+        if sys.platform == 'darwin' : ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=340)
+        else:                         ws_box_1 = gui.widgetBox(ws_tab_1, "Execution", width=self._ws_box.width()-15, height=380)
 
         ws_send_stop_command      = gui.checkBox(ws_box_1, self, "send_stop_command",      "Send Stop Command")
         ws_send_save_command      = gui.checkBox(ws_box_1, self, "send_save_command",      "Send Save Command")
@@ -243,6 +245,9 @@ class WavefrontSensorWidget(GenericWidget):
         ws_pause_after_shot = gui.lineEdit(ws_box_1, self, "pause_after_shot", "Pause After Shot [s]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         ws_pixel_format     = gui.lineEdit(ws_box_1, self, "pixel_format",  "Pixel Format",          labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         ws_index_digits     = gui.lineEdit(ws_box_1, self, "index_digits",  "Digits on Image Index", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+
+        ws_file_name_prefix_type   = gui.comboBox(ws_box_1, self, "file_name_prefix_type", label="File Name Prefix", labelWidth=labels_width_1, orientation='horizontal', items=["Default", "Custom"], callback=self._set_file_name_prefix_type)
+        self.le_ws_file_name_prefix_custom = gui.lineEdit(ws_box_1, self, "file_name_prefix_custom",  "Custom Prefix", labelWidth=120, orientation='horizontal', valueType=str)
 
         ws_box_2 = gui.widgetBox(ws_tab_1, "Detector", width=self._ws_box.width()-15, height=90)
 
@@ -272,8 +277,7 @@ class WavefrontSensorWidget(GenericWidget):
         ws_tiff_autoincrement    = gui.lineEdit(ws_box_3, self, "tiff_autoincrement",    "Tiff: Auto-Increment",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
         ws_pva_image             = gui.lineEdit(ws_box_3, self, "pva_image",             "Pva Image",  labelWidth=labels_width_2, orientation='horizontal', valueType=str)
 
-        def emit_configuration_changed():
-            self.configuration_changed.emit()
+        def emit_configuration_changed(): self.configuration_changed.emit()
 
         ws_send_stop_command.stateChanged.connect(emit_configuration_changed)
         ws_send_save_command.stateChanged.connect(emit_configuration_changed)
@@ -284,6 +288,8 @@ class WavefrontSensorWidget(GenericWidget):
         ws_pause_after_shot.textChanged.connect(emit_configuration_changed)
         ws_pixel_format.textChanged.connect(emit_configuration_changed)
         ws_index_digits.textChanged.connect(emit_configuration_changed)
+        ws_file_name_prefix_type.currentIndexChanged.connect(emit_configuration_changed)
+        self.le_ws_file_name_prefix_custom.textChanged.connect(emit_configuration_changed)
         ws_pixel_size.textChanged.connect(emit_configuration_changed)
         ws_detector_resolution.textChanged.connect(emit_configuration_changed)
         ws_data_from.currentIndexChanged.connect(emit_configuration_changed)
@@ -399,8 +405,12 @@ class WavefrontSensorWidget(GenericWidget):
         else:
             self._log_box.layout().addWidget(QLabel("Log on file only"))
 
+        self._set_file_name_prefix_type()
         self._set_wavefront_sensor_icon()
         self._set_configuration_icon(changed=False)
+
+    def _set_file_name_prefix_type(self):
+        self.le_ws_file_name_prefix_custom.setEnabled(self.file_name_prefix_type==1)
 
     def _set_current_image_directory(self):
         self.le_current_image_directory.setText(
@@ -440,6 +450,8 @@ class WavefrontSensorWidget(GenericWidget):
         wavefront_sensor_configuration["pause_after_shot"] = self.pause_after_shot
         wavefront_sensor_configuration["pixel_format"] = self.pixel_format
         wavefront_sensor_configuration["index_digits"] = self.index_digits
+        wavefront_sensor_configuration["file_name_prefix_type"]   = self.file_name_prefix_type
+        wavefront_sensor_configuration["file_name_prefix_custom"] = self.file_name_prefix_custom
         wavefront_sensor_configuration["is_stream_available"] = self.is_stream_available
         wavefront_sensor_configuration["pixel_size"] = self.pixel_size
         wavefront_sensor_configuration["detector_resolution"] = self.detector_resolution

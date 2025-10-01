@@ -91,7 +91,7 @@ class MainAbsolutePhase(GenericQTScript):
 
         # ==========================================================================
 
-        self.__plotter.raise_context_window(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id, close_button=False)
+        self.__plotter.raise_context_window(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id, close_button=False, stay_on_top=False)
 
 
     def _run_script(self, **args):

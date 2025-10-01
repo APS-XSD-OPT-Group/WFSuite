@@ -102,7 +102,7 @@ class MainWavefrontSensor(GenericQTScript):
 
         # ==========================================================================
 
-        self.__plotter.raise_context_window(context_key=SHOW_WAVEFRONT_SENSOR, close_button=False)
+        self.__plotter.raise_context_window(context_key=SHOW_WAVEFRONT_SENSOR, close_button=False, stay_on_top=False)
 
     def _parse_additional_sys_argument(self, sys_argument, args):
         if "-m" == sys_argument[:2]:   args["LOG_POOL"] = int(sys_argument[2:])

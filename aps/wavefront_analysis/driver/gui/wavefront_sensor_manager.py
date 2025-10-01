@@ -82,10 +82,11 @@ def create_wavefront_sensor_manager(**kwargs): return _WavefrontSensorManager(**
 class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
     interrupt = pyqtSignal()
 
-    take_shot_received = pyqtSignal()
-    take_shot_as_flat_image_received = pyqtSignal()
-    read_image_from_file_received = pyqtSignal()
-    image_directory_changed_received = pyqtSignal(str)
+    take_shot_received                = pyqtSignal()
+    take_shot_as_flat_image_received  = pyqtSignal()
+    read_image_from_file_received     = pyqtSignal()
+    image_directory_changed_received  = pyqtSignal(str)
+    file_name_prefix_changed_received = pyqtSignal(str)
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -108,6 +109,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
             "take_shot_as_flat_image": self.take_shot_as_flat_image_received,
             "read_image_from_file":    self.read_image_from_file_received,
             "image_directory_changed": self.image_directory_changed_received,
+            "file_name_prefix_changed": self.file_name_prefix_changed_received,
         }
 
     def activate_wavefront_sensor_manager(self, plotting_properties=PlottingProperties(), **kwargs):
@@ -156,8 +158,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
 
         try:
-            wavefront_sensor_configuration = initialization_parameters.get_parameter("wavefront_sensor_configuration")
-            self.__wavefront_sensor = create_wavefront_sensor(measurement_directory=wavefront_sensor_configuration["current_image_directory"])
+            self.__wavefront_sensor = create_wavefront_sensor() # the init will read the configuration and act accordingly.
         except Exception as e:
             self.__wavefront_sensor = None
             raise e

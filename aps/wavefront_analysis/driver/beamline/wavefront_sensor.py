@@ -45,13 +45,13 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
 import os
-import json
 import numpy as np
 
 from aps.common.driver.beamline.generic_camera import GenericCamera, DataSource, CameraInitializationFile, \
     get_default_file_name_prefix as __gdfnp, \
     get_image_data as __gid,\
-    get_image_file_path as __gifp
+    get_image_file_path as __gifp, \
+    get_file_name_prefix as __gfnp
 
 WAVEFRONT_SENSOR_STATUS_FILE = "wavefront_sensor_status.pkl"
 
@@ -67,8 +67,16 @@ WavefrontSensorInitializationFile.store()
 def __getattr__(name):
     if   name == 'PIXEL_SIZE':          return WavefrontSensorInitializationFile.PIXEL_SIZE
     elif name == 'DETECTOR_RESOLUTION': return WavefrontSensorInitializationFile.DETECTOR_RESOLUTION
-    elif name == 'INDEX_DIGITS':        return WavefrontSensorInitializationFile.INDEX_DIGITS
     else: raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+def get_file_name_prefix(file_name_prefix_type=None, file_name_prefix_custom=None, exposure_time=None):
+    if file_name_prefix_type is None:   file_name_prefix_type=WavefrontSensorInitializationFile.FILE_NAME_PREFIX_TYPE
+    if file_name_prefix_custom is None: file_name_prefix_custom=WavefrontSensorInitializationFile.FILE_NAME_PREFIX_CUSTOM
+    if exposure_time is None:           exposure_time = WavefrontSensorInitializationFile.EXPOSURE_TIME
+
+    return __gfnp(file_name_prefix_type=file_name_prefix_type,
+                  file_name_prefix_custom=file_name_prefix_custom,
+                  exposure_time=exposure_time)
 
 def get_default_file_name_prefix(exposure_time=None):
     return __gdfnp(exposure_time=(exposure_time if not exposure_time is None else WavefrontSensorInitializationFile.EXPOSURE_TIME))
@@ -94,7 +102,7 @@ def get_image_data(measurement_directory=None,
                                             **kwargs)
         if os.path.exists(file_name_old):
             measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY
-            file_name_prefix      = file_name_prefix if not file_name_prefix is None else get_default_file_name_prefix()
+            file_name_prefix      = file_name_prefix if not file_name_prefix is None else get_file_name_prefix()
             index_digits          = index_digits if not index_digits is None else WavefrontSensorInitializationFile.INDEX_DIGITS
             image_ops             = WavefrontSensorInitializationFile.IMAGE_OPS[DataSource.File]
             pixel_size            = WavefrontSensorInitializationFile.PIXEL_SIZE
@@ -112,11 +120,10 @@ def get_image_data(measurement_directory=None,
         else:
             raise IOError(f"File {file_name} not existing")
 
-
-def get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index = 1, index_digits=None, extension="json", **kwargs) -> str:
+def get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index = 1, index_digits=None, extension="hdf5", **kwargs) -> str:
     measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY
-    file_name_prefix      = file_name_prefix if not file_name_prefix is None else get_default_file_name_prefix()
     index_digits          = index_digits if not index_digits is None else WavefrontSensorInitializationFile.INDEX_DIGITS
+    file_name_prefix      = file_name_prefix if not file_name_prefix is None else get_file_name_prefix()
 
     return __gifp(measurement_directory=measurement_directory,
                   file_name_prefix=file_name_prefix,

@@ -63,8 +63,10 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
         "exposure_time" : WavefrontSensorInitializationFile.EXPOSURE_TIME, 
         "pause_after_shot" : WavefrontSensorInitializationFile.PAUSE_AFTER_SHOT,
         "pixel_format" : WavefrontSensorInitializationFile.PIXEL_FORMAT,
-        "index_digits" : WavefrontSensorInitializationFile.INDEX_DIGITS, 
-        "is_stream_available" : WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE, 
+        "index_digits" : WavefrontSensorInitializationFile.INDEX_DIGITS,
+        "file_name_prefix_type" : WavefrontSensorInitializationFile.FILE_NAME_PREFIX_TYPE,
+        "file_name_prefix_custom" : WavefrontSensorInitializationFile.FILE_NAME_PREFIX_CUSTOM,
+        "is_stream_available" : WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE,
         "pixel_size" : WavefrontSensorInitializationFile.PIXEL_SIZE,
         "detector_resolution" : WavefrontSensorInitializationFile.DETECTOR_RESOLUTION, 
         "cam_pixel_format" : WavefrontSensorInitializationFile.CAM_PIXEL_FORMAT, 
@@ -99,29 +101,31 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
 
     wavefront_sensor_configuration   = initialization_parameters.get_parameter("wavefront_sensor_configuration")
 
-    WavefrontSensorInitializationFile.SEND_STOP_COMMAND      = wavefront_sensor_configuration["send_stop_command"]
-    WavefrontSensorInitializationFile.SEND_SAVE_COMMAND      = wavefront_sensor_configuration["send_save_command"]
-    WavefrontSensorInitializationFile.REMOVE_IMAGE           = wavefront_sensor_configuration["remove_image"]
-    WavefrontSensorInitializationFile.WAIT_TIME              = wavefront_sensor_configuration["wait_time"]
-    WavefrontSensorInitializationFile.EXPOSURE_TIME          = wavefront_sensor_configuration["exposure_time"]
-    WavefrontSensorInitializationFile.PAUSE_AFTER_SHOT       = wavefront_sensor_configuration["pause_after_shot"]
-    WavefrontSensorInitializationFile.PIXEL_FORMAT           = wavefront_sensor_configuration["pixel_format"]
-    WavefrontSensorInitializationFile.INDEX_DIGITS           = wavefront_sensor_configuration["index_digits"]
-    WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE    = wavefront_sensor_configuration["is_stream_available"]
-    WavefrontSensorInitializationFile.PIXEL_SIZE             = wavefront_sensor_configuration["pixel_size"]
-    WavefrontSensorInitializationFile.DETECTOR_RESOLUTION    = wavefront_sensor_configuration["detector_resolution"]
-    WavefrontSensorInitializationFile.CAM_PIXEL_FORMAT       = wavefront_sensor_configuration["cam_pixel_format"]
-    WavefrontSensorInitializationFile.CAM_ACQUIRE            = wavefront_sensor_configuration["cam_acquire"]
-    WavefrontSensorInitializationFile.CAM_EXPOSURE_TIME      = wavefront_sensor_configuration["cam_exposure_time"]
-    WavefrontSensorInitializationFile.CAM_IMAGE_MODE         = wavefront_sensor_configuration["cam_image_mode"]
-    WavefrontSensorInitializationFile.TIFF_ENABLE_CALLBACKS  = wavefront_sensor_configuration["tiff_enable_callback"]
-    WavefrontSensorInitializationFile.TIFF_FILENAME          = wavefront_sensor_configuration["tiff_filename"]
-    WavefrontSensorInitializationFile.TIFF_FILEPATH          = wavefront_sensor_configuration["tiff_filepath"]
-    WavefrontSensorInitializationFile.TIFF_FILENUMBER        = wavefront_sensor_configuration["tiff_filenumber"]
-    WavefrontSensorInitializationFile.TIFF_AUTOSAVE          = wavefront_sensor_configuration["tiff_autosave"]
-    WavefrontSensorInitializationFile.TIFF_SAVEFILE          = wavefront_sensor_configuration["tiff_savefile"]
-    WavefrontSensorInitializationFile.TIFF_AUTOINCREMENT     = wavefront_sensor_configuration["tiff_autoincrement"]
-    WavefrontSensorInitializationFile.PVA_IMAGE              = wavefront_sensor_configuration["pva_image"]
+    WavefrontSensorInitializationFile.SEND_STOP_COMMAND       = wavefront_sensor_configuration["send_stop_command"]
+    WavefrontSensorInitializationFile.SEND_SAVE_COMMAND       = wavefront_sensor_configuration["send_save_command"]
+    WavefrontSensorInitializationFile.REMOVE_IMAGE            = wavefront_sensor_configuration["remove_image"]
+    WavefrontSensorInitializationFile.WAIT_TIME               = wavefront_sensor_configuration["wait_time"]
+    WavefrontSensorInitializationFile.EXPOSURE_TIME           = wavefront_sensor_configuration["exposure_time"]
+    WavefrontSensorInitializationFile.PAUSE_AFTER_SHOT        = wavefront_sensor_configuration["pause_after_shot"]
+    WavefrontSensorInitializationFile.PIXEL_FORMAT            = wavefront_sensor_configuration["pixel_format"]
+    WavefrontSensorInitializationFile.INDEX_DIGITS            = wavefront_sensor_configuration["index_digits"]
+    WavefrontSensorInitializationFile.FILE_NAME_PREFIX_TYPE   = wavefront_sensor_configuration["file_name_prefix_type"]
+    WavefrontSensorInitializationFile.FILE_NAME_PREFIX_CUSTOM = wavefront_sensor_configuration["file_name_prefix_custom"]
+    WavefrontSensorInitializationFile.IS_STREAM_AVAILABLE     = wavefront_sensor_configuration["is_stream_available"]
+    WavefrontSensorInitializationFile.PIXEL_SIZE              = wavefront_sensor_configuration["pixel_size"]
+    WavefrontSensorInitializationFile.DETECTOR_RESOLUTION     = wavefront_sensor_configuration["detector_resolution"]
+    WavefrontSensorInitializationFile.CAM_PIXEL_FORMAT        = wavefront_sensor_configuration["cam_pixel_format"]
+    WavefrontSensorInitializationFile.CAM_ACQUIRE             = wavefront_sensor_configuration["cam_acquire"]
+    WavefrontSensorInitializationFile.CAM_EXPOSURE_TIME       = wavefront_sensor_configuration["cam_exposure_time"]
+    WavefrontSensorInitializationFile.CAM_IMAGE_MODE          = wavefront_sensor_configuration["cam_image_mode"]
+    WavefrontSensorInitializationFile.TIFF_ENABLE_CALLBACKS   = wavefront_sensor_configuration["tiff_enable_callback"]
+    WavefrontSensorInitializationFile.TIFF_FILENAME           = wavefront_sensor_configuration["tiff_filename"]
+    WavefrontSensorInitializationFile.TIFF_FILEPATH           = wavefront_sensor_configuration["tiff_filepath"]
+    WavefrontSensorInitializationFile.TIFF_FILENUMBER         = wavefront_sensor_configuration["tiff_filenumber"]
+    WavefrontSensorInitializationFile.TIFF_AUTOSAVE           = wavefront_sensor_configuration["tiff_autosave"]
+    WavefrontSensorInitializationFile.TIFF_SAVEFILE           = wavefront_sensor_configuration["tiff_savefile"]
+    WavefrontSensorInitializationFile.TIFF_AUTOINCREMENT      = wavefront_sensor_configuration["tiff_autoincrement"]
+    WavefrontSensorInitializationFile.PVA_IMAGE               = wavefront_sensor_configuration["pva_image"]
     WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY = wavefront_sensor_configuration["default_image_directory"]
     WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY = wavefront_sensor_configuration["current_image_directory"]
     WavefrontSensorInitializationFile.DATA_FROM               = wavefront_sensor_configuration["data_from"]
@@ -129,7 +133,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
 
     WavefrontSensorInitializationFile.store()
 
-    ini.set_value_at_ini("Wavefront-Sensor", "Plot-Raw-Image", value=initialization_parameters.get_parameter("plot_raw_image"))
+    ini.set_value_at_ini("Wavefront-Sensor", "Plot-Raw-Image",        value=initialization_parameters.get_parameter("plot_raw_image"))
     ini.set_value_at_ini("Wavefront-Sensor", "Plot-Rebinning-Factor", value=initialization_parameters.get_parameter("plot_rebinning_factor"))
 
     ini.push()

@@ -260,7 +260,7 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
                  simulated_mask_directory=None,
                  energy=ENERGY):
         self.__data_collection_directory = data_collection_directory
-        self.__file_name_prefix          = file_name_prefix if not file_name_prefix is None else ws.get_default_file_name_prefix()
+        self.__file_name_prefix          = file_name_prefix if not file_name_prefix is None else ws.get_file_name_prefix() # TODO: here fnp must be different. Custom for offline otherwise the WS will dominate
         self.__simulated_mask_directory  = simulated_mask_directory
         self.__energy                    = energy
 
@@ -287,7 +287,6 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
                                           image_index=image_index,
                                           **kwargs)
         return hh, vv, image
-
 
     def process_image(self, image_index: int, data_collection_directory: str = None, **kwargs):
         return _process_image(data_collection_directory=self.__data_collection_directory if data_collection_directory is None else data_collection_directory,
@@ -409,7 +408,7 @@ class ProcessingThread(Thread):
 def _process_image(data_collection_directory, file_name_prefix, mask_directory, energy, image_index, **kwargs):
     index_digits = kwargs.get("index_digits", ws.INDEX_DIGITS)
     verbose      = kwargs.get("verbose", False)
-    img          = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
+    img          = kwargs.get("image_file_name", os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index))
     image_data   = kwargs.get("image_data", None)
     image_ops    = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
 
@@ -483,7 +482,6 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
                                  nCores=kwargs.get("n_cores", N_CORES),
                                  nGroup=kwargs.get("n_group", N_GROUP),
                                  verbose=verbose)
-    print("Image " + file_name_prefix + "_%05i.tif" % image_index + " processed")
 
 def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_directory, energy, image_index=1, **kwargs) -> [list, bool]:
     index_digits = kwargs.get("index_digits", ws.INDEX_DIGITS)
@@ -494,7 +492,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
 
     dark = None if (DARK is None or not use_dark) else os.path.join(data_collection_directory, DARK)
     flat = None if (FLAT is None or not use_flat) else os.path.join(data_collection_directory, FLAT)
-    img         = os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index)
+    img         = kwargs.get("image_file_name", os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index))
     image_data  = kwargs.get("image_data", None)
     image_ops   = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
 
@@ -567,7 +565,7 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
 def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_directory, image_index, **kwargs) -> dict:
     index_digits = kwargs.get("index_digits", ws.INDEX_DIGITS)
 
-    folder = os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i") % image_index)
+    folder         = kwargs.get("folder_name", os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i") % image_index))
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
 
     return execute_back_propagation(folder=folder,
