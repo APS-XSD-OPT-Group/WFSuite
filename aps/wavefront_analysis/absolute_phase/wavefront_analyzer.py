@@ -62,7 +62,6 @@ import aps.wavefront_analysis.driver.beamline.wavefront_sensor as ws
 
 from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
 
-
 APPLICATION_NAME = "WAVEFRONT-ANALYSIS"
 
 register_ini_instance(IniMode.LOCAL_JSON_FILE,
@@ -298,6 +297,7 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
 
     def process_images(self, data_collection_directory: str = None, mode=ProcessingMode.LIVE, n_threads=MAX_THREADS, **kwargs):
         data_collection_directory = self.__data_collection_directory if data_collection_directory is None else data_collection_directory
+        index_digits              = kwargs.get("index_digits", ws.INDEX_DIGITS)
 
         if mode == ProcessingMode.LIVE:
             for file in os.listdir(data_collection_directory):
@@ -306,7 +306,7 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
                 elif pathlib.Path(file).suffix == ".hdf5" and self.__file_name_prefix in file: extension = ".hdf5"
                 else: continue
 
-                self.process_image(image_index=int(file.split(extension)[0][-ws.INDEX_DIGITS:]), verbose=kwargs.get("verbose", False))
+                self.process_image(image_index=int(file.split(extension)[0][-index_digits:]), verbose=kwargs.get("verbose", False))
         else:
             os.environ["CUDA_VISIBLE_DEVICES"] = "{}".format(1)
 
@@ -316,6 +316,7 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
                 self.__active_threads[i] = ProcessingThread(thread_id=i+1,
                                                             data_collection_directory=data_collection_directory,
                                                             file_name_prefix=self.__file_name_prefix,
+                                                            index_digits=index_digits,
                                                             simulated_mask_directory=self.__simulated_mask_directory,
                                                             energy=self.__energy,
                                                             **kwargs)
@@ -345,7 +346,8 @@ from aps.common.singleton import synchronized_method
 class ProcessingThread(Thread):
     def __init__(self, thread_id, 
                  data_collection_directory, 
-                 file_name_prefix, 
+                 file_name_prefix,
+                 index_digits,
                  simulated_mask_directory, 
                  energy, 
                  **kwargs):
@@ -353,6 +355,7 @@ class ProcessingThread(Thread):
         self.__thread_id = thread_id
         self.__data_collection_directory = data_collection_directory
         self.__file_name_prefix          = file_name_prefix
+        self.__index_digits              = index_digits
         self.__simulated_mask_directory  = simulated_mask_directory
         self.__energy                    = energy
         self.__kwargs                    = kwargs
@@ -368,7 +371,7 @@ class ProcessingThread(Thread):
             if image_directory in result_folder_list:
                 continue
             else:
-                image_indexes.append(int(image_directory[-ws.INDEX_DIGITS:]))
+                image_indexes.append(int(image_directory[-self.__index_digits:]))
         return image_indexes
 
     def run(self):
@@ -405,12 +408,16 @@ class ProcessingThread(Thread):
 
         print('Thread #' + str(self.__thread_id) + ' completed')
 
+from aps.wavefront_analysis.driver.beamline.wavefront_sensor import get_image_file_path
+
 def _process_image(data_collection_directory, file_name_prefix, mask_directory, energy, image_index, **kwargs):
-    index_digits = kwargs.get("index_digits", ws.INDEX_DIGITS)
-    verbose      = kwargs.get("verbose", False)
-    img          = kwargs.get("image_file_name", os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index))
-    image_data   = kwargs.get("image_data", None)
-    image_ops    = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
+    index_digits    = kwargs.get("index_digits", None)
+    verbose         = kwargs.get("verbose", False)
+    image_file_name = kwargs.get("image_file_name", get_image_file_path(measurement_directory=data_collection_directory,
+                                                                        file_name_prefix=file_name_prefix,
+                                                                        image_index=image_index,
+                                                                        index_digits=index_digits))
+    image_data      = kwargs.get("image_data", None)
 
     use_flat = kwargs.get("use_flat")
     use_dark = kwargs.get("use_dark")
@@ -418,7 +425,8 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     dark           = None if (DARK is None or not use_dark) else os.path.join(data_collection_directory, DARK)
     flat           = None if (FLAT is None or not use_flat) else os.path.join(data_collection_directory, FLAT)
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
-    result_folder  = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])
+    result_folder  = os.path.join(os.path.dirname(image_file_name),
+                                  os.path.basename(image_file_name).split(pathlib.Path(image_file_name).suffix)[0])
 
     # pattern simulation parameters
     pattern_path          = os.path.join(os.path.dirname(__import__("aps.wavefront_analysis.absolute_phase.legacy", fromlist=[""]).__file__), 'mask', RAN_MASK)
@@ -435,7 +443,6 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
 
     return execute_process_image(img=img,
                                  image_data=image_data,
-                                 image_ops=image_ops,
                                  dark=dark,
                                  flat=flat,
                                  result_folder=result_folder,
@@ -492,12 +499,15 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
 
     dark = None if (DARK is None or not use_dark) else os.path.join(data_collection_directory, DARK)
     flat = None if (FLAT is None or not use_flat) else os.path.join(data_collection_directory, FLAT)
-    img         = kwargs.get("image_file_name", os.path.join(data_collection_directory, file_name_prefix + f"_%0{index_digits}i.tif" % image_index))
+    image_file_name = kwargs.get("image_file_name", get_image_file_path(measurement_directory=data_collection_directory,
+                                                                        file_name_prefix=file_name_prefix,
+                                                                        image_index=image_index,
+                                                                        index_digits=index_digits))
     image_data  = kwargs.get("image_data", None)
-    image_ops   = kwargs.get("image_ops", IMAGE_OPS.get("file", []) if image_data is None else IMAGE_OPS.get("stream", []))
 
     mask_directory  = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
-    result_folder   = os.path.join(os.path.dirname(img), os.path.basename(img).split('.tif')[0])
+    result_folder  = os.path.join(os.path.dirname(image_file_name),
+                                  os.path.basename(image_file_name).split(pathlib.Path(image_file_name).suffix)[0])
 
     pattern_path    = os.path.join(os.path.dirname(__import__("aps.wavefront_analysis.absolute_phase.legacy", fromlist=[""]).__file__), 'mask', RAN_MASK)
     saving_path     = mask_directory
@@ -507,9 +517,8 @@ def _generate_simulated_mask(data_collection_directory, file_name_prefix, mask_d
     if not os.path.exists(os.path.join(mask_directory, 'propagated_pattern.npz')) or \
        not os.path.exists(os.path.join(mask_directory, 'propagated_patternDet.npz')) or \
        not os.path.exists(os.path.join(mask_directory, "reference.json")):
-        execute_process_image(img=img,
+        execute_process_image(img=image_file_name,
                               image_data=image_data,
-                              image_ops=image_ops,
                               dark=dark,
                               flat=flat,
                               result_folder=result_folder,
