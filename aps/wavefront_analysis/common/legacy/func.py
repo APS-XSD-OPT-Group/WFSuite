@@ -45,11 +45,9 @@ def prColor(word, color_type):
     print(start_c + str(word) + end_c)
 
 def load_image(file_path):
-    if os.path.exists(file_path):
-        img = np.array(Image.open(file_path))
-    else:
-        prColor('Error: wrong data path. No data is loaded.', 'red')
-        sys.exit()
+    if os.path.exists(file_path): img = np.array(Image.open(file_path))
+    else: raise IOError('Error: wrong data path. No data is loaded.')
+
     return np.array(img).astype(np.float32)
 
 def img_save(folder_path, filename, img):

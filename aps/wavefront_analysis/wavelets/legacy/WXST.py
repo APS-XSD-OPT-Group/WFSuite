@@ -6,124 +6,33 @@
 @Contact	: z.qiao1989@gmail.com
 @File    	: WSVT.py
 @Software	: WaveletSBI
-@Desc		: scanning mode wavelet speckle tracking (WaveletSBI) script
+@Desc		: single-shot mode wavelet speckle tracking (WaveletSBI) script
 
 1. Qiao, Zhi, Xianbo Shi, and Lahsen Assoufid. “Single-Shot Speckle Tracking Method Based on Wavelet Transform and Multi-Resolution Analysis.” In Advances in Metrology for X-Ray and EUV Optics IX, edited by Lahsen Assoufid, Haruhiko Ohashi, and Anand Asundi, 22. Online Only, United States: SPIE, 2020. https://doi.org/10.1117/12.2569135.
 2. Qiao, Zhi, Xianbo Shi, Rafael Celestre, and Lahsen Assoufid. “Wavelet-Transform-Based Speckle Vector Tracking Method for X-Ray Phase Imaging.” Optics Express 28, no. 22 (October 26, 2020): 33053. https://doi.org/10.1364/OE.404606.
 
 '''
 
-import argparse
 import numpy as np
 import pywt
 import os
-import sys
 import time
-from PIL import Image
-import glob
+
 import torch
-from torch import nn
 import scipy.constants as sc
 import multiprocessing as ms
 import concurrent.futures
 import scipy.interpolate as sfit
-import cv2
 
-from aps.wavefront_analysis.wavelet.legacy.func import prColor, wavelet_transform_multiprocess, write_h5, write_json, find_disp, frankotchellappa
+from aps.wavefront_analysis.wavelets.legacy.func import prColor, wavelet_transform_multiprocess, write_h5, write_json, find_disp, frankotchellappa, cost_volume, slope_tracking
 from aps.wavefront_analysis.common.legacy.euclidean_dist import dist_numba
 
-
-def load_images(Folder_path, filename_format='*.tif'):
-    """
-    load_images to load images
-
-    Args:
-        Folder_path (str): image folder
-        filename_format (str, optional): image filename and extension. Defaults to '*.tif'.
-
-    Returns:
-        image data
-    """
-    f_list = glob.glob(os.path.join(Folder_path, filename_format))
-    f_list = sorted(f_list)
-    img = []
-    for f_single in f_list:
-        img.append(np.array(Image.open(f_single)))
-        # prColor('load image: {}'.format(f_single), 'green')
-    if len(img) == 0:
-        prColor(
-            'Error: wrong data path. No data is loaded. {}'.format(
-                Folder_path), 'red')
-        sys.exit()
-
-    return np.array(img)
-
-
-def slope_tracking(img, ref, n_window=15):
-    """
-    slope_tracking to use opencv to track the displacement movement roughly
-
-    Args:
-        img (ndarray): sample image
-        ref (ndarray): ref image
-        n_window (int, optional): window size. Defaults to 15.
-
-    Returns:
-        the displacement of the pixels in the images  [dips_H, disp_V]
-    """
-    # the pyramid scale, make the undersampling image
-    pyramid_scal = 0.5
-    # the pyramid levels
-    levels = 2
-    # window size of the displacement calculation
-    winsize = n_window
-    # iteration for the calculation
-    n_iter = 10
-    # neighborhood pixel size to calculate the polynomial expansion, which makes the results smooth but blurred
-    n_poly = 3
-    # standard deviation of the Gaussian that is used to smooth derivatives used as a basis for
-    # the polynomial expansion; for poly_n=5, you can set poly_sigma=1.1, for poly_n=7, a good value would be poly_sigma=1.5.
-    sigma_poly = 1.2
-    flags = 1
-
-    flow = cv2.calcOpticalFlowFarneback(ref, img, None, pyramid_scal, levels,
-                                        winsize, n_iter, n_poly, sigma_poly,
-                                        flags)
-
-    displace = np.array([flow[..., 1], flow[..., 0]])
-
-    return displace
-
-
-def cost_volume(first, second, search_range):
-    """Build cost volume for associating a pixel from Image1 with its corresponding pixels in Image2.
-    Args:
-        first: Level of the feature pyramid of Image1
-        second: Warped level of the feature pyramid of image22
-        search_range: Search range (maximum displacement)
-    """
-    padded_lvl = nn.functional.pad(
-        second, (search_range, search_range, search_range, search_range))
-    _, h, w = first.shape
-    max_offset = search_range * 2 + 1
-
-    cost_vol = []
-    for y in range(0, max_offset):
-        for x in range(0, max_offset):
-            second_slice = padded_lvl[:, y:y + h, x:x + w]
-            cost = torch.mean(first * second_slice, dim=0, keepdim=True)
-            cost_vol.append(cost)
-    # cost_vol = tf.concat(cost_vol, axis=3)
-    cost_vol = torch.cat(cost_vol, dim=0)
-
-    return cost_vol
-
-
-class WSVT:
+class WXST:
     def __init__(self,
-                 img_stack,
-                 ref_stack,
+                 img,
+                 ref,
                  M_image=512,
+                 N_s=5,
                  cal_half_window=20,
                  N_s_extend=4,
                  n_cores=4,
@@ -138,13 +47,13 @@ class WSVT:
                  use_wavelet=True,
                  use_GPU=0,
                  scaling_x=1.0,
-                 scaling_y=1.0,
-                 crop=[0,100,0,200]):
-        self.img_data = img_stack
-        self.ref_data = ref_stack
+                 scaling_y=1.0):
+        self.img_data = img
+        self.ref_data = ref
         # roi of the images
         self.M_image = M_image
-        self.crop = crop
+        # template window, the N_s nearby pixels used to represent the local pixel, 2*N_s+1
+        self.N_s = N_s
         # the number of the area to calculate for each pixel, 2*cal_half_window X 2*cal_half_window
         self.cal_half_window = cal_half_window
         # the calculation window for high order pyramid
@@ -188,15 +97,62 @@ class WSVT:
 
         if self.use_estimate:
             # get initial estimation from the cv2 flow tracking
-            displace_estimate = slope_tracking(self.ref_data[0],
-                                               self.img_data[0],
+            displace_estimate = slope_tracking(self.ref_data,
+                                               self.img_data,
                                                n_window=self.cal_half_window)
             self.displace_estimate = [
                 displace_estimate[0], displace_estimate[1]
             ]
         else:
-            c, m, n = self.img_data.shape
+            m, n = self.img_data.shape
             self.displace_estimate = [np.zeros((m, n)), np.zeros((m, n))]
+
+    def template_stack(self, img):
+        '''
+            stack the nearby pixels in 2*N_s+1
+        '''
+        img_stack = []
+        axis_Nw = np.arange(-self.N_s, self.N_s + 1)
+        for x in axis_Nw:
+            for y in axis_Nw:
+                img_stack.append(np.roll(np.roll(img, x, axis=0), y, axis=1))
+
+        return np.array(img_stack)
+
+    def pyramid_data(self):
+        """
+        generate pyramid data for multi-resolution
+
+        """
+        ref_pyramid = []
+        img_pyramid = []
+        prColor(
+            'obtain pyramid image and stack the window with pyramid level: {}'.
+            format(self.pyramid_level), 'green')
+        ref_pyramid.append(self.ref_data)
+        img_pyramid.append(self.img_data)
+
+        for kk in range(self.pyramid_level):
+            ref_pyramid.append(
+                pywt.dwtn(ref_pyramid[kk], 'db3', mode='zero',
+                          axes=(-2, -1))['aa'])
+            img_pyramid.append(
+                pywt.dwtn(img_pyramid[kk], 'db3', mode='zero',
+                          axes=(-2, -1))['aa'])
+
+        normlize_std = lambda img: (
+            (img - np.ndarray.mean(img, axis=0)) / np.ndarray.std(img, axis=0))
+
+        ref_pyramid = [
+            normlize_std(self.template_stack(img_data))
+            for img_data in ref_pyramid
+        ]
+        img_pyramid = [
+            normlize_std(self.template_stack(img_data))
+            for img_data in img_pyramid
+        ]
+
+        return ref_pyramid, img_pyramid
 
     def resampling_spline(self, img, s):
         # img: original
@@ -210,34 +166,6 @@ class WSVT:
         y_new = np.linspace(0, m - 1, s[0])
 
         return fit(y_new, x_new)
-
-    def pyramid_data(self):
-        """
-        generate pyramid data for multi-resolution
-
-        """
-        # data normalization
-        ref_data = ((self.ref_data - np.ndarray.mean(self.ref_data, axis=0)) /
-                    np.ndarray.std(self.ref_data, axis=0))
-        img_data = ((self.img_data - np.ndarray.mean(self.img_data, axis=0)) /
-                    np.ndarray.std(self.img_data, axis=0))
-
-        # print(ref_data.shape)
-        ref_pyramid = []
-        img_pyramid = []
-        prColor(
-            'obtain pyramid image with pyramid level: {}'.format(
-                self.pyramid_level), 'green')
-        ref_pyramid.append(ref_data)
-        img_pyramid.append(img_data)
-        for kk in range(self.pyramid_level):
-            ref_pyramid.append(
-                pywt.dwtn(ref_pyramid[kk], 'db3', mode='zero',
-                          axes=(-2, -1))['aa'])
-            img_pyramid.append(
-                pywt.dwtn(img_pyramid[kk], 'db3', mode='zero',
-                          axes=(-2, -1))['aa'])
-        return ref_pyramid, img_pyramid
 
     def wavelet_data(self):
         """
@@ -262,7 +190,7 @@ class WSVT:
             elif ref_pyramid[0].shape[0] > 50:
                 self.wavelet_add_list = [0, 0, 1, 2, 2, 2]
             else:
-                self.wavelet_add_list = [0, 2, 2, 2, 2, 2]
+                self.wavelet_add_list = [2, 2, 2, 2, 2, 2]
 
             # wavelet transform and cut for the pyramid images
             start_time = time.time()
@@ -287,7 +215,9 @@ class WSVT:
                     wavelet_method,
                     w_level=self.wavelet_level,
                     return_level=coefs_level + wavelevel_add)
+
                 ref_pyramid[p_level] = ref_wa
+
                 prColor(
                     'pyramid level: {}\nvector length: {}\nUse wavelet coef: {}'
                     .format(p_level, ref_wa.shape[2], level_name), 'green')
@@ -341,9 +271,7 @@ class WSVT:
                     int(displace_pyramid[1][yy, xx]) + window_size, :]
 
                 Corr_img = dist_numba(img_wa_line, ref_wa_data)
-                '''
-                    use gradient to find the peak
-                '''
+
                 disp_y[yy,
                        xx], disp_x[yy,
                                    xx], _, _ = find_disp(Corr_img,
@@ -364,7 +292,6 @@ class WSVT:
             ref_wa_stack (ndarray): reference wavelet data
             displace_pyramid (ndarray): estimated displacement for multi-resolution
             cal_half_window (int): half size of the searching window
-
         """
         dim = img_wa_stack.shape
         disp_x = np.zeros((dim[0], dim[1]))
@@ -456,7 +383,6 @@ class WSVT:
             YY (ndarray): y axis
             y_list (list): y position for multi-processing
         """
-
         dim = Corr_img.shape
         window_size = int(np.sqrt(dim[0]))
         disp_y = np.zeros((dim[1], dim[2]))
@@ -505,6 +431,7 @@ class WSVT:
         prColor('displace map wrapping: {}'.format(displace[0].shape), 'green')
         print('max of displace: {}, min of displace: {}'.format(
             np.amax(displace[0]), np.amin(displace[1])))
+
         displace[0] = -displace[0][self.cal_half_window:-self.cal_half_window,
                                    self.cal_half_window:-self.cal_half_window]
         displace[1] = -displace[1][self.cal_half_window:-self.cal_half_window,
@@ -515,6 +442,7 @@ class WSVT:
 
         #Oct 2024, XSHI added pixel scaling
         phase = frankotchellappa(DPC_x, DPC_y, self.p_x*self.scaling_x, self.p_x*self.scaling_y) * 2 * np.pi / self.wavelength
+        
         self.time_cost = end_time - start_time
 
         return displace, [DPC_y, DPC_x], phase, transmission
@@ -524,9 +452,8 @@ class WSVT:
         speckle tracking solver using CPU
         """
         ref_pyramid, img_pyramid = self.wavelet_data()
-        print(ref_pyramid[0].shape, img_pyramid[0].shape)
 
-        transmission = self.img_data[0] / self.ref_data[0]
+        transmission = self.img_data / (np.abs(self.ref_data + 1))
         for attr in ('img_data', 'ref_data'):
             self.__dict__.pop(attr, None)
 
@@ -538,7 +465,8 @@ class WSVT:
         else:
             cores = ms.cpu_count()
         prColor('Use {} cores'.format(cores), 'light_purple')
-        prColor('Process group number: {}'.format(self.n_group), 'light_purple')
+        prColor('Process group number: {}'.format(self.n_group),
+                'light_purple')
 
         if cores * self.n_group > self.M_image:
             n_tasks = 4
@@ -549,11 +477,11 @@ class WSVT:
         # use pyramid wrapping
         max_pyramid_searching_window = int(
             np.ceil(self.cal_half_window / 2**self.pyramid_level))
-        searching_window_pyramid_list = [self.N_s_extend] * self.pyramid_level + [
-            int(max_pyramid_searching_window)
-        ]
+        searching_window_pyramid_list = [self.N_s_extend
+                                         ] * self.pyramid_level + [
+                                             int(max_pyramid_searching_window)
+                                         ]
 
-        m, n, c = img_pyramid[0].shape
         displace = self.displace_estimate
 
         for k_iter in range(self.n_iter):
@@ -586,7 +514,6 @@ class WSVT:
                         p_level]
                     m, n, c = img_pyramid[p_level].shape
                     displace_pyramid = [np.round(img) for img in displace]
-
                     n_pad = int(np.ceil(self.cal_half_window / 2**p_level))
 
                 else:
@@ -595,7 +522,7 @@ class WSVT:
                     # extend displace_pyramid with upsampling of 2 and also displace value is 2 times larger
                     m, n, c = img_pyramid[p_level].shape
                     displace_pyramid = [
-                        np.round(self.resampling_spline(img, (m, n)) * 2)
+                        np.round(self.resampling_spline(img * 2, (m, n)))
                         for img in displace
                     ]
 
@@ -710,7 +637,7 @@ class WSVT:
 
         DPC_y = (displace[0] - np.mean(displace[0])) * self.p_x / self.z
         DPC_x = (displace[1] - np.mean(displace[1])) * self.p_x / self.z
-
+        
         #Oct 2024, XSHI added pixel scaling
         phase = frankotchellappa(DPC_x, DPC_y, self.p_x*self.scaling_x, self.p_x*self.scaling_y) * 2 * np.pi / self.wavelength
         
@@ -719,7 +646,6 @@ class WSVT:
         return displace, [DPC_y, DPC_x], phase, transmission
 
     def run(self, result_path=None):
-
         if self.use_GPU:
 
             self.displace, self.DPC, self.phase, self.transmission = self.solver_cuda(
@@ -735,7 +661,7 @@ class WSVT:
             if not os.path.exists(result_path):
                 os.makedirs(result_path)
 
-            self.result_filename = 'WSVT_result'
+            self.result_filename = 'WXST_result'
 
             write_h5(
                 result_path, self.result_filename, {
@@ -746,14 +672,10 @@ class WSVT:
                     'phase': self.phase,
                     'transmission_image': self.transmission
                 })
-            phase_rms = np.std(self.phase)
-            phase_pv = np.amax(self.phase) - np.amin(self.phase)
-            prColor(
-                'phase rms: {:0.2f},  phase PV: {:0.2f}'.format(
-                    phase_rms, phase_pv), 'purple')
+
             parameter_dict = {
                 'M_image': self.M_image,
-                'crop': self.crop,
+                'template_window': self.N_s,
                 'N_s extend': self.N_s_extend,
                 'half_window': self.cal_half_window,
                 'energy': self.energy,
@@ -770,9 +692,7 @@ class WSVT:
                 'use_wavelet': self.use_wavelet,
                 'use_GPU': self.use_GPU,
                 'wavelet_level_cut': self.wavelet_level_cut,
-                'wavelet_add': self.wavelet_add_list,
-                'phase_rms': phase_rms,
-                'phase_pv': phase_pv
+                'wavelet_add': self.wavelet_add_list
             }
 
             write_json(result_path, self.result_filename, parameter_dict)
@@ -780,81 +700,122 @@ class WSVT:
 
 '''
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process some parameters.')
+    # paremater settings
+    parser = argparse.ArgumentParser(
+        description='experimental data analysis for absolute phase measurement',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    # Argument for crop parameter
+    # shared args
+    # ============================================================
+    parser.add_argument('--img', type=str, default='../testdata/single-shot/sample_001.tif', help='path to sample image')
+    parser.add_argument('--ref', type=str, default='../testdata/single-shot/ref_001.tif', help='path to sample image')
+    parser.add_argument('--dark', type=str, default = 'None', help='dark image for image correction')
+    parser.add_argument('--flat', type=str, default = 'None', help='flat image for image correction')
+    parser.add_argument('--result_folder', type=str, default='../testdata/single-shot/WXST_results', help='saving folder')
     parser.add_argument(
         "--crop",
         nargs="+",
         type=int,
         default=[450, 1000, 500, 1000],
-        help='image crop, if is [256], central crop. if len()==4, boundary crop, if is 0, use gui crop, if is -1, use auto-crop'
+        help=
+        'image crop, if is [256], central crop. if len()==4, boundary crop, if is 0, use gui crop, if is -1, use auto-crop'
     )
-    # Arguments for the rest of the parameters
-    parser.add_argument("--folder_img", type=str, required=True, help="Path to image folder")
-    parser.add_argument("--folder_ref", type=str, required=True, help="Path to reference folder")
-    parser.add_argument("--folder_result", type=str, required=True, help="Path to result folder")
-    parser.add_argument("--cal_half_window", type=int, default=20, help="Number of pixels for each calculation area (half window size)")
-    parser.add_argument("--n_cores", type=int, default=4, help="Number of cores for parallel processing")
-    parser.add_argument("--n_group", type=int, default=4, help="Number to reduce memory usage per group")
-    parser.add_argument("--energy", type=float, default=8.9e3, help="Beam energy in eV")
-    parser.add_argument("--pixel_size", type=float, default=0.65e-6, help="Pixel size in meters")
-    parser.add_argument("--distance", type=float, default=300e-3, help="Distance in meters")
-    parser.add_argument("--use_wavelet", type=int, default=1, choices=[0, 1], help="Whether to use wavelet transform (0 or 1)")
-    parser.add_argument("--wavelet_ct", type=int, default=2, help="Wavelet level cut")
-    parser.add_argument("--pyramid_level", type=int, default=2, help="Pyramid level to wrap images")
-    parser.add_argument("--n_iteration", type=int, default=1, help="Number of iterations for calculation")
-    parser.add_argument("--n_scan", type=int, default=1, help="Number of scans for calculation")
-    parser.add_argument("--use_GPU", type=int, default=0, choices=[0, 1], help="Whether to use GPU (0 or 1)")
-    parser.add_argument("--scaling_x", type=float, default=1.0, help="Scaling factor along x before phase integration")
-    parser.add_argument("--scaling_y", type=float, default=1.0, help="Scaling factor along y before phase integration")
+    parser.add_argument('--p_x', default=0.65e-6, type=float, help='pixel size')
+    parser.add_argument('--scaling_x', default=1.0, type=float, help='x pixel scaling from detector to sample')
+    parser.add_argument('--scaling_y', default=1.0, type=float, help='y pixel scaling from detector to sample')
+    parser.add_argument('--energy', default=14e3, type=float, help='X-ray energy')
+    parser.add_argument('--distance', default=500e-3, type=float, help='detector to mask distance')
+    parser.add_argument('--down_sampling', type=float, default=1, help='down-sample images to reduce memory cost and accelerate speed.')
+    parser.add_argument('--GPU', default=False, action='store_true', help='Use GPU or not. GPU can be 2 times faster. But multi-resolution process is disabled.')
+    parser.add_argument('--use_wavelet', default=False, action='store_true', help='use wavelet transform or not.')
+    parser.add_argument('--wavelet_lv_cut', default=2, type=int, help='wavelet cutting level')
+    parser.add_argument('--pyramid_level', default=1, type=int, help='pyramid level used for speckle tracking.')
+    parser.add_argument('--n_iter', default=1, type=int, help='number of iteration for speckle tracking. 1 is good.')
+    parser.add_argument('--template_size', default=5, type=int, help='template size in the WXST')
+    parser.add_argument('--window_searching', default=10, type=int, help='searching window of speckle tracking. Means the largest displacement can be calculated.')
+    parser.add_argument('--nCores', default=4, type=int, help='number of CPU cores used for calculation.')
+    parser.add_argument('--nGroup', default=1, type=int, help='number of groups that parallel calculation is splitted into.')
 
     args = parser.parse_args()
+
     for key, value in args.__dict__.items():
         prColor('{}: {}'.format(key, value), 'cyan')
-
-    # Assign arguments to variables
-    Folder_img = args.folder_img
-    Folder_ref = args.folder_ref
-    Folder_result = args.folder_result
-    # the number of the area to calculate for each pixel, 2*cal_half_window X 2*cal_half_window
-    cal_half_window = args.cal_half_window
-    # the calculation window for high order pyramid (still hardcoded)
+    
+    File_ref = args.ref
+    File_img = args.img
+    flat = args.flat
+    dark = args.dark
+    Folder_result = args.result_folder
+    N_s = args.template_size
+    cal_half_window = args.window_searching
+    # the calculation window for high order pyramid
     N_s_extend = 4
-    # process number for parallel
-    n_cores = args.n_cores
-    # number to reduce the each memory use
-    n_group = args.n_group
-    # energy, 10kev
+    n_cores = args.nCores
+    n_group = args.nGroup
     energy = args.energy
     wavelength = sc.value('inverse meter-electron volt relationship') / energy
-    # pixel size [m]
-    p_x = args.pixel_size
-    # distance [m]
-    z = args.distance
-    # whether to use wavelet transform or not
-    use_wavelet = args.use_wavelet
-    # wavelet level cut
-    wavelet_level_cut = args.wavelet_ct
-    # pyramid level to wrap the images
-    pyramid_level = args.pyramid_level
-    # iteration number, 1 should be enough
-    n_iter = args.n_iteration
-    # scan number for calculation
-    n_scan = args.n_scan
-    # use GPU or not
-    use_GPU = args.use_GPU
-    # scaling x before phase integration
+    p_x = args.p_x
     scaling_x = args.scaling_x
-    # scaling y before phase integration
     scaling_y = args.scaling_y
+    z = args.distance
+    pyramid_level = args.pyramid_level
+    n_iter = args.n_iter
+    use_GPU = args.GPU
+    down_sample = args.down_sampling
+    use_wavelet = args.use_wavelet
+    wavelet_level_cut = args.wavelet_lv_cut
 
-    use_estimate = False
+    # # roi of the images
+    # M_image = int(parameter_wavelet[0])
+    # # template window, the N_s nearby pixels used to represent the local pixel, 2*N_s+1
+    # N_s = int(parameter_wavelet[1])
+    # # the number of the area to calculate for each pixel, 2*cal_half_window X 2*cal_half_window
+    # cal_half_window = int(parameter_wavelet[2])
+    
+    # # process number for parallel
+    # n_cores = int(parameter_wavelet[3])
+    # # number to reduce the each memory use
+    # n_group = int(parameter_wavelet[4])
 
-    ref_data = load_images(Folder_ref, '*.tif')
-    img_data = load_images(Folder_img, '*.tif')
+    # # energy, 10kev
+    # energy = float(parameter_wavelet[5])
+    
+    # p_x = float(parameter_wavelet[6])
+    # z = float(parameter_wavelet[7])
+    # use_wavelet = int(parameter_wavelet[8])
+    # wavelet_level_cut = int(parameter_wavelet[9])
+    # # pyramid level to wrap the images
+    # pyramid_level = int(parameter_wavelet[10])
+    # n_iter = int(parameter_wavelet[11])
+    # use_GPU = int(parameter_wavelet[12])
+    # down_sample = float(parameter_wavelet[13])
 
-    #crop image to roi
+    ref_data = load_image(File_ref)
+    img_data = load_image(File_img)
+
+    ref_data = ref_data.astype(np.float32)
+    img_data = img_data.astype(np.float32)
+    if args.dark == 'None':
+        dark = np.zeros_like(img_data, dtype=np.float32)
+    else:
+        dark = load_image(dark).astype(np.float32)
+
+    if args.flat == 'None':
+        flat = np.ones_like(img_data, dtype=np.float32)
+    else:
+        flat = load_image(flat).astype(np.float32)
+
+    zero_mask = (flat - dark) != 0 
+    img_data[zero_mask] = (img_data[zero_mask] - dark[zero_mask]) / (flat[zero_mask] - dark[zero_mask])
+    ref_data[zero_mask] = (ref_data[zero_mask] - dark[zero_mask]) / (flat[zero_mask] - dark[zero_mask])
+    # do image alignment
+    if True:
+        pos_shift, ref_data = image_align(img_data, ref_data)
+        max_shift = int(np.amax(np.abs(pos_shift)) + 1)
+        crop_area = lambda img: img[max_shift:-max_shift, max_shift:-max_shift]
+        img_data = crop_area(img_data)
+        ref_data = crop_area(ref_data)
+
     if len(args.crop) == 4:
         # boundary crop, use the corner index [y0, y1, x0, x1]
         # boundary_crop = lambda img: img[int(args.crop[0]):int(args.crop[1]),
@@ -864,8 +825,9 @@ if __name__ == "__main__":
         if args.crop[0] == 0:
             # use gui crop
             print("before crop------------------------------------------------")
-            _, corner = crop_gui(img_data[0])
+            _, corner = crop_gui(img_data)
             print("after crop------------------------------------------------")
+            
             args.crop = [
                 int(corner[0][0]),
                 int(corner[1][0]),
@@ -876,21 +838,21 @@ if __name__ == "__main__":
             prColor('auto crop------------------------------------------------', 'green')
             # use auto-crop according to the intensity boundary. rectangular shapess
             pattern_size = 5e-6 # assume 5um mask pattern
-            flat = snd.uniform_filter(img_data[0], size=10*(pattern_size/p_x))
+            flat = snd.uniform_filter(img_data, size=10*(pattern_size/p_x))
             args.crop = auto_crop(flat, shrink=0.85)
         else:
             # Central crop with the provided width
             crop_width = args.crop[0]
             # Calculate image center
-            center_y = img_data.shape[1] // 2
-            center_x = img_data.shape[2] // 2
+            center_y = img_data.shape[0] // 2
+            center_x = img_data.shape[1] // 2
             # Calculate half-width of the crop
             half_width = crop_width // 2
             # Calculate four corners for the cropping region
             y0 = max(0, center_y - half_width)
-            y1 = min(img_data.shape[1], center_y + half_width)
+            y1 = min(img_data.shape[0], center_y + half_width)
             x0 = max(0, center_x - half_width)
-            x1 = min(img_data.shape[2], center_x + half_width)
+            x1 = min(img_data.shape[1], center_x + half_width)
             # Set args.crop to the calculated boundary
             args.crop = [y0, y1, x0, x1]
     else:
@@ -902,35 +864,39 @@ if __name__ == "__main__":
     print(args.crop)
     
     boundary_crop = lambda img: img[int(args.crop[0]):int(args.crop[1]),
-                                    int(args.crop[2]):int(args.crop[3])]
-    # Apply cropping to all images in ref_data and img_data
-    ref_data_cropped = np.array([boundary_crop(img) for img in ref_data])
-    img_data_cropped = np.array([boundary_crop(img) for img in img_data])
+                                        int(args.crop[2]):int(args.crop[3])]
+    ref_data = boundary_crop(ref_data)
+    img_data = boundary_crop(img_data)
 
-    # Update ref_data and img_data with cropped data
-    ref_data = ref_data_cropped
-    img_data = img_data_cropped
-    M_image = ref_data.shape[1]
-    #### take out the roi
-    ###ref_data = image_roi(ref_data, M_image)
-    ###img_data = image_roi(img_data, M_image)
+    M_image = ref_data.shape[0]
+    # ref_data = image_roi(ref_data, M_image)
+    # img_data = image_roi(img_data, M_image)
+
+    size_origin = ref_data.shape
 
     ref_data = ref_data.astype(np.float32)
     img_data = img_data.astype(np.float32)
 
-    if n_scan > ref_data.shape[0]:
-        pass
-    else:
-        ref_data = ref_data[0:n_scan, :, :]
-        img_data = img_data[0:n_scan, :, :]
+    # down-sample or not
+    if down_sample != 1:
+        prColor('down-sample image: {}'.format(down_sample),
+                'cyan')
+        d_size = (int(ref_data.shape[1]*down_sample), int(ref_data.shape[0]*down_sample))
 
-    print("use {} scan position for calculation".format(ref_data.shape[0]))
+        # from func import binning2
+        # img = binning2(img)
+        # ref = binning2(ref)
+        # print(img.shape)
 
-    WSVT_solver = WSVT(img_data,
+        img_data = cv2.resize(img_data, d_size)
+        ref_data = cv2.resize(ref_data, d_size)
+
+    WXST_solver = WXST(img_data,
                        ref_data,
                        M_image=M_image,
-                       N_s_extend=N_s_extend,
+                       N_s=N_s,
                        cal_half_window=cal_half_window,
+                       N_s_extend=N_s_extend,
                        n_cores=n_cores,
                        n_group=n_group,
                        energy=energy,
@@ -939,25 +905,37 @@ if __name__ == "__main__":
                        wavelet_level_cut=wavelet_level_cut,
                        pyramid_level=pyramid_level,
                        n_iter=n_iter,
-                       use_estimate=use_estimate,
                        use_wavelet=use_wavelet,
                        use_GPU=use_GPU,
                        scaling_x=scaling_x,
-                       scaling_y=scaling_y,
-                       crop=args.crop)
+                       scaling_y=scaling_y)
 
     if not os.path.exists(Folder_result):
         os.makedirs(Folder_result)
-    sample_transmission = img_data[0] / ref_data[0]
+    sample_transmission = img_data / (np.abs(ref_data) + 1)
     plt.imsave(os.path.join(Folder_result, 'transmission.png'),
                sample_transmission)
 
-    WSVT_solver.run(result_path=Folder_result)
-    displace = WSVT_solver.displace
-    DPC_x = WSVT_solver.DPC[1]
-    DPC_y = WSVT_solver.DPC[0]
-    phase = WSVT_solver.phase
-    result_filename = WSVT_solver.result_filename
+    WXST_solver.run(result_path=Folder_result)
+    
+    displace = WXST_solver.displace
+    DPC_x = WXST_solver.DPC[1]
+    DPC_y = WXST_solver.DPC[0]
+    phase = WXST_solver.phase
+    result_filename = WXST_solver.result_filename
+
+    # down-sample or not
+    if down_sample != 1:
+        prColor('scale back', 'green')
+        displace_x = cv2.resize(displace[1], (size_origin[1], size_origin[0])) * (1 / down_sample)
+        displace_y = cv2.resize(displace[0], (size_origin[1], size_origin[0])) * (1 / down_sample)
+        displace = [displace_y, displace_x]
+        DPC_x = cv2.resize(DPC_x, (size_origin[1], size_origin[0])) * (1 / down_sample)
+        DPC_y = cv2.resize(DPC_y, (size_origin[1], size_origin[0])) * (1 / down_sample)
+        phase = cv2.resize(phase, (size_origin[1], size_origin[0])) * (1 / down_sample)
+
+    # save phase directly in the result folder
+    img_filename = os.path.basename(File_img).split('.')[0]
 
     plt.imsave(os.path.join(Folder_result, 'displace_x.png'), displace[1])
     plt.imsave(os.path.join(Folder_result, 'displace_y.png'), displace[0])
@@ -998,5 +976,5 @@ if __name__ == "__main__":
     ax1.set_ylabel('y [μm]')
     ax1.set_zlabel('phase [rad]')
     plt.savefig(os.path.join(Folder_result, 'Phase_3d.png'), dpi=150)
-    plt.close()
+    plt.close()    
 '''

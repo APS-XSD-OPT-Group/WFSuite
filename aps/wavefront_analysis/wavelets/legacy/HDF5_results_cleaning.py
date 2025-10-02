@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import median_filter
 import os
-from aps.wavefront_analysis.wavelet.legacy.func import frankotchellappa
+from aps.wavefront_analysis.wavelets.legacy.func import frankotchellappa
 
 def clean_phase_profile_absolute_threshold(phase_profile, threshold=10.0, filter_size=3):
     """

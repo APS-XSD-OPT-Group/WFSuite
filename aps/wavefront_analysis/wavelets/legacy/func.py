@@ -12,11 +12,112 @@
 import numpy as np
 import sys
 import pywt
-import scipy.ndimage as snd
+import os
 from PIL import Image
 import multiprocessing as ms
 import concurrent.futures
+import glob
+import torch
+from torch import nn
+import scipy.ndimage as snd
+from matplotlib import pyplot as plt
+from matplotlib import cm
+import matplotlib
 
+def load_images(folder_path, filename_format='*.tif'):
+    """
+    load_images to load images
+
+    Args:
+        folder_path (str): image folder
+        filename_format (str, optional): image filename and extension. Defaults to '*.tif'.
+
+    Returns:
+        image data
+    """
+    img = [np.array(Image.open(f_single)) for f_single in sorted(glob.glob(os.path.join(folder_path, filename_format)))]
+    if len(img) == 0: raise IOError('Error: wrong data path. No data is loaded. {}'.format(folder_path))
+
+    return np.array(img)
+
+
+def load_image(file_path):
+    """
+    load_images to load images
+
+    Args:
+        Folder_path (str): image folder
+        filename_format (str, optional): image filename and extension. Defaults to '*.tif'.
+
+    Returns:
+        image data
+    """
+    if os.path.exists(file_path): img = np.array(Image.open(file_path))
+    else: raise IOError('Error: wrong data path. No data is loaded.')
+
+    return np.array(img)
+
+def slope_tracking(img, ref, n_window=15):
+    """
+    slope_tracking to use opencv to track the displacement movement roughly
+
+    Args:
+        img (ndarray): sample image
+        ref (ndarray): ref image
+        n_window (int, optional): window size. Defaults to 15.
+
+    Returns:
+        the displacement of the pixels in the images  [dips_H, disp_V]
+    """
+    # the pyramid scale, make the undersampling image
+    pyramid_scal = 0.5
+    # the pyramid levels
+    levels = 2
+    # window size of the displacement calculation
+    winsize = n_window
+    # iteration for the calculation
+    n_iter = 10
+    # neighborhood pixel size to calculate the polynomial expansion, which makes the results smooth but blurred
+    n_poly = 3
+    # standard deviation of the Gaussian that is used to smooth derivatives used as a basis for
+    # the polynomial expansion; for poly_n=5, you can set poly_sigma=1.1, for poly_n=7, a good value would be poly_sigma=1.5.
+    sigma_poly = 1.2
+
+    flags = 1
+
+    import cv2 # prevents system library conflict
+    flow = cv2.calcOpticalFlowFarneback(ref, img, None, pyramid_scal, levels,
+                                        winsize, n_iter, n_poly, sigma_poly,
+                                        flags)
+
+    displace = np.array([flow[..., 1], flow[..., 0]])
+
+    return displace
+
+def cost_volume(first, second, search_range):
+    """Build cost volume for associating a pixel from Image1 with its corresponding pixels in Image2.
+    Args:
+        first: Level of the feature pyramid of Image1
+        second: Warped level of the feature pyramid of image22
+        search_range: Search range (maximum displacement)
+    """
+    padded_lvl = nn.functional.pad(
+        second, (search_range, search_range, search_range, search_range))
+    _, h, w = first.shape
+    max_offset = search_range * 2 + 1
+
+    cost_vol = []
+    for y in range(0, max_offset):
+        for x in range(0, max_offset):
+            # slice = tf.slice(padded_lvl, [0, y, x, 0], [-1, h, w, -1])
+            second_slice = padded_lvl[:, y:y + h, x:x + w]
+            # cost = tf.reduce_mean(first * second_slice, axis=3, keepdims=True)
+            cost = torch.mean(first * second_slice, dim=0, keepdim=True)
+            cost_vol.append(cost)
+    # cost_vol = tf.concat(cost_vol, axis=3)
+    cost_vol = torch.cat(cost_vol, dim=0)
+
+    return cost_vol
 
 def image_roi(img, M):
     '''
@@ -54,7 +155,6 @@ def image_roi(img, M):
                                   pos_1[0]:pos_1[-1] + 1]
 
     return img_data
-
 
 def prColor(word, color_type):
     ''' function to print color text in terminal
@@ -203,7 +303,6 @@ def find_disp(Corr_img, XX_axis, YY_axis, sub_resolution=True):
 
     return disp_y, disp_x, SN_ratio, Corr_max
 
-
 def Wavelet_transform(img, wavelet_method='db6', w_level=1, return_level=1):
     """
     Wavelet_transform for the 3D image data
@@ -232,7 +331,6 @@ def Wavelet_transform(img, wavelet_method='db6', w_level=1, return_level=1):
     level_name = level_name[-return_level:]
 
     return coeffs_filter, level_name
-
 
 # define a function to apply to each image
 def wavedec_func(img, y_list, wavelet_method='db6', w_level=5, return_level=4):
@@ -264,7 +362,6 @@ def wavedec_func(img, y_list, wavelet_method='db6', w_level=5, return_level=4):
     level_name = level_name[-return_level:]
 
     return coeffs_filter, level_name, y_list
-
 
 def wavelet_transform_multiprocess(img,
                                    n_cores,
@@ -336,7 +433,6 @@ def wavelet_transform_multiprocess(img,
 
     return img_wavelet, level_name[0]
 
-
 def filter_erosion(image, val_thresh, filt_sz=2):
     import scipy.ndimage.filters
     """ Function to apply erosion filter in order to remove some of the 
@@ -377,7 +473,6 @@ def filter_erosion(image, val_thresh, filt_sz=2):
 
     return image
 
-
 def write_h5(result_path, file_name, data_dict):
     """
     write_h5 to save data in hdf5 file
@@ -398,7 +493,6 @@ def write_h5(result_path, file_name, data_dict):
                              compression="gzip",
                              compression_opts=9)
     prColor('result hdf5 file : {} saved'.format(file_name + '.hdf5'), 'green')
-
 
 def read_h5(file_path, key_name, print_key=False):
     """
@@ -425,7 +519,6 @@ def read_h5(file_path, key_name, print_key=False):
         data = f[key_name][:]
     return data
 
-
 def write_json(result_path, file_name, data_dict):
     """
     write_json to save data into json file
@@ -444,7 +537,6 @@ def write_json(result_path, file_name, data_dict):
         json.dump(data_dict, fp, indent=0)
 
     prColor('result json file : {} saved'.format(file_name + '.json'), 'green')
-
 
 def read_json(filepath, print_para=False):
     """
@@ -470,7 +562,6 @@ def read_json(filepath, print_para=False):
 
     return data
 
-
 def save_img(img, filename):
     """
     save_img to save data into tif image
@@ -481,7 +572,6 @@ def save_img(img, filename):
     """
     im = Image.fromarray(img)
     im.save(filename)
-
 
 def image_align(image, offset_image):
     '''
@@ -508,7 +598,6 @@ def image_align(image, offset_image):
     image_back = fourier_shift(np.fft.fftn(offset_image), shift)
     image_back = np.real(np.fft.ifftn(image_back))
     return shift, image_back
-
 
 def auto_crop(img, shrink=0.9, count=None):
     # auto-crop to find the rectangular area from the image intensity
