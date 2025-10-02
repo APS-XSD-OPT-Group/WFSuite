@@ -44,3 +44,52 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
+
+import os
+import glob
+import random
+import time
+import pathlib
+from threading import Thread
+
+import numpy as np
+import json
+
+from aps.wavefront_analysis.wavelets.legacy.WSVT_executor import execute_process_images
+from aps.wavefront_analysis.wavelets.legacy.WXST_executor import execute_process_image
+from aps.wavefront_analysis.wavelets.facade import IWaveletsAnalyzer, ProcessingMode, MAX_THREADS
+
+from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
+
+APPLICATION_NAME = "WAVELETS-ANALYSIS"
+
+register_ini_instance(IniMode.LOCAL_JSON_FILE,
+                      ini_file_name=".wavelets_analysis.json",
+                      application_name=APPLICATION_NAME,
+                      verbose=False)
+ini_file = get_registered_ini_instance(APPLICATION_NAME)
+
+ENERGY                = ini_file.get_float_from_ini(  section="Source", key="Energy",            default=12398.0)
+
+
+def store():
+    ini_file.set_value_at_ini(section="Source", key="Energy",               value=ENERGY)
+
+    ini_file.push()
+
+
+store()
+
+
+class WaveletsAnalyzer(IWaveletsAnalyzer):
+    def __init__(self,
+                 data_collection_directory,
+                 energy=ENERGY):
+        self.__data_collection_directory = data_collection_directory
+        self.__energy                    = energy
+
+    def get_current_setup(self) -> dict:
+        return {
+            "data_collection_directory" : self.__data_collection_directory,
+            "energy" : self.__energy
+        }

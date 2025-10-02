@@ -45,15 +45,11 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
 
-from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer
-from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import WavefrontAnalyzer
+from aps.wavefront_analysis.wavelets.facade import IWaveletsAnalyzer
+from aps.wavefront_analysis.wavelets.wavelets_analyzer import WaveletsAnalyzer
 
 
-def create_wavefront_analyzer(data_collection_directory=None,
-                              file_name_prefix=None,
-                              simulated_mask_directory=None,
-                              energy=20000.0) -> IWavefrontAnalyzer:
-    return WavefrontAnalyzer(data_collection_directory=data_collection_directory,
-                             file_name_prefix=file_name_prefix,
-                             simulated_mask_directory=simulated_mask_directory,
-                             energy=energy)
+def create_wavelets_analyzer(data_collection_directory=None,
+                              energy=20000.0) -> IWaveletsAnalyzer:
+    return WaveletsAnalyzer(data_collection_directory=data_collection_directory,
+                            energy=energy)
