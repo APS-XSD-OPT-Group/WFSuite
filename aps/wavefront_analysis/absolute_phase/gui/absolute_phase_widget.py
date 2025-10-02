@@ -44,7 +44,6 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-import copy
 import sys
 
 import numpy as np
@@ -65,7 +64,7 @@ from cmasher import cm as cmm
 
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QScrollArea, QSlider, QWidget
 from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor
+from PyQt5.QtGui import QFont, QPalette, QColor, QBrush
 
 from aps.wavefront_analysis.common.gui.util import ShowWaitDialog, SliderWithButtons, plot_1D, plot_2D
 import aps.wavefront_analysis.driver.beamline.wavefront_sensor as ws
@@ -78,6 +77,7 @@ DEBUG_MODE = int(os.environ.get("DEBUG_MODE", 0)) == 1
 class AbsolutePhaseWidget(GenericWidget):
     synchronize_wavefront_sensor = pyqtSignal()
     profile_clicked              = pyqtSignal(str, int)
+    crop_changed_offline         = pyqtSignal(list)
 
     def __init__(self, parent, application_name=None, **kwargs):
         self._log_stream_widget             = kwargs["log_stream_widget"]
@@ -94,12 +94,17 @@ class AbsolutePhaseWidget(GenericWidget):
         self._process_image                  = kwargs["process_image_method"]
         self._back_propagate                 = kwargs["back_propagate_method"]
 
+        #SIGNALS
+        crop_changed_online = kwargs["crop_changed_signal"]
+
         self._set_values_from_initialization_parameters()
 
         super(AbsolutePhaseWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
 
         self.profile_clicked.connect(self._on_profile_clicked)
         self.synchronize_wavefront_sensor.connect(self._on_synchronize_wavefront_sensor)
+        self.crop_changed_offline.connect(self._on_crop_changed_offline)
+        crop_changed_online.connect(self._on_crop_changed_online)
 
     def _set_values_from_initialization_parameters(self):
         self.working_directory = self._working_directory
@@ -107,6 +112,8 @@ class AbsolutePhaseWidget(GenericWidget):
         initialization_parameters: ScriptData = self._initialization_parameters
 
         self.wavefront_sensor_mode     = initialization_parameters.get_parameter("wavefront_sensor_mode", 0)
+        self.plot_rebinning_factor     = initialization_parameters.get_parameter("plot_rebinning_factor", 4)
+
         self.image_index               = initialization_parameters.get_parameter("image_index", 1)
         self.file_name_type            = initialization_parameters.get_parameter("file_name_type", 0)
         self.index_digits_custom       = initialization_parameters.get_parameter("index_digits_custom", 5)
@@ -288,10 +295,6 @@ class AbsolutePhaseWidget(GenericWidget):
         wa_tab_3     = gui.createTabPage(self._wa_tab_widget_2, "Propagation")
         wa_tab_4     = gui.createTabPage(self._wa_tab_widget_2, "Best Focus")
 
-        gui.comboBox(wa_tab_1, self, "wavefront_sensor_mode", label="Wavefront Sensor Mode",
-                     items=["Online", "Offline"], labelWidth=labels_width_2, sendSelectedValue=False, orientation="horizontal",
-                     callback=self._set_wavefront_sensor_mode)
-
         if sys.platform == 'darwin' : wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=210)
         else:                         wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=240)
 
@@ -361,6 +364,9 @@ class AbsolutePhaseWidget(GenericWidget):
 
         gui.checkBox(wa_box_6, self, "use_flat", "Use Flat Image")
         gui.checkBox(wa_box_6, self, "use_dark", "Use Dark Image")
+
+        self.le_crop = gui.lineEdit(wa_box_6, self, "crop", "Crop (-1: auto, n: pixels around center,\n            [b, t, l, r]: coordinates in pixels)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
+
 
         gui.lineEdit(wa_box_6, self, "mode", label="Mode (area, lineWidth)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
         gui.lineEdit(wa_box_6, self, "line_width", label="Line Width", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
@@ -503,6 +509,12 @@ class AbsolutePhaseWidget(GenericWidget):
         palette.setColor(QPalette.ButtonText, QColor('Dark Blue'))
         exit_button.setPalette(palette)
 
+        self._cb_mode = gui.comboBox(ex_box_1, self, "wavefront_sensor_mode", label="Mode",
+                                     items=["Online", "Offline"], sendSelectedValue=False, orientation="horizontal",
+                                     callback=self._set_wavefront_sensor_mode)
+
+        gui.lineEdit(ex_box_1, self, "plot_rebinning_factor", label="Rebinning\nFactor", orientation='horizontal', valueType=int)
+        gui.separator(ex_box_1, 15)
         self._btn_take_shot = gui.button(ex_box_1, None, "Take Shot", callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
         gui.separator(ex_box_1)
         self._btn_take_shot_as_flat_image = gui.button(ex_box_1, None, "Take Shot As Flat Image", callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
@@ -693,7 +705,12 @@ class AbsolutePhaseWidget(GenericWidget):
         self._image_files_parameters_changed(self._initialization_parameters)
 
     def _set_wavefront_sensor_mode(self):
+        default_bg = QColor("grey").name()
+        default_fg = QColor("white").name()
+
         if self.wavefront_sensor_mode == 0: # online
+            bg = QColor("darkgreen").name()
+
             self._btn_take_shot.setEnabled(True)
             self._btn_take_shot_as_flat_image.setEnabled(True)
             self._le_image_index.setEnabled(False)
@@ -701,9 +718,25 @@ class AbsolutePhaseWidget(GenericWidget):
             self._collect_initialization_parameters(raise_errors=False)
             self._image_files_parameters_changed(self._initialization_parameters)
         else:
+            bg = QColor("darkred").name()
+
             self._btn_take_shot.setEnabled(False)
             self._btn_take_shot_as_flat_image.setEnabled(False)
             self._le_image_index.setEnabled(True)
+
+        self._cb_mode.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {bg};
+                color: {default_fg};
+                font-weight: bold;
+            }}
+            QComboBox QAbstractItemView {{
+                background: {default_bg};
+                color: {default_fg};
+            }}
+        """)
+
+
 
     def _set_file_name_type(self):
         self._le_ws_index_digits_custom.setEnabled(self.file_name_type == 1)
@@ -850,6 +883,8 @@ class AbsolutePhaseWidget(GenericWidget):
         # Widget ini
 
         initialization_parameters.set_parameter("wavefront_sensor_mode",    self.wavefront_sensor_mode)
+        initialization_parameters.set_parameter("plot_rebinning_factor",    self.plot_rebinning_factor)
+
         initialization_parameters.set_parameter("image_index",              self.image_index)
         initialization_parameters.set_parameter("file_name_type",           self.file_name_type)
         initialization_parameters.set_parameter("index_digits_custom",      self.index_digits_custom)
@@ -867,6 +902,16 @@ class AbsolutePhaseWidget(GenericWidget):
             self._collect_initialization_parameters(raise_errors=False)
             self._close(self._initialization_parameters, self)
 
+    def _on_crop_changed_offline(self, crop_array):
+        if self.wavefront_sensor_mode == 1: self._on_crop_changed(crop_array)
+
+    def _on_crop_changed_online(self, crop_array):
+        if self.wavefront_sensor_mode == 0: self._on_crop_changed(crop_array)
+
+    def _on_crop_changed(self, crop_array):
+        self.crop = list_to_string(crop_array)
+        self.le_crop.setText(list_to_string(crop_array))
+
     def _on_profile_clicked(self, direction, index):
         if direction == "x":   self._slider_h.setValue(index)
         elif direction == "y": self._slider_v.setValue(index)
@@ -880,7 +925,28 @@ class AbsolutePhaseWidget(GenericWidget):
         self._take_shot_as_flat_image()
 
     def _read_image_from_file_callback(self):
-        self._read_image_from_file()
+        if self.wavefront_sensor_mode == 0: # online
+            self._read_image_from_file(None)
+        else:
+            dialog = ShowWaitDialog(title="Operation in Progress", text="Reading Image From File", parent=self._tab_box)
+            dialog.show()
+
+            def _execute():
+                try:
+                    self._collect_initialization_parameters(raise_errors=True)
+                    self._read_image_from_file(self._initialization_parameters, **{"calling_widget" : self})
+                except ValueError as error:
+                    MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
+                    if DEBUG_MODE: raise error
+                except Exception as exception:
+                    MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
+                    if DEBUG_MODE: raise exception
+                finally:
+                    dialog.accept()
+            try:
+                QTimer.singleShot(100, _execute)
+            except:
+                pass
 
     # Offline -------------------------------------------
 

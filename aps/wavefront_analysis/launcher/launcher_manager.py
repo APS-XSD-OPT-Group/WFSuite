@@ -92,8 +92,8 @@ class _LauncherManager(ILauncherManager, QObject):
         wavefront_sensor_manager  = self.__wavefront_sensor_main.run_script()
         absolute_phase_manager    = self.__absolute_phase_main.run_script()
 
-        sender_signals   = absolute_phase_manager.get_delegated_signals()
-        receiver_signals = wavefront_sensor_manager.get_delegate_signals()
+        sender_signals   = absolute_phase_manager.get_delegated_signals() | wavefront_sensor_manager.get_delegated_signals()
+        receiver_signals = absolute_phase_manager.get_delegate_signals()  | wavefront_sensor_manager.get_delegate_signals()
 
         for signal_name in sender_signals.keys():
             self.__event_dispatcher.register_event_handler(sender_signal=sender_signals[signal_name],

@@ -52,7 +52,7 @@ from aps.common.plotter import get_registered_plotter_instance
 from aps.common.initializer import get_registered_ini_instance
 from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
-from aps.common.plot.event_dispatcher import Receiver
+from aps.common.plot.event_dispatcher import Receiver, Sender
 
 from aps.wavefront_analysis.driver.beamline.factory import create_wavefront_sensor
 from aps.wavefront_analysis.driver.beamline.wavefront_sensor import get_image_data
@@ -79,13 +79,15 @@ class IWavefrontSensorManager(GenericProcessManager):
 
 def create_wavefront_sensor_manager(**kwargs): return _WavefrontSensorManager(**kwargs)
 
-class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
+class _WavefrontSensorManager(IWavefrontSensorManager, Receiver, Sender):
     interrupt = pyqtSignal()
 
-    take_shot_received                = pyqtSignal()
-    take_shot_as_flat_image_received  = pyqtSignal()
-    read_image_from_file_received     = pyqtSignal()
-    image_files_parameters_changed_received  = pyqtSignal(dict)
+    take_shot_received                      = pyqtSignal()
+    take_shot_as_flat_image_received        = pyqtSignal()
+    read_image_from_file_received           = pyqtSignal()
+    image_files_parameters_changed_received = pyqtSignal(dict)
+
+    crop_changed_sent  = pyqtSignal(str, list)
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -110,6 +112,11 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
             "image_files_parameters_changed": self.image_files_parameters_changed_received,
         }
 
+    def get_delegated_signals(self):
+        return {
+            "crop_changed": self.crop_changed_sent,
+        }
+
     def activate_wavefront_sensor_manager(self, plotting_properties=PlottingProperties(), **kwargs):
         initialization_parameters = generate_initialization_parameters_from_ini(ini=self.__ini)
 
@@ -127,6 +134,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
                                                 initialization_parameters=initialization_parameters,
                                                 connect_wavefront_sensor_method=self.connect_wavefront_sensor,
                                                 save_configuration_method=self.save_configuration,
+                                                crop_changed_method=self.crop_changed,
                                                 take_shot_method=self.take_shot,
                                                 take_shot_signal=self.take_shot_received,
                                                 take_shot_as_flat_image_method=self.take_shot_as_flat_image,
@@ -160,6 +168,9 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver):
         except Exception as e:
             self.__wavefront_sensor = None
             raise e
+
+    def crop_changed(self, crop_array):
+        self.crop_changed_sent.emit("crop_changed", crop_array)
 
     def take_shot(self, initialization_parameters: ScriptData, **kwargs):
         return self.__take_shot(initialization_parameters, flat=False)

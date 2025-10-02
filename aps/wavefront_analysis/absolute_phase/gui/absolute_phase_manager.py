@@ -44,11 +44,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-import json
-import os.path
-import shutil
+import pathlib
 
-import numpy as np
 from PyQt5.QtCore import pyqtSignal
 
 from aps.common.scripts.generic_process_manager import GenericProcessManager
@@ -57,37 +54,44 @@ from aps.common.plotter import get_registered_plotter_instance
 from aps.common.initializer import get_registered_ini_instance
 from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
-from aps.common.plot.event_dispatcher import Sender
+from aps.common.plot.event_dispatcher import Receiver, Sender
 
 from aps.wavefront_analysis.absolute_phase.factory import create_wavefront_analyzer
 from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import ProcessingMode
 
 from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager_initialization import generate_initialization_parameters_from_ini, set_ini_from_initialization_parameters
 from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_widget import AbsolutePhaseWidget
+from aps.wavefront_analysis.absolute_phase.gui.read_image_file_widget import PlotImageFile
+
+from aps.wavefront_analysis.driver.beamline.wavefront_sensor import get_image_data, get_image_file_path
+import aps.wavefront_analysis.driver.beamline.wavefront_sensor as ws
 
 APPLICATION_NAME = "Absolute Phase"
 
 INITIALIZATION_PARAMETERS_KEY  = APPLICATION_NAME + " Manager: Initialization"
 SHOW_ABSOLUTE_PHASE            = APPLICATION_NAME + " Manager: Show Manager"
+READ_IMAGE_FILE                = APPLICATION_NAME + " Manager: Show Image"
 
 class IAbsolutePhaseManager(GenericProcessManager):
     def activate_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs): raise NotImplementedError()
     def take_shot(self): raise NotImplementedError() # delegated
     def take_shot_as_flat_image(self): raise NotImplementedError() # delegated
-    def read_from_file(self): raise NotImplementedError() # delegated
+    def read_from_file(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError() # delegated
     def generate_mask(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
     def process_image(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
     def back_propagate(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
 
 def create_absolute_phase_manager(**kwargs): return _AbsolutePhaseManager(**kwargs)
 
-class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
+class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
     interrupt = pyqtSignal()
 
     take_shot_sent                      = pyqtSignal(str)
     take_shot_as_flat_image_sent        = pyqtSignal(str)
     read_image_from_file_sent           = pyqtSignal(str)
     image_files_parameters_changed_sent = pyqtSignal(str, dict)
+
+    crop_changed_received = pyqtSignal(list)
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -115,6 +119,11 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
             "image_files_parameters_changed": self.image_files_parameters_changed_sent,
         }
 
+    def get_delegate_signals(self):
+        return {
+            "crop_changed": self.crop_changed_received,
+        }
+
     def activate_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs):
         initialization_parameters = generate_initialization_parameters_from_ini(ini=self.__ini)
         unique_id = None
@@ -133,6 +142,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
                                                                        initialization_parameters=initialization_parameters,
                                                                        close_method=self.close,
                                                                        image_files_parameters_changed_method=self.image_files_parameters_changed,
+                                                                       crop_changed_signal=self.crop_changed_received,
                                                                        take_shot_method=self.take_shot,
                                                                        take_shot_as_flat_image_method=self.take_shot_as_flat_image,
                                                                        read_image_from_file_method=self.read_image_from_file,
@@ -198,8 +208,44 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
     def take_shot_as_flat_image(self):
         self.take_shot_as_flat_image_sent.emit("take_shot_as_flat_image")
 
-    def read_image_from_file(self):
-        self.read_image_from_file_sent.emit("read_image_from_file")
+    def read_image_from_file(self, initialization_parameters: ScriptData = None, **kwargs):
+        if initialization_parameters is None:
+            self.read_image_from_file_sent.emit("read_image_from_file")
+        else:
+            data_collection_directory = initialization_parameters.get_parameter("image_directory")
+            file_name_type            = initialization_parameters.get_parameter("file_name_type")
+            file_name_prefix          = initialization_parameters.get_parameter("file_name_prefix_custom") if file_name_type == 1 else None
+            image_index               = initialization_parameters.get_parameter("image_index")
+            index_digits              = initialization_parameters.get_parameter("index_digits_custom") if file_name_type == 1 else None
+            plot_rebinning_factor     = initialization_parameters.get_parameter("plot_rebinning_factor")
+
+            image, h_coord, v_coord = get_image_data(measurement_directory=data_collection_directory,
+                                                     file_name_prefix=file_name_prefix,
+                                                     image_index=image_index,
+                                                     index_digits=index_digits)
+
+            file_name = get_image_file_path(measurement_directory=data_collection_directory,
+                                            file_name_prefix=file_name_prefix,
+                                            image_index=image_index,
+                                            index_digits=index_digits)
+
+            figure_name = pathlib.Path(file_name).with_suffix('')
+
+            if self.__plotter.is_active():
+                unique_id = self.__plotter.register_context_window(READ_IMAGE_FILE,
+                                                                   context_window=DefaultMainWindow(title=READ_IMAGE_FILE),
+                                                                   use_unique_id=True)
+                self.__plotter.push_plot_on_context(READ_IMAGE_FILE, PlotImageFile, unique_id,
+                                                    image=image,
+                                                    h_coord=h_coord,
+                                                    v_coord=v_coord,
+                                                    figure_name=figure_name,
+                                                    pixel_size=ws.PIXEL_SIZE,
+                                                    plot_rebinning_factor=plot_rebinning_factor,
+                                                    allows_saving=False,
+                                                    **kwargs)
+                self.__plotter.draw_context(READ_IMAGE_FILE, add_context_label=False, unique_id=unique_id)
+                self.__plotter.show_context_window(READ_IMAGE_FILE, unique_id=unique_id)
 
     def generate_mask(self, initialization_parameters: ScriptData):
         self.__set_wavefront_ready(initialization_parameters)
@@ -263,8 +309,8 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
         data_collection_directory   = initialization_parameters.get_parameter("image_directory" if not batch_mode else "image_directory_batch")
         simulated_mask_directory    = initialization_parameters.get_parameter("simulated_mask_directory" if not batch_mode else "simulated_mask_directory_batch")
         energy                      = data_analysis_configuration['energy']
-        file_name_prefix_type       = initialization_parameters.get_parameter("file_name_prefix_type")
-        file_name_prefix            = initialization_parameters.get_parameter("file_name_prefix_custom") if file_name_prefix_type == 1 else None
+        file_name_type              = initialization_parameters.get_parameter("file_name_type")
+        file_name_prefix            = initialization_parameters.get_parameter("file_name_prefix_custom") if file_name_type == 1 else None
 
         if self.__wavefront_analyzer is None: generate = True
         else:
@@ -272,7 +318,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Sender):
             generate = current_setup['data_collection_directory'] != data_collection_directory or \
                        current_setup['energy'] != energy or \
                        current_setup['simulated_mask_directory'] != simulated_mask_directory or \
-                       (file_name_prefix_type == 1 and current_setup['file_name_prefix'] != file_name_prefix)
+                       (file_name_type == 1 and current_setup['file_name_prefix'] != file_name_prefix)
 
         if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory,
                                                                            simulated_mask_directory=simulated_mask_directory,

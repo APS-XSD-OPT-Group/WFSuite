@@ -85,6 +85,7 @@ class WavefrontSensorWidget(GenericWidget):
 
         # METHODS
         self._connect_wavefront_sensor        = kwargs["connect_wavefront_sensor_method"]
+        self._crop_changed                    = kwargs["crop_changed_method"]
         self._save_configuration              = kwargs["save_configuration_method"]
         self._take_shot                       = kwargs["take_shot_method"]
         self._take_shot_as_flat_image         = kwargs["take_shot_as_flat_image_method"]
@@ -352,9 +353,9 @@ class WavefrontSensorWidget(GenericWidget):
         ex_box_0.layout().addWidget(self._ws_button)
         ex_box_0.layout().addWidget(self._conf_button)
 
-        gui.button(ex_box_1, None, "Take Shot",                    callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
+        gui.button(ex_box_1, None, "Take Shot",                callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
         gui.separator(ex_box_1)
-        gui.button(ex_box_1, None, "Take Shot As Flat Image",      callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
+        gui.button(ex_box_1, None, "Take Shot As Flat Image",  callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
         gui.button(ex_box_2, None, "Read Image From File",     callback=self._read_image_from_file_callback, width=ex_box_2.width()-20, height=35)
 
         #########################################################################################
@@ -610,8 +611,6 @@ class WavefrontSensorWidget(GenericWidget):
         except: pass
 
     def image_files_parameters_changed_callback(self, parameters):
-        print("VAFFANCULO", parameters)
-
         if parameters["file_name_type"] == 1:
             self.file_name_prefix_type   = 1
             self.index_digits            = parameters["index_digits_custom"]
@@ -682,7 +681,7 @@ class WavefrontSensorWidget(GenericWidget):
         cbar = fig.colorbar(mappable=plotted_image, ax=axis, pad=0.03, aspect=30, shrink=0.6)
         cbar.ax.text(0.5, 1.05, "Intensity", transform=cbar.ax.transAxes, ha="center", va="bottom", fontsize=10, color="black")
 
-        def set_crop(crop_array): self.le_crop.setText(list_to_string(crop_array))
+        def set_crop(crop_array): self._crop_changed(crop_array)
 
         def onselect(eclick, erelease):
             if eclick.button == 3:  # right click
