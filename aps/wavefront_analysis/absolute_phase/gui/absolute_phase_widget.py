@@ -117,6 +117,8 @@ class AbsolutePhaseWidget(GenericWidget):
         self.image_index               = initialization_parameters.get_parameter("image_index", 1)
         self.file_name_type            = initialization_parameters.get_parameter("file_name_type", 0)
         self.index_digits_custom       = initialization_parameters.get_parameter("index_digits_custom", 5)
+        self.pixel_size_type           = initialization_parameters.get_parameter("pixel_size_type", 0)
+        self.pixel_size_custom         = initialization_parameters.get_parameter("pixel_size_custom", ws.PIXEL_SIZE)
         self.file_name_prefix_custom   = initialization_parameters.get_parameter("file_name_prefix_custom", "custom_file_prefix")
         self.image_directory           = initialization_parameters.get_parameter("image_directory", os.path.join(os.path.abspath(os.curdir), "wf_images"))
         self.simulated_mask_directory  = initialization_parameters.get_parameter("simulated_mask_directory", os.path.join(self.image_directory, "simulated_mask"))
@@ -513,8 +515,14 @@ class AbsolutePhaseWidget(GenericWidget):
                                      items=["Online", "Offline"], sendSelectedValue=False, orientation="horizontal",
                                      callback=self._set_wavefront_sensor_mode)
 
-        gui.lineEdit(ex_box_1, self, "plot_rebinning_factor", label="Rebinning\nFactor", orientation='horizontal', valueType=int)
+        gui.lineEdit(ex_box_1, self, "plot_rebinning_factor", label="Rebinning Factor", orientation='horizontal', valueType=int)
+        gui.separator(ex_box_1)
+        gui.widgetLabel(ex_box_1, "For Tiff File only:")
+        self._cb_pixel_size_type = gui.comboBox(ex_box_1, self, "pixel_size_type", label="Pixel Size From", labelWidth=labels_width_1, orientation='horizontal', items=["W.S. Configuration", "Custom"], callback=self._set_pixel_size_type)
+        self._le_pixel_size      = gui.lineEdit(ex_box_1, self, "pixel_size_custom", label="Pixel Size [m]", orientation='horizontal', valueType=float)
+
         gui.separator(ex_box_1, 15)
+
         self._btn_take_shot = gui.button(ex_box_1, None, "Take Shot", callback=self._take_shot_callback, width=ex_box_1.width()-20, height=35)
         gui.separator(ex_box_1)
         self._btn_take_shot_as_flat_image = gui.button(ex_box_1, None, "Take Shot As Flat Image", callback=self._take_shot_as_flat_image_callback, width=ex_box_1.width()-20, height=35)
@@ -538,7 +546,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self._out_box     = gui.widgetBox(self, "", width=self.width() - main_box_width - 20, height=self.height() - 20, orientation="vertical")
         self._ws_dir_box  = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=50, orientation="horizontal")
 
-        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Working Directory", labelWidth=120, orientation='horizontal', valueType=str)
+        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Configuration Directory", labelWidth=120, orientation='horizontal', valueType=str)
         self.le_working_directory.setReadOnly(True)
         font = QFont(self.le_working_directory.font())
         font.setBold(True)
@@ -704,6 +712,9 @@ class AbsolutePhaseWidget(GenericWidget):
         self._collect_initialization_parameters(raise_errors=False)
         self._image_files_parameters_changed(self._initialization_parameters)
 
+    def _set_pixel_size_type(self):
+        self._le_pixel_size.setEnabled(self.pixel_size_type==1)
+
     def _set_wavefront_sensor_mode(self):
         default_bg = QColor("grey").name()
         default_fg = QColor("white").name()
@@ -715,6 +726,11 @@ class AbsolutePhaseWidget(GenericWidget):
             self._btn_take_shot_as_flat_image.setEnabled(True)
             self._le_image_index.setEnabled(False)
 
+            self.pixel_size_type = 0 # from WS
+            self._cb_pixel_size_type.setCurrentIndex(0)
+            self._cb_pixel_size_type.setEnabled(False)
+            self._set_pixel_size_type()
+
             self._collect_initialization_parameters(raise_errors=False)
             self._image_files_parameters_changed(self._initialization_parameters)
         else:
@@ -723,6 +739,8 @@ class AbsolutePhaseWidget(GenericWidget):
             self._btn_take_shot.setEnabled(False)
             self._btn_take_shot_as_flat_image.setEnabled(False)
             self._le_image_index.setEnabled(True)
+            self._cb_pixel_size_type.setEnabled(True)
+            self._set_pixel_size_type()
 
         self._cb_mode.setStyleSheet(f"""
             QComboBox {{
@@ -888,6 +906,8 @@ class AbsolutePhaseWidget(GenericWidget):
         initialization_parameters.set_parameter("image_index",              self.image_index)
         initialization_parameters.set_parameter("file_name_type",           self.file_name_type)
         initialization_parameters.set_parameter("index_digits_custom",      self.index_digits_custom)
+        initialization_parameters.set_parameter("pixel_size_type",          self.pixel_size_type)
+        initialization_parameters.set_parameter("pixel_size_custom",        self.pixel_size_custom)
         initialization_parameters.set_parameter("file_name_prefix_custom",  self.file_name_prefix_custom)
         initialization_parameters.set_parameter("image_directory",          self.image_directory)
         initialization_parameters.set_parameter("simulated_mask_directory", self.simulated_mask_directory)
@@ -1052,7 +1072,9 @@ class AbsolutePhaseWidget(GenericWidget):
     # PLOT METHODS
 
     def __plot_wavefront_at_detector(self, wavefront_data):
-        p_x = ws.PIXEL_SIZE*self.rebinning
+        if self.wavefront_sensor_mode == 1 and self.pixel_size_type == 1: pixel_size = self.pixel_size_custom
+        else:                                                             pixel_size = ws.PIXEL_SIZE
+        p_x = pixel_size*self.rebinning
 
         if wavefront_data['mode'] == 'area':
             intensity     = wavefront_data['intensity']

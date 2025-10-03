@@ -373,7 +373,7 @@ class WavefrontSensorWidget(GenericWidget):
         self._conf_text  = gui.widgetLabel(self._ws_dir_box, "Configuration")
         self._conf_label = gui.widgetLabel(self._ws_dir_box)
 
-        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Working Directory", labelWidth=120, orientation='horizontal', valueType=str)
+        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Configuration Directory", labelWidth=120, orientation='horizontal', valueType=str)
         self.le_working_directory.setReadOnly(True)
         font = QFont(self.le_working_directory.font())
         font.setBold(True)

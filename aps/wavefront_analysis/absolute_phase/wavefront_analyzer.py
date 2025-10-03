@@ -348,7 +348,7 @@ class ProcessingThread(Thread):
                  data_collection_directory, 
                  file_name_prefix,
                  index_digits,
-                 simulated_mask_directory, 
+                 simulated_mask_directory,
                  energy, 
                  **kwargs):
         super(ProcessingThread, self).__init__(name="Thread #" + str(thread_id))
@@ -576,8 +576,8 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_d
     folder         = kwargs.get("folder_name", os.path.join(data_collection_directory, (file_name_prefix + "_%0" + str(index_digits) + "i") % image_index))
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
 
-    return execute_back_propagation(folder=folder,
-                                    reference_folder=mask_directory,
+    return execute_back_propagation(folder                 = folder,
+                                    reference_folder       = mask_directory,
                                     kind                   = kwargs.get("kind", KIND),
                                     mask_detector_distance = kwargs.get("mask_detector_distance", PROPAGATION_DISTANCE),
                                     pixel_size             = kwargs.get("pixel_size", ws.PIXEL_SIZE),

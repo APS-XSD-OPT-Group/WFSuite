@@ -51,6 +51,7 @@ from aps.common.initializer import IniFacade
 from aps.common.scripts.script_data import ScriptData
 from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensorInitializationFile
 from aps.wavefront_analysis.absolute_phase import wavefront_analyzer as wa
+from aps.wavefront_analysis.driver import wavefront_sensor as ws
 
 def generate_initialization_parameters_from_ini(ini: IniFacade):
     # -----------------------------------------------------
@@ -142,8 +143,10 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
 
     image_index                      = ini.get_int_from_ini(    section="Wavefront-Analyzer", key="Image-Index",                       default=1)
     file_name_type                   = ini.get_int_from_ini(    section="Wavefront-Analyzer", key="File-Name-Type",                    default=0)
-    index_digits_custom              = ini.get_int_from_ini(    section="Wavefront-Analyzer", key="Index-Digits-Custom",               default=5)
+    index_digits_custom              = ini.get_int_from_ini(    section="Wavefront-Analyzer", key="Index-Digits-Custom",               default=ws.INDEX_DIGITS)
     file_name_prefix_custom          = ini.get_string_from_ini( section="Wavefront-Analyzer", key="File-Name-Prefix-Custom",           default="custom_file_prefix")
+    pixel_size_type                  = ini.get_int_from_ini(    section="Wavefront-Analyzer", key="Pixel-Size-Type",                   default=0)
+    pixel_size_custom                = ini.get_float_from_ini(  section="Wavefront-Analyzer", key="Pixel-Size-Custom",                 default=ws.PIXEL_SIZE)
     image_directory                  = ini.get_string_from_ini( section="Wavefront-Analyzer", key="Image-Directory",                   default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images")))
     image_directory_batch            = ini.get_string_from_ini( section="Wavefront-Analyzer", key="Image-Directory-Batch",             default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images")))
     simulated_mask_directory         = ini.get_string_from_ini( section="Wavefront-Analyzer", key="Simulated-Mask-Directory",          default=os.path.abspath(os.path.join(WavefrontSensorInitializationFile.DEFAULT_IMAGE_DIRECTORY, "wf_images", "simulated_mask")))
@@ -158,6 +161,8 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
                       plot_rebinning_factor=plot_rebinning_factor,
                       image_index=image_index,
                       index_digits_custom=index_digits_custom,
+                      pixel_size_type=pixel_size_type,
+                      pixel_size_custom=pixel_size_custom,
                       file_name_type=file_name_type,
                       file_name_prefix_custom=file_name_prefix_custom,
                       image_directory=image_directory,
@@ -268,6 +273,8 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     ini.set_value_at_ini(section="Wavefront-Analyzer", key="File-Name-Type",                    value=initialization_parameters.get_parameter("file_name_type"))
     ini.set_value_at_ini(section="Wavefront-Analyzer", key="Index-Digits-Custom",               value=initialization_parameters.get_parameter("index_digits_custom"))
     ini.set_value_at_ini(section="Wavefront-Analyzer", key="File-Name-Prefix-Custom",           value=initialization_parameters.get_parameter("file_name_prefix_custom"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Pixel-Size-Type",                   value=initialization_parameters.get_parameter("pixel_size_type"))
+    ini.set_value_at_ini(section="Wavefront-Analyzer", key="Pixel-Size-Custom",                 value=initialization_parameters.get_parameter("pixel_size_custom"))
     ini.set_value_at_ini(section="Wavefront-Analyzer", key="Image-Directory",                   value=initialization_parameters.get_parameter("image_directory"))
     ini.set_value_at_ini(section="Wavefront-Analyzer", key="Image-Directory-Batch",             value=initialization_parameters.get_parameter("image_directory_batch"))
     ini.set_value_at_ini(section="Wavefront-Analyzer", key="Simulated-Mask-Directory",          value=initialization_parameters.get_parameter("simulated_mask_directory"))

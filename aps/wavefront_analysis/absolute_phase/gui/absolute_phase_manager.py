@@ -166,11 +166,20 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
             if "PIS" == str(action).upper():
                 self.__check_wavefront_analyzer(initialization_parameters, batch_mode=True)
 
+                wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode", 0)
+                pixel_size_type       = initialization_parameters.get_parameter("pixel_size_type", 0)
+
+                if wavefront_sensor_mode == 1 and pixel_size_type == 1: pixel_size = initialization_parameters.get_parameter("pixel_size_custom", ws.PIXEL_SIZE)
+                else:                                                   pixel_size = ws.PIXEL_SIZE
+
                 wavefront_analyzer_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")
                 data_analysis_configuration = wavefront_analyzer_configuration["data_analysis"]
 
+
+
                 self.__wavefront_analyzer.process_images(mode=ProcessingMode.BATCH,
                                                          n_threads=data_analysis_configuration.get("n_cores"),
+                                                         pixel_size=pixel_size,
                                                          use_dark=initialization_parameters.get_parameter("use_dark", False),
                                                          use_flat=initialization_parameters.get_parameter("use_flat", False),
                                                          save_images=initialization_parameters.get_parameter("save_result", True))
@@ -219,10 +228,19 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
             index_digits              = initialization_parameters.get_parameter("index_digits_custom") if file_name_type == 1 else None
             plot_rebinning_factor     = initialization_parameters.get_parameter("plot_rebinning_factor")
 
+            wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode", 0)
+            pixel_size_type       = initialization_parameters.get_parameter("pixel_size_type", 0)
+            pixel_size_custom     = initialization_parameters.get_parameter("pixel_size_custom", ws.PIXEL_SIZE)
+
+            if wavefront_sensor_mode == 1 and pixel_size_type == 1: pixel_size = pixel_size_custom
+            else:                                                   pixel_size = ws.PIXEL_SIZE
+
             image, h_coord, v_coord = get_image_data(measurement_directory=data_collection_directory,
                                                      file_name_prefix=file_name_prefix,
                                                      image_index=image_index,
-                                                     index_digits=index_digits)
+                                                     index_digits=index_digits,
+                                                     image_ops=[],
+                                                     pixel_size=pixel_size)
 
             file_name = get_image_file_path(measurement_directory=data_collection_directory,
                                             file_name_prefix=file_name_prefix,
@@ -240,7 +258,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
                                                     h_coord=h_coord,
                                                     v_coord=v_coord,
                                                     figure_name=figure_name,
-                                                    pixel_size=ws.PIXEL_SIZE,
+                                                    pixel_size=pixel_size,
                                                     plot_rebinning_factor=plot_rebinning_factor,
                                                     allows_saving=False,
                                                     **kwargs)
@@ -258,6 +276,12 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
         }
         if wavefront_sensor_mode == 0:
             kwargs["index_digits"] = initialization_parameters.get_parameter("index_digits")
+        else:
+            pixel_size_type = initialization_parameters.get_parameter("pixel_size_type", 0)
+
+            if pixel_size_type == 1: pixel_size = initialization_parameters.get_parameter("pixel_size_custom", ws.PIXEL_SIZE)
+            else:                    pixel_size = ws.PIXEL_SIZE
+            kwargs["pixel_size"] = pixel_size
 
         image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=image_index_for_mask, **kwargs)
 
@@ -276,6 +300,12 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
         }
         if wavefront_sensor_mode == 0:
             kwargs["index_digits"] = initialization_parameters.get_parameter("index_digits")
+        else:
+            pixel_size_type = initialization_parameters.get_parameter("pixel_size_type", 0)
+
+            if pixel_size_type == 1:  pixel_size = initialization_parameters.get_parameter("pixel_size_custom", ws.PIXEL_SIZE)
+            else:                     pixel_size = ws.PIXEL_SIZE
+            kwargs["pixel_size"] = pixel_size
 
         return self.__wavefront_analyzer.process_image(image_index=image_index, **kwargs)
 
@@ -291,6 +321,12 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
         }
         if wavefront_sensor_mode == 0:
             kwargs["index_digits"] = initialization_parameters.get_parameter("index_digits")
+        else:
+            pixel_size_type = initialization_parameters.get_parameter("pixel_size_type", 0)
+
+            if pixel_size_type == 1:  pixel_size = initialization_parameters.get_parameter("pixel_size_custom", ws.PIXEL_SIZE)
+            else:                     pixel_size = ws.PIXEL_SIZE
+            kwargs["pixel_size"] = pixel_size
 
         return self.__wavefront_analyzer.back_propagate_wavefront(image_index=image_index, **kwargs)
 

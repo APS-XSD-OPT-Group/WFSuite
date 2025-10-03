@@ -73,6 +73,7 @@ ini_file = get_registered_ini_instance(APPLICATION_NAME)
 
 ENERGY        = ini_file.get_float_from_ini(  section="Common", key="Energy",        default=12398.0)
 DISTANCE      = ini_file.get_float_from_ini(  section="Common", key="Distance",      default=500e-3)
+PIXEL_SIZE    = ini_file.get_float_from_ini(  section="Common", key="Pixel-Size",    default=ws.PIXEL_SIZE)
 SCALING_H     = ini_file.get_float_from_ini(  section="Common", key="Scaling-V",     default=1.0)
 SCALING_V     = ini_file.get_float_from_ini(  section="Common", key="Scaling-H",     default=1.0)
 USE_GPU       = ini_file.get_boolean_from_ini(section="Common", key="Use-Gpu",       default=False)
@@ -108,6 +109,7 @@ WSVT_N_SCAN                  = ini_file.get_int_from_ini(    section="WSVT", key
 def store():
     ini_file.set_value_at_ini(section="Common", key="Energy",        value=ENERGY)
     ini_file.set_value_at_ini(section="Common", key="Distance",      value=DISTANCE)
+    ini_file.set_value_at_ini(section="Common", key="Pixel-Size",    value=PIXEL_SIZE)
     ini_file.set_value_at_ini(section="Common", key="Scaling-V",     value=SCALING_V)
     ini_file.set_value_at_ini(section="Common", key="Scaling-H",     value=SCALING_H)
     ini_file.set_value_at_ini(section="Common", key="Use-Gpu",       value=USE_GPU)
@@ -168,7 +170,7 @@ def _process_image_WXST(**kwargs):
     arguments["flat"]             = WXST_FLAT_FILE_NAME
     arguments["result_folder"]    = WXST_RESULT_FOLDER
     arguments["crop"]             = CROP
-    arguments["p_x"]              = ws.PIXEL_SIZE
+    arguments["p_x"]              = PIXEL_SIZE
     arguments["scaling_x"]        = SCALING_H
     arguments["scaling_y"]        = SCALING_V
     arguments["energy"]           = ENERGY
@@ -198,7 +200,7 @@ def _process_images_WSVT(**kwargs):
     arguments["n_cores"]         = N_CORES
     arguments["n_group"]         = N_GROUP
     arguments["energy"]          = ENERGY
-    arguments["pixel_size"]      = ws.PIXEL_SIZE
+    arguments["pixel_size"]      = PIXEL_SIZE
     arguments["distance"]        = DISTANCE
     arguments["use_wavelet"]     = USE_WAVELET
     arguments["wavelet_ct"]      = WAVELET_CUT

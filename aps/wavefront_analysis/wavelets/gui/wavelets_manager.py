@@ -54,7 +54,6 @@ from aps.common.plotter import get_registered_plotter_instance
 from aps.common.initializer import get_registered_ini_instance
 from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
-from aps.common.plot.event_dispatcher import Receiver, Sender
 
 from aps.wavefront_analysis.wavelets.factory import create_wavelets_analyzer
 from aps.wavefront_analysis.wavelets.wavelets_analyzer import ProcessingMode
@@ -63,8 +62,7 @@ from aps.wavefront_analysis.wavelets.gui.wavelets_manager_initialization import 
 from aps.wavefront_analysis.wavelets.gui.wavelets_widget import WaveletsWidget
 from aps.wavefront_analysis.common.gui.read_image_file_widget import PlotImageFile
 
-from aps.wavefront_analysis.driver.wavefront_sensor import get_image_data, get_image_file_path
-import aps.wavefront_analysis.driver.wavefront_sensor as ws
+from aps.wavefront_analysis.driver.wavefront_sensor import get_image_data
 
 APPLICATION_NAME = "Wavelets"
 
@@ -163,9 +161,12 @@ class _WaveletsManager(IWaveletsManager):
             self.__plotter.get_context_container_widget(context_key=SHOW_WAVELETS, unique_id=unique_id).parent().close()
 
     def recrop_from_file(self, initialization_parameters: ScriptData = None, **kwargs):
+        wavelets_analyzer_configuration = initialization_parameters.get_parameter("wavelets_analyzer_configuration")
+        common_configuration = wavelets_analyzer_configuration["common"]
+
         file_name             = kwargs.get("crop_file_name")
         plot_rebinning_factor = initialization_parameters.get_parameter("plot_rebinning_factor")
-
+        pixel_size            = common_configuration["pixel_size"]
         image, h_coord, v_coord = get_image_data(file_name=file_name)
         figure_name             = pathlib.Path(file_name).with_suffix('')
 
@@ -178,7 +179,7 @@ class _WaveletsManager(IWaveletsManager):
                                                 h_coord=h_coord,
                                                 v_coord=v_coord,
                                                 figure_name=figure_name,
-                                                pixel_size=ws.PIXEL_SIZE,
+                                                pixel_size=pixel_size,
                                                 plot_rebinning_factor=plot_rebinning_factor,
                                                 allows_saving=False,
                                                 **kwargs)

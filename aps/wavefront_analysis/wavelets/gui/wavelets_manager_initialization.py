@@ -59,6 +59,7 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
             "energy": wa.ENERGY,
             "scaling_v": wa.SCALING_V,
             "scaling_h": wa.SCALING_H,
+            "pixel_size": wa.PIXEL_SIZE,
             "use_gpu": wa.USE_GPU,
             "use_wavelet": wa.USE_WAVELET,
             "wavelet_cut": wa.WAVELET_CUT,
@@ -115,6 +116,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
 
     wa.ENERGY = common_configuration["energy"]
     wa.DISTANCE = common_configuration["distance"]
+    wa.PIXEL_SIZE = common_configuration["pixel_size"]
     wa.SCALING_V = common_configuration["scaling_v"]
     wa.SCALING_H = common_configuration["scaling_h"]
     wa.USE_GPU = common_configuration["use_gpu"]

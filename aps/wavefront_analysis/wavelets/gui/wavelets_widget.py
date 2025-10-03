@@ -107,6 +107,7 @@ class WaveletsWidget(GenericWidget):
 
         self.distance      = common_configuration["distance"]
         self.energy        = common_configuration["energy"]
+        self.pixel_size    = common_configuration["pixel_size"]
         self.scaling_v     = common_configuration["scaling_v"]
         self.scaling_h     = common_configuration["scaling_h"]
         self.use_gpu       = common_configuration["use_gpu"]
@@ -189,8 +190,6 @@ class WaveletsWidget(GenericWidget):
         ex_tab     = gui.createTabPage(self._command_tab_widget, "Execution")
 
         labels_width_1 = 300
-        labels_width_2 = 150
-        labels_width_3 = 100
 
         #########################################################################################
         # WAVEFRONT ANALYSIS
@@ -218,11 +217,12 @@ class WaveletsWidget(GenericWidget):
 
         gui.lineEdit(wa_box_1, self, "distance", "Mask-Detector Distance [m]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
 
-        if sys.platform == 'darwin' : wa_box_2 = gui.widgetBox(tab_common, "Analysis", width=self._wa_box.width()-25, height=370)
-        else:                         wa_box_2 = gui.widgetBox(tab_common, "Analysis", width=self._wa_box.width()-25, height=400)
+        if sys.platform == 'darwin' : wa_box_2 = gui.widgetBox(tab_common, "Analysis", width=self._wa_box.width()-25, height=400)
+        else:                         wa_box_2 = gui.widgetBox(tab_common, "Analysis", width=self._wa_box.width()-25, height=430)
 
-        gui.lineEdit(wa_box_2, self, "scaling_v",          "Pixel Scaling V [m]",      labelWidth=labels_width_1, orientation='horizontal', valueType=float)
-        gui.lineEdit(wa_box_2, self, "scaling_h",          "Pixel Scaling H [m]",      labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        gui.lineEdit(wa_box_2, self, "pixel_size", label="Pixel Size [m]",      labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        gui.lineEdit(wa_box_2, self, "scaling_v",  label="Pixel Scaling V [m]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
+        gui.lineEdit(wa_box_2, self, "scaling_h",  label="Pixel Scaling H [m]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(wa_box_2, self, "rebinning", label="Image Rebinning Factor", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(wa_box_2, self, "down_sampling", label="Down Sampling", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.checkBox(wa_box_2, self, "use_wavelet",  "Use Wavelets")
@@ -240,12 +240,11 @@ class WaveletsWidget(GenericWidget):
 
         gui.lineEdit(wa_box_2, self, "plot_rebinning_factor", label="Rebinning Factor for Crop Image", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
-        wa_box_3 = gui.widgetBox(tab_common, "Processing", width=self._wa_box.width()-25, height=130)
+        wa_box_3 = gui.widgetBox(tab_common, "Processing", width=self._wa_box.width()-25, height=120)
 
+        gui.checkBox(wa_box_3, self, "use_gpu",      "Use GPUs")
         gui.lineEdit(wa_box_3, self, "n_cores", label="Number of Cores", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(wa_box_3, self, "n_group", label="Number of Threads", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
-        gui.checkBox(wa_box_3, self, "use_gpu",      "Use GPUs")
-        gui.checkBox(wa_box_3, self, "save_images",  "Save Images")
 
         # WXST
         wa_box_4 = gui.widgetBox(self._tab_wxst, "Input", width=self._wa_box.width() - 25, height=300)
@@ -319,6 +318,8 @@ class WaveletsWidget(GenericWidget):
         self._cb_calculation_type = gui.comboBox(ex_box_2, self, "calculation_type",
                                                  label="Calculation Type", orientation='horizontal',
                                                  items=["WXST", "WSVT"], callback=self._set_calculation_type)
+        gui.checkBox(ex_box_2, self, "save_images",  "Save Images")
+
         gui.separator(ex_box_2, 15)
         self._btn_WXST = gui.button(ex_box_2, None, "Process Image WXST", callback=self._process_image_WXST_callback, width=ex_box_2.width() - 20, height=35)
         gui.separator(ex_box_2)
@@ -337,7 +338,7 @@ class WaveletsWidget(GenericWidget):
         self._out_box     = gui.widgetBox(self, "", width=self.width() - main_box_width - 20, height=self.height() - 20, orientation="vertical")
         self._ws_dir_box  = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=50, orientation="horizontal")
 
-        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Working Directory", labelWidth=120, orientation='horizontal', valueType=str)
+        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Configuration Directory", labelWidth=120, orientation='horizontal', valueType=str)
         self.le_working_directory.setReadOnly(True)
         font = QFont(self.le_working_directory.font())
         font.setBold(True)
@@ -515,6 +516,7 @@ class WaveletsWidget(GenericWidget):
 
         common_configuration["distance"]      = self.distance
         common_configuration["energy"]        = self.energy
+        common_configuration["pixel_size"]    = self.pixel_size
         common_configuration["scaling_v"]     = self.scaling_v
         common_configuration["scaling_h"]     = self.scaling_h
         common_configuration["use_gpu"]       = self.use_gpu

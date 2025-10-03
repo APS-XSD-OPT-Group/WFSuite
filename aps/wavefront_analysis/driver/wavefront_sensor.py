@@ -69,6 +69,7 @@ WavefrontSensorInitializationFile.store()
 def __getattr__(name):
     if   name == 'PIXEL_SIZE':          return WavefrontSensorInitializationFile.PIXEL_SIZE
     elif name == 'DETECTOR_RESOLUTION': return WavefrontSensorInitializationFile.DETECTOR_RESOLUTION
+    elif name == 'INDEX_DIGITS':        return WavefrontSensorInitializationFile.INDEX_DIGITS
     else: raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 def get_file_name_prefix(file_name_prefix_type=None, file_name_prefix_custom=None, exposure_time=None):
@@ -108,8 +109,8 @@ def get_image_data(measurement_directory=None,
                 measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY
                 file_name_prefix      = file_name_prefix if not file_name_prefix is None else get_file_name_prefix()
                 index_digits          = index_digits if not index_digits is None else WavefrontSensorInitializationFile.INDEX_DIGITS
-                image_ops             = WavefrontSensorInitializationFile.IMAGE_OPS[DataSource.File]
-                pixel_size            = WavefrontSensorInitializationFile.PIXEL_SIZE
+                image_ops             = kwargs.pop("image_ops",  WavefrontSensorInitializationFile.IMAGE_OPS[DataSource.File])
+                pixel_size            = kwargs.pop("pixel_size", WavefrontSensorInitializationFile.PIXEL_SIZE)
 
                 image, h_coord, v_coord = GenericCamera._get_image_file_data(measurement_directory=measurement_directory,
                                                                              file_name_prefix=file_name_prefix,
@@ -127,13 +128,17 @@ def get_image_data(measurement_directory=None,
         if os.path.exists(input_file_name):
             if   pathlib.Path(input_file_name).suffix == ".hdf5": return __gid(input_file_name)
             elif pathlib.Path(input_file_name).suffix == ".tif":
+                image_ops             = kwargs.pop("image_ops",  WavefrontSensorInitializationFile.IMAGE_OPS[DataSource.File])
+                pixel_size            = kwargs.pop("pixel_size", WavefrontSensorInitializationFile.PIXEL_SIZE)
+
                 image, h_coord, v_coord = GenericCamera._get_image_file_data(measurement_directory=None,
                                                                              file_name_prefix=None,
                                                                              image_index=None,
                                                                              index_digits=None,
-                                                                             pixel_size=WavefrontSensorInitializationFile.PIXEL_SIZE,
-                                                                             image_ops=WavefrontSensorInitializationFile.IMAGE_OPS[DataSource.File],
-                                                                             file_path=input_file_name, **kwargs)
+                                                                             pixel_size=pixel_size,
+                                                                             image_ops=image_ops,
+                                                                             file_path=input_file_name,
+                                                                             **kwargs)
                 GenericCamera._store_image_data(h_coord, v_coord, image, pathlib.Path(input_file_name).with_suffix(".hdf5"))
 
                 return image, h_coord, v_coord
