@@ -48,8 +48,6 @@ import sys
 import numpy as np
 import copy
 
-from PyQt5.QtCore import pyqtSignal
-
 from aps.common.widgets.generic_widget import GenericWidget
 
 from matplotlib.figure import Figure

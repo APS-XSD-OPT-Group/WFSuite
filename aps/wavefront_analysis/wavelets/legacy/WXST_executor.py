@@ -121,8 +121,8 @@ def execute_process_image(**arguments):
     arguments["nCores"]           = arguments.get("nCores", 4) # number of CPU cores used for calculation.
     arguments["nGroup"]           = arguments.get("nGroup", 1) # number of groups that parallel calculation is splitted into.
 
-    arguments["verbose"]     = arguments.get("verbose", True)
-    arguments["save_images"] = arguments.get("save_images", True)
+    arguments["verbose"]          = arguments.get("verbose", True)
+    arguments["save_images"]      = arguments.get("save_images", True)
 
     args = Args(arguments)
 

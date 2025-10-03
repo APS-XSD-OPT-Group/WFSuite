@@ -1,6 +1,6 @@
 
 
-from aps.wavefront_analysis.driver.beamline.wavefront_sensor import WavefrontSensor, get_default_file_name_prefix, get_image_file_data
+from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensor, get_default_file_name_prefix, get_image_file_data
 
 wf = WavefrontSensor()
 

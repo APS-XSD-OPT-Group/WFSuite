@@ -61,10 +61,10 @@ from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import ProcessingM
 
 from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager_initialization import generate_initialization_parameters_from_ini, set_ini_from_initialization_parameters
 from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_widget import AbsolutePhaseWidget
-from aps.wavefront_analysis.absolute_phase.gui.read_image_file_widget import PlotImageFile
+from aps.wavefront_analysis.common.gui.read_image_file_widget import PlotImageFile
 
-from aps.wavefront_analysis.driver.beamline.wavefront_sensor import get_image_data, get_image_file_path
-import aps.wavefront_analysis.driver.beamline.wavefront_sensor as ws
+from aps.wavefront_analysis.driver.wavefront_sensor import get_image_data, get_image_file_path
+import aps.wavefront_analysis.driver.wavefront_sensor as ws
 
 APPLICATION_NAME = "Absolute Phase"
 
@@ -248,7 +248,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
                 self.__plotter.show_context_window(READ_IMAGE_FILE, unique_id=unique_id)
 
     def generate_mask(self, initialization_parameters: ScriptData):
-        self.__set_wavefront_ready(initialization_parameters)
+        self.__set_wavefront_analyzer_ready(initialization_parameters)
 
         wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode")
         image_index_for_mask  = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
@@ -265,7 +265,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
         else:               return image_transfer_matrix
 
     def process_image(self, initialization_parameters: ScriptData):
-        self.__set_wavefront_ready(initialization_parameters)
+        self.__set_wavefront_analyzer_ready(initialization_parameters)
 
         wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode")
         image_index           = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
@@ -280,7 +280,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
         return self.__wavefront_analyzer.process_image(image_index=image_index, **kwargs)
 
     def back_propagate(self, initialization_parameters: ScriptData, **kwargs):
-        self.__set_wavefront_ready(initialization_parameters)
+        self.__set_wavefront_analyzer_ready(initialization_parameters)
 
         wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode")
         image_index           = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
@@ -298,7 +298,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
     # PRIVATE METHODS
     # --------------------------------------------------------------------------------------
 
-    def __set_wavefront_ready(self, initialization_parameters: ScriptData):
+    def __set_wavefront_analyzer_ready(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)
         self.__check_wavefront_analyzer(initialization_parameters)
         self.__ini.push()

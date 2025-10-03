@@ -49,8 +49,8 @@
 import os
 from aps.common.initializer import IniFacade
 from aps.common.scripts.script_data import ScriptData
-from aps.wavefront_analysis.driver.beamline.wavefront_sensor import WavefrontSensorInitializationFile
-from aps.wavefront_analysis.absolute_phase import wavefront_analyzer as WavefrontAnalyzerModule
+from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensorInitializationFile
+from aps.wavefront_analysis.absolute_phase import wavefront_analyzer as wa
 
 def generate_initialization_parameters_from_ini(ini: IniFacade):
     # -----------------------------------------------------
@@ -58,80 +58,80 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
 
     wavefront_analyzer_configuration = {
         "data_analysis" : {
-            "pattern_size" : WavefrontAnalyzerModule.PATTERN_SIZE,
-            "pattern_thickness" : WavefrontAnalyzerModule.PATTERN_THICKNESS,
-            "pattern_transmission" : WavefrontAnalyzerModule.PATTERN_TRANSMISSION,
-            "ran_mask" : WavefrontAnalyzerModule.RAN_MASK,
-            "propagation_distance" : WavefrontAnalyzerModule.PROPAGATION_DISTANCE,
-            "energy" : WavefrontAnalyzerModule.ENERGY,
-            "source_v" : WavefrontAnalyzerModule.SOURCE_V,
-            "source_h" : WavefrontAnalyzerModule.SOURCE_H,
-            "source_distance_v" : WavefrontAnalyzerModule.SOURCE_DISTANCE_V,
-            "source_distance_h" : WavefrontAnalyzerModule.SOURCE_DISTANCE_H,
-            "d_source_recal" : WavefrontAnalyzerModule.D_SOURCE_RECAL,
-            "find_transfer_matrix" : WavefrontAnalyzerModule.FIND_TRANSFER_MATRIX,
-            "crop" : WavefrontAnalyzerModule.CROP,
-            "estimation_method" : WavefrontAnalyzerModule.ESTIMATION_METHOD,
-            "propagator" : WavefrontAnalyzerModule.PROPAGATOR,
-            "calibration_path" : WavefrontAnalyzerModule.CALIBRATION_PATH,
-            "mode" : WavefrontAnalyzerModule.MODE,
-            "line_width" : WavefrontAnalyzerModule.LINE_WIDTH,
-            "rebinning" : WavefrontAnalyzerModule.REBINNING,
-            "down_sampling" : WavefrontAnalyzerModule.DOWN_SAMPLING,
-            "method" : WavefrontAnalyzerModule.METHOD,
-            "use_gpu" : WavefrontAnalyzerModule.USE_GPU,
-            "use_wavelet" : WavefrontAnalyzerModule.USE_WAVELET,
-            "wavelet_cut" : WavefrontAnalyzerModule.WAVELET_CUT,
-            "pyramid_level" : WavefrontAnalyzerModule.PYRAMID_LEVEL,
-            "n_iterations" : WavefrontAnalyzerModule.N_ITERATIONS,
-            "template_size" : WavefrontAnalyzerModule.TEMPLATE_SIZE,
-            "window_search" : WavefrontAnalyzerModule.WINDOW_SEARCH,
-            "crop_boundary" : WavefrontAnalyzerModule.CROP_BOUNDARY,
-            "n_cores" : WavefrontAnalyzerModule.N_CORES,
-            "n_group" : WavefrontAnalyzerModule.N_GROUP,
-            "image_transfer_matrix" : WavefrontAnalyzerModule.IMAGE_TRANSFER_MATRIX,
-            "show_align_figure" : WavefrontAnalyzerModule.SHOW_ALIGN_FIGURE,
-            "correct_scale" : WavefrontAnalyzerModule.CORRECT_SCALE,
+            "pattern_size" : wa.PATTERN_SIZE,
+            "pattern_thickness" : wa.PATTERN_THICKNESS,
+            "pattern_transmission" : wa.PATTERN_TRANSMISSION,
+            "ran_mask" : wa.RAN_MASK,
+            "propagation_distance" : wa.PROPAGATION_DISTANCE,
+            "energy" : wa.ENERGY,
+            "source_v" : wa.SOURCE_V,
+            "source_h" : wa.SOURCE_H,
+            "source_distance_v" : wa.SOURCE_DISTANCE_V,
+            "source_distance_h" : wa.SOURCE_DISTANCE_H,
+            "d_source_recal" : wa.D_SOURCE_RECAL,
+            "find_transfer_matrix" : wa.FIND_TRANSFER_MATRIX,
+            "crop" : wa.CROP,
+            "estimation_method" : wa.ESTIMATION_METHOD,
+            "propagator" : wa.PROPAGATOR,
+            "calibration_path" : wa.CALIBRATION_PATH,
+            "mode" : wa.MODE,
+            "line_width" : wa.LINE_WIDTH,
+            "rebinning" : wa.REBINNING,
+            "down_sampling" : wa.DOWN_SAMPLING,
+            "method" : wa.METHOD,
+            "use_gpu" : wa.USE_GPU,
+            "use_wavelet" : wa.USE_WAVELET,
+            "wavelet_cut" : wa.WAVELET_CUT,
+            "pyramid_level" : wa.PYRAMID_LEVEL,
+            "n_iterations" : wa.N_ITERATIONS,
+            "template_size" : wa.TEMPLATE_SIZE,
+            "window_search" : wa.WINDOW_SEARCH,
+            "crop_boundary" : wa.CROP_BOUNDARY,
+            "n_cores" : wa.N_CORES,
+            "n_group" : wa.N_GROUP,
+            "image_transfer_matrix" : wa.IMAGE_TRANSFER_MATRIX,
+            "show_align_figure" : wa.SHOW_ALIGN_FIGURE,
+            "correct_scale" : wa.CORRECT_SCALE,
         },
         "back_propagation" :{
-            "kind" : WavefrontAnalyzerModule.KIND,
-            "rebinning_bp" : WavefrontAnalyzerModule.REBINNING_BP,
-            "smooth_intensity" : WavefrontAnalyzerModule.SMOOTH_INTENSITY,
-            "sigma_intensity" : WavefrontAnalyzerModule.SIGMA_INTENSITY,
-            "smooth_phase" : WavefrontAnalyzerModule.SMOOTH_PHASE,
-            "sigma_phase" : WavefrontAnalyzerModule.SIGMA_PHASE,
-            "filter_intensity" : WavefrontAnalyzerModule.FILTER_INTENSITY,
-            "filter_phase" : WavefrontAnalyzerModule.FILTER_PHASE,
-            "crop_v" : WavefrontAnalyzerModule.CROP_V,
-            "crop_h" : WavefrontAnalyzerModule.CROP_H,
-            "crop_shift_v" : WavefrontAnalyzerModule.CROP_SHIFT_V,
-            "crop_shift_h" : WavefrontAnalyzerModule.CROP_SHIFT_H,
-            "distance" : WavefrontAnalyzerModule.DISTANCE,
-            "distance_v" : WavefrontAnalyzerModule.DISTANCE_V,
-            "distance_h" : WavefrontAnalyzerModule.DISTANCE_H,
-            "delta_f_v" : WavefrontAnalyzerModule.DELTA_F_V,
-            "delta_f_h" : WavefrontAnalyzerModule.DELTA_F_H,
-            "engine"  : WavefrontAnalyzerModule.ENGINE,
-            "magnification_v": WavefrontAnalyzerModule.MAGNIFICATION_V,
-            "magnification_h": WavefrontAnalyzerModule.MAGNIFICATION_H,
-            "shift_half_pixel": WavefrontAnalyzerModule.SHIFT_HALF_PIXEL,
-            "auto_resize_before_propagation" : WavefrontAnalyzerModule.AUTO_RESIZE_BEFORE_PROPAGATION,
-            "auto_resize_after_propagation" : WavefrontAnalyzerModule.AUTO_RESIZE_AFTER_PROPAGATION,
-            "relative_precision_for_propagation_with_autoresizing" : WavefrontAnalyzerModule.RELATIVE_PRECISION_FOR_PROPAGATION_WITH_AUTORESIZING,
-            "allow_semianalytical_treatment_of_quadratic_phase_term" : WavefrontAnalyzerModule.ALLOW_SEMIANALYTICAL_TREATMENT_OF_QUADRATIC_PHASE_TERM,
-            "do_any_resizing_on_fourier_side_using_fft" : WavefrontAnalyzerModule.DO_ANY_RESIZING_ON_FOURIER_SIDE_USING_FFT,
-            "horizontal_range_modification_factor_at_resizing" : WavefrontAnalyzerModule.HORIZONTAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING,
-            "horizontal_resolution_modification_factor_at_resizing" : WavefrontAnalyzerModule.HORIZONTAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING,
-            "vertical_range_modification_factor_at_resizing" : WavefrontAnalyzerModule.VERTICAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING,
-            "vertical_resolution_modification_factor_at_resizing" : WavefrontAnalyzerModule.VERTICAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING,
-            "rms_range_v" : WavefrontAnalyzerModule.RMS_RANGE_V,
-            "rms_range_h" : WavefrontAnalyzerModule.RMS_RANGE_H,
-            "scan_best_focus" : WavefrontAnalyzerModule.SCAN_BEST_FOCUS,
-            "use_fit" : WavefrontAnalyzerModule.USE_FIT,
-            "best_focus_from" : WavefrontAnalyzerModule.BEST_FOCUS_FROM,
-            "best_focus_scan_range" : WavefrontAnalyzerModule.BEST_FOCUS_SCAN_RANGE,
-            "best_focus_scan_range_v" : WavefrontAnalyzerModule.BEST_FOCUS_SCAN_RANGE_V,
-            "best_focus_scan_range_h" : WavefrontAnalyzerModule.BEST_FOCUS_SCAN_RANGE_H,
+            "kind" : wa.KIND,
+            "rebinning_bp" : wa.REBINNING_BP,
+            "smooth_intensity" : wa.SMOOTH_INTENSITY,
+            "sigma_intensity" : wa.SIGMA_INTENSITY,
+            "smooth_phase" : wa.SMOOTH_PHASE,
+            "sigma_phase" : wa.SIGMA_PHASE,
+            "filter_intensity" : wa.FILTER_INTENSITY,
+            "filter_phase" : wa.FILTER_PHASE,
+            "crop_v" : wa.CROP_V,
+            "crop_h" : wa.CROP_H,
+            "crop_shift_v" : wa.CROP_SHIFT_V,
+            "crop_shift_h" : wa.CROP_SHIFT_H,
+            "distance" : wa.DISTANCE,
+            "distance_v" : wa.DISTANCE_V,
+            "distance_h" : wa.DISTANCE_H,
+            "delta_f_v" : wa.DELTA_F_V,
+            "delta_f_h" : wa.DELTA_F_H,
+            "engine"  : wa.ENGINE,
+            "magnification_v": wa.MAGNIFICATION_V,
+            "magnification_h": wa.MAGNIFICATION_H,
+            "shift_half_pixel": wa.SHIFT_HALF_PIXEL,
+            "auto_resize_before_propagation" : wa.AUTO_RESIZE_BEFORE_PROPAGATION,
+            "auto_resize_after_propagation" : wa.AUTO_RESIZE_AFTER_PROPAGATION,
+            "relative_precision_for_propagation_with_autoresizing" : wa.RELATIVE_PRECISION_FOR_PROPAGATION_WITH_AUTORESIZING,
+            "allow_semianalytical_treatment_of_quadratic_phase_term" : wa.ALLOW_SEMIANALYTICAL_TREATMENT_OF_QUADRATIC_PHASE_TERM,
+            "do_any_resizing_on_fourier_side_using_fft" : wa.DO_ANY_RESIZING_ON_FOURIER_SIDE_USING_FFT,
+            "horizontal_range_modification_factor_at_resizing" : wa.HORIZONTAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING,
+            "horizontal_resolution_modification_factor_at_resizing" : wa.HORIZONTAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING,
+            "vertical_range_modification_factor_at_resizing" : wa.VERTICAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING,
+            "vertical_resolution_modification_factor_at_resizing" : wa.VERTICAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING,
+            "rms_range_v" : wa.RMS_RANGE_V,
+            "rms_range_h" : wa.RMS_RANGE_H,
+            "scan_best_focus" : wa.SCAN_BEST_FOCUS,
+            "use_fit" : wa.USE_FIT,
+            "best_focus_from" : wa.BEST_FOCUS_FROM,
+            "best_focus_scan_range" : wa.BEST_FOCUS_SCAN_RANGE,
+            "best_focus_scan_range_v" : wa.BEST_FOCUS_SCAN_RANGE_V,
+            "best_focus_scan_range_h" : wa.BEST_FOCUS_SCAN_RANGE_H,
         }
     }
 
@@ -180,84 +180,84 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     data_analysis_configuration      = wavefront_analyzer_configuration["data_analysis"]
     back_propagation_configuration   = wavefront_analyzer_configuration["back_propagation"]
 
-    WavefrontAnalyzerModule.PATTERN_SIZE = data_analysis_configuration["pattern_size"]          
-    WavefrontAnalyzerModule.PATTERN_THICKNESS = data_analysis_configuration["pattern_thickness"]     
-    WavefrontAnalyzerModule.PATTERN_TRANSMISSION = data_analysis_configuration["pattern_transmission"]  
-    WavefrontAnalyzerModule.RAN_MASK = data_analysis_configuration["ran_mask"]              
-    WavefrontAnalyzerModule.PROPAGATION_DISTANCE = data_analysis_configuration["propagation_distance"]  
-    WavefrontAnalyzerModule.ENERGY = data_analysis_configuration["energy"]                
-    WavefrontAnalyzerModule.SOURCE_V = data_analysis_configuration["source_v"]              
-    WavefrontAnalyzerModule.SOURCE_H = data_analysis_configuration["source_h"]              
-    WavefrontAnalyzerModule.SOURCE_DISTANCE_V = data_analysis_configuration["source_distance_v"]     
-    WavefrontAnalyzerModule.SOURCE_DISTANCE_H = data_analysis_configuration["source_distance_h"]     
-    WavefrontAnalyzerModule.D_SOURCE_RECAL = data_analysis_configuration["d_source_recal"]        
-    WavefrontAnalyzerModule.FIND_TRANSFER_MATRIX = data_analysis_configuration["find_transfer_matrix"]
-    WavefrontAnalyzerModule.CROP = data_analysis_configuration["crop"]
-    WavefrontAnalyzerModule.ESTIMATION_METHOD = data_analysis_configuration["estimation_method"]     
-    WavefrontAnalyzerModule.PROPAGATOR = data_analysis_configuration["propagator"]            
-    WavefrontAnalyzerModule.CALIBRATION_PATH = data_analysis_configuration["calibration_path"]
-    WavefrontAnalyzerModule.MODE = data_analysis_configuration["mode"]                  
-    WavefrontAnalyzerModule.LINE_WIDTH = data_analysis_configuration["line_width"]            
-    WavefrontAnalyzerModule.REBINNING = data_analysis_configuration["rebinning"]             
-    WavefrontAnalyzerModule.DOWN_SAMPLING = data_analysis_configuration["down_sampling"]         
-    WavefrontAnalyzerModule.METHOD = data_analysis_configuration["method"]                
-    WavefrontAnalyzerModule.USE_GPU = data_analysis_configuration["use_gpu"]               
-    WavefrontAnalyzerModule.USE_WAVELET = data_analysis_configuration["use_wavelet"]           
-    WavefrontAnalyzerModule.WAVELET_CUT = data_analysis_configuration["wavelet_cut"]           
-    WavefrontAnalyzerModule.PYRAMID_LEVEL = data_analysis_configuration["pyramid_level"]         
-    WavefrontAnalyzerModule.N_ITERATIONS = data_analysis_configuration["n_iterations"]          
-    WavefrontAnalyzerModule.TEMPLATE_SIZE = data_analysis_configuration["template_size"]         
-    WavefrontAnalyzerModule.WINDOW_SEARCH = data_analysis_configuration["window_search"]         
-    WavefrontAnalyzerModule.CROP_BOUNDARY = data_analysis_configuration["crop_boundary"]         
-    WavefrontAnalyzerModule.N_CORES = data_analysis_configuration["n_cores"]               
-    WavefrontAnalyzerModule.N_GROUP = data_analysis_configuration["n_group"]               
-    WavefrontAnalyzerModule.IMAGE_TRANSFER_MATRIX = data_analysis_configuration["image_transfer_matrix"] 
-    WavefrontAnalyzerModule.SHOW_ALIGN_FIGURE = data_analysis_configuration["show_align_figure"]     
-    WavefrontAnalyzerModule.CORRECT_SCALE = data_analysis_configuration["correct_scale"]         
+    wa.PATTERN_SIZE = data_analysis_configuration["pattern_size"]
+    wa.PATTERN_THICKNESS = data_analysis_configuration["pattern_thickness"]
+    wa.PATTERN_TRANSMISSION = data_analysis_configuration["pattern_transmission"]
+    wa.RAN_MASK = data_analysis_configuration["ran_mask"]
+    wa.PROPAGATION_DISTANCE = data_analysis_configuration["propagation_distance"]
+    wa.ENERGY = data_analysis_configuration["energy"]
+    wa.SOURCE_V = data_analysis_configuration["source_v"]
+    wa.SOURCE_H = data_analysis_configuration["source_h"]
+    wa.SOURCE_DISTANCE_V = data_analysis_configuration["source_distance_v"]
+    wa.SOURCE_DISTANCE_H = data_analysis_configuration["source_distance_h"]
+    wa.D_SOURCE_RECAL = data_analysis_configuration["d_source_recal"]
+    wa.FIND_TRANSFER_MATRIX = data_analysis_configuration["find_transfer_matrix"]
+    wa.CROP = data_analysis_configuration["crop"]
+    wa.ESTIMATION_METHOD = data_analysis_configuration["estimation_method"]
+    wa.PROPAGATOR = data_analysis_configuration["propagator"]
+    wa.CALIBRATION_PATH = data_analysis_configuration["calibration_path"]
+    wa.MODE = data_analysis_configuration["mode"]
+    wa.LINE_WIDTH = data_analysis_configuration["line_width"]
+    wa.REBINNING = data_analysis_configuration["rebinning"]
+    wa.DOWN_SAMPLING = data_analysis_configuration["down_sampling"]
+    wa.METHOD = data_analysis_configuration["method"]
+    wa.USE_GPU = data_analysis_configuration["use_gpu"]
+    wa.USE_WAVELET = data_analysis_configuration["use_wavelet"]
+    wa.WAVELET_CUT = data_analysis_configuration["wavelet_cut"]
+    wa.PYRAMID_LEVEL = data_analysis_configuration["pyramid_level"]
+    wa.N_ITERATIONS = data_analysis_configuration["n_iterations"]
+    wa.TEMPLATE_SIZE = data_analysis_configuration["template_size"]
+    wa.WINDOW_SEARCH = data_analysis_configuration["window_search"]
+    wa.CROP_BOUNDARY = data_analysis_configuration["crop_boundary"]
+    wa.N_CORES = data_analysis_configuration["n_cores"]
+    wa.N_GROUP = data_analysis_configuration["n_group"]
+    wa.IMAGE_TRANSFER_MATRIX = data_analysis_configuration["image_transfer_matrix"]
+    wa.SHOW_ALIGN_FIGURE = data_analysis_configuration["show_align_figure"]
+    wa.CORRECT_SCALE = data_analysis_configuration["correct_scale"]
     
-    WavefrontAnalyzerModule.KIND = back_propagation_configuration["kind"]
-    WavefrontAnalyzerModule.REBINNING_BP = back_propagation_configuration["rebinning_bp"]
-    WavefrontAnalyzerModule.SMOOTH_INTENSITY = back_propagation_configuration["smooth_intensity"]
-    WavefrontAnalyzerModule.FILTER_INTENSITY = back_propagation_configuration["filter_intensity"]
-    WavefrontAnalyzerModule.SIGMA_INTENSITY = back_propagation_configuration["sigma_intensity"]
-    WavefrontAnalyzerModule.SMOOTH_PHASE = back_propagation_configuration["smooth_phase"]
-    WavefrontAnalyzerModule.FILTER_PHASE = back_propagation_configuration["filter_phase"]
-    WavefrontAnalyzerModule.SIGMA_PHASE = back_propagation_configuration["sigma_phase"]
-    WavefrontAnalyzerModule.CROP_V = back_propagation_configuration["crop_v"]                
-    WavefrontAnalyzerModule.CROP_H = back_propagation_configuration["crop_h"]                
-    WavefrontAnalyzerModule.CROP_SHIFT_V = back_propagation_configuration["crop_shift_v"]    
-    WavefrontAnalyzerModule.CROP_SHIFT_H = back_propagation_configuration["crop_shift_h"]    
-    WavefrontAnalyzerModule.DISTANCE = back_propagation_configuration["distance"]            
-    WavefrontAnalyzerModule.DISTANCE_V = back_propagation_configuration["distance_v"]        
-    WavefrontAnalyzerModule.DISTANCE_H = back_propagation_configuration["distance_h"]        
-    WavefrontAnalyzerModule.DELTA_F_V = back_propagation_configuration["delta_f_v"]          
-    WavefrontAnalyzerModule.DELTA_F_H = back_propagation_configuration["delta_f_h"]          
-    WavefrontAnalyzerModule.ENGINE = back_propagation_configuration["engine"]
+    wa.KIND = back_propagation_configuration["kind"]
+    wa.REBINNING_BP = back_propagation_configuration["rebinning_bp"]
+    wa.SMOOTH_INTENSITY = back_propagation_configuration["smooth_intensity"]
+    wa.FILTER_INTENSITY = back_propagation_configuration["filter_intensity"]
+    wa.SIGMA_INTENSITY = back_propagation_configuration["sigma_intensity"]
+    wa.SMOOTH_PHASE = back_propagation_configuration["smooth_phase"]
+    wa.FILTER_PHASE = back_propagation_configuration["filter_phase"]
+    wa.SIGMA_PHASE = back_propagation_configuration["sigma_phase"]
+    wa.CROP_V = back_propagation_configuration["crop_v"]
+    wa.CROP_H = back_propagation_configuration["crop_h"]
+    wa.CROP_SHIFT_V = back_propagation_configuration["crop_shift_v"]
+    wa.CROP_SHIFT_H = back_propagation_configuration["crop_shift_h"]
+    wa.DISTANCE = back_propagation_configuration["distance"]
+    wa.DISTANCE_V = back_propagation_configuration["distance_v"]
+    wa.DISTANCE_H = back_propagation_configuration["distance_h"]
+    wa.DELTA_F_V = back_propagation_configuration["delta_f_v"]
+    wa.DELTA_F_H = back_propagation_configuration["delta_f_h"]
+    wa.ENGINE = back_propagation_configuration["engine"]
 
-    WavefrontAnalyzerModule.MAGNIFICATION_V = back_propagation_configuration["magnification_v"]
-    WavefrontAnalyzerModule.MAGNIFICATION_H = back_propagation_configuration["magnification_h"]
-    WavefrontAnalyzerModule.SHIFT_HALF_PIXEL = back_propagation_configuration["shift_half_pixel"]
+    wa.MAGNIFICATION_V = back_propagation_configuration["magnification_v"]
+    wa.MAGNIFICATION_H = back_propagation_configuration["magnification_h"]
+    wa.SHIFT_HALF_PIXEL = back_propagation_configuration["shift_half_pixel"]
 
-    WavefrontAnalyzerModule.AUTO_RESIZE_BEFORE_PROPAGATION                         = back_propagation_configuration["auto_resize_before_propagation"]
-    WavefrontAnalyzerModule.AUTO_RESIZE_AFTER_PROPAGATION                          = back_propagation_configuration["auto_resize_after_propagation"]
-    WavefrontAnalyzerModule.RELATIVE_PRECISION_FOR_PROPAGATION_WITH_AUTORESIZING   = back_propagation_configuration["relative_precision_for_propagation_with_autoresizing"]
-    WavefrontAnalyzerModule.ALLOW_SEMIANALYTICAL_TREATMENT_OF_QUADRATIC_PHASE_TERM = back_propagation_configuration["allow_semianalytical_treatment_of_quadratic_phase_term"]
-    WavefrontAnalyzerModule.DO_ANY_RESIZING_ON_FOURIER_SIDE_USING_FFT              = back_propagation_configuration["do_any_resizing_on_fourier_side_using_fft"]
-    WavefrontAnalyzerModule.HORIZONTAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING       = back_propagation_configuration["horizontal_range_modification_factor_at_resizing"]
-    WavefrontAnalyzerModule.HORIZONTAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING  = back_propagation_configuration["horizontal_resolution_modification_factor_at_resizing"]
-    WavefrontAnalyzerModule.VERTICAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING         = back_propagation_configuration["vertical_range_modification_factor_at_resizing"]
-    WavefrontAnalyzerModule.VERTICAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING    = back_propagation_configuration["vertical_resolution_modification_factor_at_resizing"]
+    wa.AUTO_RESIZE_BEFORE_PROPAGATION                         = back_propagation_configuration["auto_resize_before_propagation"]
+    wa.AUTO_RESIZE_AFTER_PROPAGATION                          = back_propagation_configuration["auto_resize_after_propagation"]
+    wa.RELATIVE_PRECISION_FOR_PROPAGATION_WITH_AUTORESIZING   = back_propagation_configuration["relative_precision_for_propagation_with_autoresizing"]
+    wa.ALLOW_SEMIANALYTICAL_TREATMENT_OF_QUADRATIC_PHASE_TERM = back_propagation_configuration["allow_semianalytical_treatment_of_quadratic_phase_term"]
+    wa.DO_ANY_RESIZING_ON_FOURIER_SIDE_USING_FFT              = back_propagation_configuration["do_any_resizing_on_fourier_side_using_fft"]
+    wa.HORIZONTAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING       = back_propagation_configuration["horizontal_range_modification_factor_at_resizing"]
+    wa.HORIZONTAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING  = back_propagation_configuration["horizontal_resolution_modification_factor_at_resizing"]
+    wa.VERTICAL_RANGE_MODIFICATION_FACTOR_AT_RESIZING         = back_propagation_configuration["vertical_range_modification_factor_at_resizing"]
+    wa.VERTICAL_RESOLUTION_MODIFICATION_FACTOR_AT_RESIZING    = back_propagation_configuration["vertical_resolution_modification_factor_at_resizing"]
 
-    WavefrontAnalyzerModule.RMS_RANGE_V = back_propagation_configuration["rms_range_v"]
-    WavefrontAnalyzerModule.RMS_RANGE_H = back_propagation_configuration["rms_range_h"]      
-    WavefrontAnalyzerModule.SCAN_BEST_FOCUS = back_propagation_configuration["scan_best_focus"]
-    WavefrontAnalyzerModule.USE_FIT = back_propagation_configuration["use_fit"]                  
-    WavefrontAnalyzerModule.BEST_FOCUS_FROM = back_propagation_configuration["best_focus_from"]   
-    WavefrontAnalyzerModule.BEST_FOCUS_SCAN_RANGE = back_propagation_configuration["best_focus_scan_range"]     
-    WavefrontAnalyzerModule.BEST_FOCUS_SCAN_RANGE_V = back_propagation_configuration["best_focus_scan_range_v"]  
-    WavefrontAnalyzerModule.BEST_FOCUS_SCAN_RANGE_H = back_propagation_configuration["best_focus_scan_range_h"]  
+    wa.RMS_RANGE_V = back_propagation_configuration["rms_range_v"]
+    wa.RMS_RANGE_H = back_propagation_configuration["rms_range_h"]
+    wa.SCAN_BEST_FOCUS = back_propagation_configuration["scan_best_focus"]
+    wa.USE_FIT = back_propagation_configuration["use_fit"]
+    wa.BEST_FOCUS_FROM = back_propagation_configuration["best_focus_from"]
+    wa.BEST_FOCUS_SCAN_RANGE = back_propagation_configuration["best_focus_scan_range"]
+    wa.BEST_FOCUS_SCAN_RANGE_V = back_propagation_configuration["best_focus_scan_range_v"]
+    wa.BEST_FOCUS_SCAN_RANGE_H = back_propagation_configuration["best_focus_scan_range_h"]
     
-    WavefrontAnalyzerModule.store()
+    wa.store()
     
     # Here GUI specific ini
 

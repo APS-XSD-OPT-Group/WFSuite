@@ -48,9 +48,8 @@ import numpy as np
 import sys
 
 from PyQt5.QtWidgets import QDialog, QLabel, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QSlider
-from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
-
+from PyQt5.QtCore import Qt
+from matplotlib import cm
 
 class ShowWaitDialog(QDialog):
     def __init__(self, title="", text="", width=500, height=80, parent=None, color_string="139, 0, 0"):
@@ -77,6 +76,16 @@ class ShowWaitDialog(QDialog):
         label.setStyleSheet(f"font: bold italic 16px; color: rgb({color_string});")
         layout.addWidget(label)
 
+
+def plot_3D(fig, image, label, p_x, scaling=[1.0, 1.0]):
+    ax1 = fig.add_subplot(111, projection='3d')
+    XX, YY = np.meshgrid(
+        np.arange(image.shape[1]) * p_x * scaling[0] * 1e6,
+        np.arange(image.shape[0]) * p_x * scaling[1] * 1e6)
+    ax1.plot_surface(XX, YY, image, cmap=cm.get_cmap('hot'))
+    ax1.set_xlabel('x [μm]')
+    ax1.set_ylabel('y [μm]')
+    ax1.set_zlabel(label)
 
 def plot_2D(fig, image, label, p_x, extent_data=None):
     extent_data = np.array([

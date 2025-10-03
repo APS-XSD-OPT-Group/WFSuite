@@ -61,6 +61,7 @@ from aps.wavefront_analysis.launcher.launcher_widget import LauncherWidget
 
 from aps.wavefront_analysis.absolute_phase.gui.main_absolute_phase import MainAbsolutePhase
 from aps.wavefront_analysis.driver.gui.main_wavefront_sensor import MainWavefrontSensor
+from aps.wavefront_analysis.wavelets.gui.main_wavelets import MainWavelets
 
 APPLICATION_NAME = "Launcher"
 
@@ -88,9 +89,11 @@ class _LauncherManager(ILauncherManager, QObject):
 
         self.__wavefront_sensor_main = MainWavefrontSensor(sys_argv=sys_argv, standalone=False, **kwargs)
         self.__absolute_phase_main   = MainAbsolutePhase(sys_argv=sys_argv, standalone=False, **kwargs)
+        self.__wavelets_main         = MainWavelets(sys_argv=sys_argv, standalone=False, **kwargs)
 
         wavefront_sensor_manager  = self.__wavefront_sensor_main.run_script()
         absolute_phase_manager    = self.__absolute_phase_main.run_script()
+        _                         = self.__wavelets_main.run_script()
 
         sender_signals   = absolute_phase_manager.get_delegated_signals() | wavefront_sensor_manager.get_delegated_signals()
         receiver_signals = absolute_phase_manager.get_delegate_signals()  | wavefront_sensor_manager.get_delegate_signals()
@@ -137,7 +140,7 @@ class _LauncherManager(ILauncherManager, QObject):
         self.__absolute_phase_main.activate_manager(**kwargs)
 
     def open_wavelets(self, initialization_parameters: ScriptData, **kwargs):
-        raise ValueError("Not implemented, yet")
+        self.__wavelets_main.activate_manager(**kwargs)
 
     def close(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)

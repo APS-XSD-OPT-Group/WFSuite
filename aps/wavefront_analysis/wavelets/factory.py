@@ -49,7 +49,5 @@ from aps.wavefront_analysis.wavelets.facade import IWaveletsAnalyzer
 from aps.wavefront_analysis.wavelets.wavelets_analyzer import WaveletsAnalyzer
 
 
-def create_wavelets_analyzer(data_collection_directory=None,
-                              energy=20000.0) -> IWaveletsAnalyzer:
-    return WaveletsAnalyzer(data_collection_directory=data_collection_directory,
-                            energy=energy)
+def create_wavelets_analyzer() -> IWaveletsAnalyzer:
+    return WaveletsAnalyzer()

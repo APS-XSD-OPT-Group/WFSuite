@@ -49,7 +49,7 @@
 from aps.common.initializer import IniFacade
 from aps.common.scripts.script_data import ScriptData
 
-from aps.wavefront_analysis.driver.beamline.wavefront_sensor import WavefrontSensorInitializationFile
+from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensorInitializationFile
 
 def generate_initialization_parameters_from_ini(ini: IniFacade):    
     # -----------------------------------------------------

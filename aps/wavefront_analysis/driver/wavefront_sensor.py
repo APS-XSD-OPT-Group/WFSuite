@@ -45,6 +45,8 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
 import os
+import pathlib
+
 import numpy as np
 
 from aps.common.driver.beamline.generic_camera import GenericCamera, DataSource, CameraInitializationFile, \
@@ -85,40 +87,60 @@ def get_image_data(measurement_directory=None,
                    file_name_prefix=None,
                    image_index=1,
                    index_digits=None, **kwargs) -> [np.ndarray, np.ndarray, np.ndarray]:
-    file_name = get_image_file_path(measurement_directory=measurement_directory,
-                                    file_name_prefix=file_name_prefix,
-                                    image_index=image_index,
-                                    index_digits=index_digits,
-                                    extension="hdf5",
-                                    **kwargs)
+    input_file_name = kwargs.get("file_name", None)
 
-    if os.path.exists(file_name): return __gid(file_name)
-    else: # retrocompatibilty
-        file_name_old = get_image_file_path(measurement_directory=measurement_directory,
-                                            file_name_prefix=file_name_prefix,
-                                            image_index=image_index,
-                                            index_digits=index_digits,
-                                            extension="tif",
-                                            **kwargs)
-        if os.path.exists(file_name_old):
-            measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY
-            file_name_prefix      = file_name_prefix if not file_name_prefix is None else get_file_name_prefix()
-            index_digits          = index_digits if not index_digits is None else WavefrontSensorInitializationFile.INDEX_DIGITS
-            image_ops             = WavefrontSensorInitializationFile.IMAGE_OPS[DataSource.File]
-            pixel_size            = WavefrontSensorInitializationFile.PIXEL_SIZE
+    if input_file_name is None:
+        file_name = get_image_file_path(measurement_directory=measurement_directory,
+                                        file_name_prefix=file_name_prefix,
+                                        image_index=image_index,
+                                        index_digits=index_digits,
+                                        extension="hdf5",
+                                        **kwargs)
+        if os.path.exists(file_name): return __gid(file_name)
+        else: # retrocompatibilty
+            file_name_old = get_image_file_path(measurement_directory=measurement_directory,
+                                                file_name_prefix=file_name_prefix,
+                                                image_index=image_index,
+                                                index_digits=index_digits,
+                                                extension="tif",
+                                                **kwargs)
+            if os.path.exists(file_name_old):
+                measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY
+                file_name_prefix      = file_name_prefix if not file_name_prefix is None else get_file_name_prefix()
+                index_digits          = index_digits if not index_digits is None else WavefrontSensorInitializationFile.INDEX_DIGITS
+                image_ops             = WavefrontSensorInitializationFile.IMAGE_OPS[DataSource.File]
+                pixel_size            = WavefrontSensorInitializationFile.PIXEL_SIZE
 
-            image, h_coord, v_coord = GenericCamera._get_image_file_data(measurement_directory=measurement_directory,
-                                                                         file_name_prefix=file_name_prefix,
-                                                                         image_index=image_index,
-                                                                         index_digits=index_digits,
-                                                                         pixel_size=pixel_size,
-                                                                         image_ops=image_ops,
-                                                                         **kwargs)
-            GenericCamera._store_image_data(h_coord, v_coord, image, file_name)
+                image, h_coord, v_coord = GenericCamera._get_image_file_data(measurement_directory=measurement_directory,
+                                                                             file_name_prefix=file_name_prefix,
+                                                                             image_index=image_index,
+                                                                             index_digits=index_digits,
+                                                                             pixel_size=pixel_size,
+                                                                             image_ops=image_ops,
+                                                                             **kwargs)
+                GenericCamera._store_image_data(h_coord, v_coord, image, file_name)
 
-            return image, h_coord, v_coord
+                return image, h_coord, v_coord
+            else:
+                raise IOError(f"File {file_name} not existing")
+    else:
+        if os.path.exists(input_file_name):
+            if   pathlib.Path(input_file_name).suffix == ".hdf5": return __gid(input_file_name)
+            elif pathlib.Path(input_file_name).suffix == ".tif":
+                image, h_coord, v_coord = GenericCamera._get_image_file_data(measurement_directory=None,
+                                                                             file_name_prefix=None,
+                                                                             image_index=None,
+                                                                             index_digits=None,
+                                                                             pixel_size=WavefrontSensorInitializationFile.PIXEL_SIZE,
+                                                                             image_ops=WavefrontSensorInitializationFile.IMAGE_OPS[DataSource.File],
+                                                                             file_path=input_file_name, **kwargs)
+                GenericCamera._store_image_data(h_coord, v_coord, image, pathlib.Path(input_file_name).with_suffix(".hdf5"))
+
+                return image, h_coord, v_coord
         else:
-            raise IOError(f"File {file_name} not existing")
+            raise IOError(f"File {input_file_name} not existing")
+
+
 
 def get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index = 1, index_digits=None, extension="hdf5", **kwargs) -> str:
     measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY

@@ -45,7 +45,7 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
 
-from aps.wavefront_analysis.driver.beamline.wavefront_sensor import WavefrontSensor, WAVEFRONT_SENSOR_STATUS_FILE
+from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensor, WAVEFRONT_SENSOR_STATUS_FILE
 
 def create_wavefront_sensor(measurement_directory: str = None,
                             exposure_time: int = None,

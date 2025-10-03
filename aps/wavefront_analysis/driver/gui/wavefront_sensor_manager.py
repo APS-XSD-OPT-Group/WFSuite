@@ -54,8 +54,8 @@ from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
 from aps.common.plot.event_dispatcher import Receiver, Sender
 
-from aps.wavefront_analysis.driver.beamline.factory import create_wavefront_sensor
-from aps.wavefront_analysis.driver.beamline.wavefront_sensor import get_image_data
+from aps.wavefront_analysis.driver.factory import create_wavefront_sensor
+from aps.wavefront_analysis.driver.wavefront_sensor import get_image_data
 
 from aps.wavefront_analysis.driver.gui.wavefront_sensor_manager_initialization import generate_initialization_parameters_from_ini, set_ini_from_initialization_parameters
 from aps.wavefront_analysis.driver.gui.wavefront_sensor_widget import WavefrontSensorWidget

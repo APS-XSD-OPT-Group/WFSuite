@@ -64,10 +64,10 @@ from cmasher import cm as cmm
 
 from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QScrollArea, QSlider, QWidget
 from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor, QBrush
+from PyQt5.QtGui import QFont, QPalette, QColor
 
 from aps.wavefront_analysis.common.gui.util import ShowWaitDialog, SliderWithButtons, plot_1D, plot_2D
-import aps.wavefront_analysis.driver.beamline.wavefront_sensor as ws
+import aps.wavefront_analysis.driver.wavefront_sensor as ws
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -359,8 +359,8 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.checkBox(wa_box_5, self, "find_transfer_matrix",  "Find Transfer Matrix")
         self._le_itm = gui.lineEdit(wa_box_5, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
-        if sys.platform == 'darwin' : wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=400)
-        else:                         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=450)
+        if sys.platform == 'darwin' : wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=430)
+        else:                         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=480)
 
         gui.checkBox(wa_box_6, self, "use_flat", "Use Flat Image")
         gui.checkBox(wa_box_6, self, "use_dark", "Use Dark Image")

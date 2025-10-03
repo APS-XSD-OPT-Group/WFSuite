@@ -58,7 +58,7 @@ from aps.wavefront_analysis.absolute_phase.legacy.process_images_executor import
 from aps.wavefront_analysis.absolute_phase.legacy.back_propagation_executor import execute_back_propagation
 
 from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer, ProcessingMode, MAX_THREADS
-import aps.wavefront_analysis.driver.beamline.wavefront_sensor as ws
+import aps.wavefront_analysis.driver.wavefront_sensor as ws
 
 from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
 
@@ -302,7 +302,7 @@ class WavefrontAnalyzer(IWavefrontAnalyzer):
         if mode == ProcessingMode.LIVE:
             for file in os.listdir(data_collection_directory):
 
-                if   pathlib.Path(file).suffix == ".tif" and self.__file_name_prefix in file: extension = ".tif"
+                if   pathlib.Path(file).suffix == ".tif"  and self.__file_name_prefix in file: extension = ".tif"
                 elif pathlib.Path(file).suffix == ".hdf5" and self.__file_name_prefix in file: extension = ".hdf5"
                 else: continue
 
@@ -408,7 +408,7 @@ class ProcessingThread(Thread):
 
         print('Thread #' + str(self.__thread_id) + ' completed')
 
-from aps.wavefront_analysis.driver.beamline.wavefront_sensor import get_image_file_path
+from aps.wavefront_analysis.driver.wavefront_sensor import get_image_file_path
 
 def _process_image(data_collection_directory, file_name_prefix, mask_directory, energy, image_index, **kwargs):
     index_digits    = kwargs.get("index_digits", None)
@@ -441,7 +441,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     trained_model         = spinnet_configuration.get("model", "")
     setting_path          = spinnet_configuration.get("setting", "")
 
-    return execute_process_image(img=img,
+    return execute_process_image(img=image_file_name,
                                  image_data=image_data,
                                  dark=dark,
                                  flat=flat,
