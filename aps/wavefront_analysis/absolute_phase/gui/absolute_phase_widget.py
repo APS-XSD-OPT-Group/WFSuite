@@ -96,6 +96,7 @@ class AbsolutePhaseWidget(GenericWidget):
 
         #SIGNALS
         crop_changed_online = kwargs["crop_changed_signal"]
+        close_application   = kwargs["close_application_signal"]
 
         self._set_values_from_initialization_parameters()
 
@@ -105,6 +106,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self.synchronize_wavefront_sensor.connect(self._on_synchronize_wavefront_sensor)
         self.crop_changed_offline.connect(self._on_crop_changed_offline)
         crop_changed_online.connect(self._on_crop_changed_online)
+        close_application.connect(self._close_application_callback)
 
     def _set_values_from_initialization_parameters(self):
         self.working_directory = self._working_directory
@@ -917,10 +919,14 @@ class AbsolutePhaseWidget(GenericWidget):
         initialization_parameters.set_parameter("bp_calibration_mode",      bool(self.bp_calibration_mode))
         initialization_parameters.set_parameter("bp_plot_shift",            bool(self.bp_plot_shift))
 
+    def _close_application_callback(self):
+        self._collect_initialization_parameters(raise_errors=False)
+        self._close(self._initialization_parameters)
+
     def _close_callback(self):
         if ConfirmDialog.confirmed(self, "Confirm Exit?"):
             self._collect_initialization_parameters(raise_errors=False)
-            self._close(self._initialization_parameters, self)
+            self._close(self._initialization_parameters)
 
     def _on_crop_changed_offline(self, crop_array):
         if self.wavefront_sensor_mode == 1: self._on_crop_changed(crop_array)

@@ -46,7 +46,7 @@
 # ----------------------------------------------------------------------- #
 import sys
 
-from PyQt5.QtCore import QObject
+from PyQt5.QtCore import QObject, pyqtSignal
 
 from aps.common.scripts.generic_process_manager import GenericProcessManager
 from aps.common.widgets.context_widget import PlottingProperties, DefaultMainWindow
@@ -54,7 +54,7 @@ from aps.common.plotter import get_registered_plotter_instance
 from aps.common.initializer import get_registered_ini_instance
 from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
-from aps.common.plot.event_dispatcher import EventDispacther
+from aps.common.plot.event_dispatcher import EventDispacther, Sender
 
 from aps.wavefront_analysis.launcher.launcher_manager_initialization import generate_initialization_parameters_from_ini, set_ini_from_initialization_parameters
 from aps.wavefront_analysis.launcher.launcher_widget import LauncherWidget
@@ -72,7 +72,11 @@ class ILauncherManager(GenericProcessManager):
 
 def create_launcher_manager(**kwargs): return _LauncherManager(**kwargs)
 
-class _LauncherManager(ILauncherManager, QObject):
+class _LauncherManager(ILauncherManager, Sender):
+    close_absolute_phase_sent = pyqtSignal(str)
+    close_wavelets_sent = pyqtSignal(str)
+    close_wavefront_sensor_sent = pyqtSignal(str)
+
     def __init__(self, **kwargs):
         super().__init__()
 
@@ -93,10 +97,14 @@ class _LauncherManager(ILauncherManager, QObject):
 
         wavefront_sensor_manager  = self.__wavefront_sensor_main.run_script()
         absolute_phase_manager    = self.__absolute_phase_main.run_script()
-        _                         = self.__wavelets_main.run_script()
+        wavelets_manager          = self.__wavelets_main.run_script()
 
-        sender_signals   = absolute_phase_manager.get_delegated_signals() | wavefront_sensor_manager.get_delegated_signals()
-        receiver_signals = absolute_phase_manager.get_delegate_signals()  | wavefront_sensor_manager.get_delegate_signals()
+        sender_signals   = absolute_phase_manager.get_delegated_signals() | \
+                           wavefront_sensor_manager.get_delegated_signals() | \
+                           self.get_delegated_signals()
+        receiver_signals = absolute_phase_manager.get_delegate_signals() | \
+                           wavefront_sensor_manager.get_delegate_signals() | \
+                           wavelets_manager.get_delegate_signals()
 
         for signal_name in sender_signals.keys():
             self.__event_dispatcher.register_event_handler(sender_signal=sender_signals[signal_name],
@@ -107,6 +115,13 @@ class _LauncherManager(ILauncherManager, QObject):
         self.__plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
         self.__logger  = get_registered_logger_instance(application_name=APPLICATION_NAME)
         self.__ini     = get_registered_ini_instance(application_name=APPLICATION_NAME)
+
+    def get_delegated_signals(self):
+        return {
+            "close_absolute_phase": self.close_absolute_phase_sent,
+            "close_wavelets":       self.close_wavelets_sent,
+            "close_wavefront_sensor" : self.close_wavefront_sensor_sent,
+        }
 
     def activate_launcher_manager(self, plotting_properties=PlottingProperties(), **kwargs):
         initialization_parameters = generate_initialization_parameters_from_ini(ini=self.__ini)
@@ -146,6 +161,13 @@ class _LauncherManager(ILauncherManager, QObject):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
         self.__ini.push()
 
+        self.close_absolute_phase_sent.emit("close_absolute_phase")
+        self.close_wavelets_sent.emit("close_wavelets")
+        self.close_wavefront_sensor_sent.emit("close_wavefront_sensor")
+
         if self.__plotter.is_active(): self.__plotter.get_context_container_widget(context_key=SHOW_LAUNCHER).parent().close()
 
-        sys.exit(0)
+        from PyQt5.QtCore import QTimer
+        from PyQt5.QtWidgets import QApplication
+
+        QTimer.singleShot(0, lambda: QApplication.instance().exit(0))

@@ -84,6 +84,7 @@ class WavefrontSensorWidget(GenericWidget):
         self._initialization_parameters = kwargs["initialization_parameters"]
 
         # METHODS
+        self._close                           = kwargs["close_method"]
         self._connect_wavefront_sensor        = kwargs["connect_wavefront_sensor_method"]
         self._crop_changed                    = kwargs["crop_changed_method"]
         self._save_configuration              = kwargs["save_configuration_method"]
@@ -96,11 +97,13 @@ class WavefrontSensorWidget(GenericWidget):
         take_shot_as_flat_image_signal        = kwargs["take_shot_as_flat_image_signal"]
         read_image_from_file_signal           = kwargs["read_image_from_file_signal"]
         image_files_parameters_changed_signal = kwargs["image_files_parameters_changed_signal"]
+        close_application_signal              = kwargs["close_application_signal"]
 
         take_shot_signal.connect(self._take_shot_callback)
         take_shot_as_flat_image_signal.connect(self._take_shot_as_flat_image_callback)
         read_image_from_file_signal.connect(self._read_image_from_file_callback)
         image_files_parameters_changed_signal.connect(self.image_files_parameters_changed_callback)
+        close_application_signal.connect(self._close_application_callback)
 
         self._set_values_from_initialization_parameters()
 
@@ -477,6 +480,10 @@ class WavefrontSensorWidget(GenericWidget):
 
         initialization_parameters.set_parameter("plot_raw_image",                   bool(self.plot_raw_image))
         initialization_parameters.set_parameter("plot_rebinning_factor",            self.plot_rebinning_factor)
+
+    def _close_application_callback(self):
+        self._collect_initialization_parameters(raise_errors=False)
+        self._close(self._initialization_parameters)
 
     def _save_configuration_callback(self):
         try:

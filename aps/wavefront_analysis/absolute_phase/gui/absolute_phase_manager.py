@@ -84,14 +84,13 @@ class IAbsolutePhaseManager(GenericProcessManager):
 def create_absolute_phase_manager(**kwargs): return _AbsolutePhaseManager(**kwargs)
 
 class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
-    interrupt = pyqtSignal()
-
     take_shot_sent                      = pyqtSignal(str)
     take_shot_as_flat_image_sent        = pyqtSignal(str)
     read_image_from_file_sent           = pyqtSignal(str)
     image_files_parameters_changed_sent = pyqtSignal(str, dict)
 
-    crop_changed_received = pyqtSignal(list)
+    crop_changed_received      = pyqtSignal(list)
+    close_application_received = pyqtSignal()
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -104,7 +103,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
         self.__wavefront_sensor  = None
         self.__wavefront_analyzer = None
 
-        self.__forms_registry = {}
+        self.__unique_id = None
 
     def reload_utils(self):
         self.__plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
@@ -113,54 +112,57 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
 
     def get_delegated_signals(self):
         return {
-            "take_shot":               self.take_shot_sent,
-            "take_shot_as_flat_image": self.take_shot_as_flat_image_sent,
-            "read_image_from_file":    self.read_image_from_file_sent,
+            "take_shot":                      self.take_shot_sent,
+            "take_shot_as_flat_image":        self.take_shot_as_flat_image_sent,
+            "read_image_from_file":           self.read_image_from_file_sent,
             "image_files_parameters_changed": self.image_files_parameters_changed_sent,
         }
 
     def get_delegate_signals(self):
         return {
-            "crop_changed": self.crop_changed_received,
+            "crop_changed":         self.crop_changed_received,
+            "close_absolute_phase": self.close_application_received
         }
 
     def activate_absolute_phase_manager(self, plotting_properties=PlottingProperties(), **kwargs):
         initialization_parameters = generate_initialization_parameters_from_ini(ini=self.__ini)
-        unique_id = None
 
         if self.__plotter.is_active():
-            add_context_label = plotting_properties.get_parameter("add_context_label", False)
-            use_unique_id     = plotting_properties.get_parameter("use_unique_id", True)
+            if self.__unique_id is None:
+                add_context_label = plotting_properties.get_parameter("add_context_label", False)
+                use_unique_id     = plotting_properties.get_parameter("use_unique_id", True)
 
-            unique_id = self.__plotter.register_context_window(SHOW_ABSOLUTE_PHASE,
-                                                               context_window=DefaultMainWindow(title=SHOW_ABSOLUTE_PHASE),
-                                                               use_unique_id=use_unique_id)
+                unique_id = self.__plotter.register_context_window(SHOW_ABSOLUTE_PHASE,
+                                                                   context_window=DefaultMainWindow(title=SHOW_ABSOLUTE_PHASE),
+                                                                   use_unique_id=use_unique_id)
 
-            plot_widget_instance = self.__plotter.push_plot_on_context(SHOW_ABSOLUTE_PHASE, AbsolutePhaseWidget, unique_id,
-                                                                       log_stream_widget=self.__log_stream_widget,
-                                                                       working_directory=self.__working_directory,
-                                                                       initialization_parameters=initialization_parameters,
-                                                                       close_method=self.close,
-                                                                       image_files_parameters_changed_method=self.image_files_parameters_changed,
-                                                                       crop_changed_signal=self.crop_changed_received,
-                                                                       take_shot_method=self.take_shot,
-                                                                       take_shot_as_flat_image_method=self.take_shot_as_flat_image,
-                                                                       read_image_from_file_method=self.read_image_from_file,
-                                                                       generate_mask_method=self.generate_mask,
-                                                                       process_image_method=self.process_image,
-                                                                       back_propagate_method=self.back_propagate,
-                                                                       allows_saving=False,
-                                                                       **kwargs)
+                self.__plotter.push_plot_on_context(SHOW_ABSOLUTE_PHASE, AbsolutePhaseWidget, unique_id,
+                                                    log_stream_widget=self.__log_stream_widget,
+                                                    working_directory=self.__working_directory,
+                                                    initialization_parameters=initialization_parameters,
+                                                    close_method=self.close,
+                                                    image_files_parameters_changed_method=self.image_files_parameters_changed,
+                                                    crop_changed_signal=self.crop_changed_received,
+                                                    close_application_signal=self.close_application_received,
+                                                    take_shot_method=self.take_shot,
+                                                    take_shot_as_flat_image_method=self.take_shot_as_flat_image,
+                                                    read_image_from_file_method=self.read_image_from_file,
+                                                    generate_mask_method=self.generate_mask,
+                                                    process_image_method=self.process_image,
+                                                    back_propagate_method=self.back_propagate,
+                                                    allows_saving=False,
+                                                    **kwargs)
 
-            self.__plotter.draw_context(SHOW_ABSOLUTE_PHASE, add_context_label=add_context_label, unique_id=unique_id, **kwargs)
-            self.__plotter.show_context_window(SHOW_ABSOLUTE_PHASE, unique_id)
+                self.__plotter.draw_context(SHOW_ABSOLUTE_PHASE, add_context_label=add_context_label, unique_id=unique_id, **kwargs)
+                self.__plotter.show_context_window(SHOW_ABSOLUTE_PHASE, unique_id)
 
-            self.image_files_parameters_changed(initialization_parameters) # change directory at startup
+                self.image_files_parameters_changed(initialization_parameters) # change directory at startup
 
-            self.__forms_registry[plot_widget_instance] = unique_id
+                self.__unique_id = unique_id
+            else:
+                self.__plotter.show_context_window(SHOW_ABSOLUTE_PHASE, self.__unique_id)
         else:
             action = kwargs.get("ACTION", None)
-
             if action is None: raise ValueError("Batch Mode without specified action ( use -a<ACTION>)")
 
             if "PIS" == str(action).upper():
@@ -175,8 +177,6 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
                 wavefront_analyzer_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")
                 data_analysis_configuration = wavefront_analyzer_configuration["data_analysis"]
 
-
-
                 self.__wavefront_analyzer.process_images(mode=ProcessingMode.BATCH,
                                                          n_threads=data_analysis_configuration.get("n_cores"),
                                                          pixel_size=pixel_size,
@@ -186,16 +186,16 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
             else:
                 raise ValueError(f"Batch Mode: action not recognized {action}")
 
-        return unique_id
+        return self.__unique_id
 
-    def close(self, initialization_parameters: ScriptData, plot_widget_instance):
+    def close(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
         self.__ini.push()
+        print("Absolute Phase Manager Configuration saved")
 
         if self.__plotter.is_active():
-            unique_id = self.__forms_registry.get(plot_widget_instance, None)
-
-            self.__plotter.get_context_container_widget(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id).parent().close()
+            self.__plotter.close_context_window(context_key=SHOW_ABSOLUTE_PHASE, unique_id=self.__unique_id)
+            self.__unique_id = None
 
     def image_files_parameters_changed(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)

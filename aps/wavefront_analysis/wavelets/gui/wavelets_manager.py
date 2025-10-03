@@ -54,6 +54,7 @@ from aps.common.plotter import get_registered_plotter_instance
 from aps.common.initializer import get_registered_ini_instance
 from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
+from aps.common.plot.event_dispatcher import Receiver
 
 from aps.wavefront_analysis.wavelets.factory import create_wavelets_analyzer
 from aps.wavefront_analysis.wavelets.wavelets_analyzer import ProcessingMode
@@ -78,8 +79,8 @@ class IWaveletsManager(GenericProcessManager):
 
 def create_wavelets_manager(**kwargs): return _WaveletsManager(**kwargs)
 
-class _WaveletsManager(IWaveletsManager):
-    interrupt             = pyqtSignal()
+class _WaveletsManager(IWaveletsManager, Receiver):
+    close_application_received = pyqtSignal()
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -91,7 +92,12 @@ class _WaveletsManager(IWaveletsManager):
 
         self.__wavelets_analyzer = None
 
-        self.__forms_registry = {}
+        self.__unique_id = None
+
+    def get_delegate_signals(self):
+        return {
+            "close_wavelets": self.close_application_received
+        }
 
     def reload_utils(self):
         self.__plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
@@ -100,31 +106,34 @@ class _WaveletsManager(IWaveletsManager):
 
     def activate_wavelets_manager(self, plotting_properties=PlottingProperties(), **kwargs):
         initialization_parameters = generate_initialization_parameters_from_ini(ini=self.__ini)
-        unique_id = None
 
         if self.__plotter.is_active():
-            add_context_label = plotting_properties.get_parameter("add_context_label", False)
-            use_unique_id     = plotting_properties.get_parameter("use_unique_id", True)
+            if self.__unique_id is None:
+                add_context_label = plotting_properties.get_parameter("add_context_label", False)
+                use_unique_id     = plotting_properties.get_parameter("use_unique_id", True)
 
-            unique_id = self.__plotter.register_context_window(SHOW_WAVELETS,
-                                                               context_window=DefaultMainWindow(title=SHOW_WAVELETS),
-                                                               use_unique_id=use_unique_id)
+                unique_id = self.__plotter.register_context_window(SHOW_WAVELETS,
+                                                                   context_window=DefaultMainWindow(title=SHOW_WAVELETS),
+                                                                   use_unique_id=use_unique_id)
 
-            plot_widget_instance = self.__plotter.push_plot_on_context(SHOW_WAVELETS, WaveletsWidget, unique_id,
-                                                                       log_stream_widget=self.__log_stream_widget,
-                                                                       working_directory=self.__working_directory,
-                                                                       initialization_parameters=initialization_parameters,
-                                                                       close_method=self.close,
-                                                                       process_image_WXST_method=self.process_image_WXST,
-                                                                       process_images_WSVT_method=self.process_images_WSVT,
-                                                                       recrop_from_file_method=self.recrop_from_file,
-                                                                       allows_saving=False,
-                                                                       **kwargs)
+                self.__plotter.push_plot_on_context(SHOW_WAVELETS, WaveletsWidget, unique_id,
+                                                    log_stream_widget=self.__log_stream_widget,
+                                                    working_directory=self.__working_directory,
+                                                    initialization_parameters=initialization_parameters,
+                                                    close_application_signal=self.close_application_received,
+                                                    close_method=self.close,
+                                                    process_image_WXST_method=self.process_image_WXST,
+                                                    process_images_WSVT_method=self.process_images_WSVT,
+                                                    recrop_from_file_method=self.recrop_from_file,
+                                                    allows_saving=False,
+                                                    **kwargs)
 
-            self.__plotter.draw_context(SHOW_WAVELETS, add_context_label=add_context_label, unique_id=unique_id, **kwargs)
-            self.__plotter.show_context_window(SHOW_WAVELETS, unique_id)
+                self.__plotter.draw_context(SHOW_WAVELETS, add_context_label=add_context_label, unique_id=unique_id, **kwargs)
+                self.__plotter.show_context_window(SHOW_WAVELETS, unique_id)
 
-            self.__forms_registry[plot_widget_instance] = unique_id
+                self.__unique_id = unique_id
+            else:
+                self.__plotter.show_context_window(SHOW_WAVELETS, self.__unique_id)
         else:
             action = kwargs.get("ACTION", None)
 
@@ -149,16 +158,16 @@ class _WaveletsManager(IWaveletsManager):
             else:
                 raise ValueError(f"Batch Mode: action not recognized {action}")
 
-        return unique_id
+        return self.__unique_id
 
-    def close(self, initialization_parameters: ScriptData, plot_widget_instance):
+    def close(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
         self.__ini.push()
+        print("Wavelets Manager Configuration saved")
 
         if self.__plotter.is_active():
-            unique_id = self.__forms_registry.get(plot_widget_instance, None)
-
-            self.__plotter.get_context_container_widget(context_key=SHOW_WAVELETS, unique_id=unique_id).parent().close()
+            self.__plotter.close_context_window(context_key=SHOW_WAVELETS, unique_id=self.__unique_id)
+            self.__unique_id = None
 
     def recrop_from_file(self, initialization_parameters: ScriptData = None, **kwargs):
         wavelets_analyzer_configuration = initialization_parameters.get_parameter("wavelets_analyzer_configuration")

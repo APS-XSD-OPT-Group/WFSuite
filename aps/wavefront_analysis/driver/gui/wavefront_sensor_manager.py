@@ -86,6 +86,7 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver, Sender):
     take_shot_as_flat_image_received        = pyqtSignal()
     read_image_from_file_received           = pyqtSignal()
     image_files_parameters_changed_received = pyqtSignal(dict)
+    close_application_received              = pyqtSignal()
 
     crop_changed_sent  = pyqtSignal(str, list)
 
@@ -110,6 +111,8 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver, Sender):
             "take_shot_as_flat_image":        self.take_shot_as_flat_image_received,
             "read_image_from_file":           self.read_image_from_file_received,
             "image_files_parameters_changed": self.image_files_parameters_changed_received,
+            "close_wavefront_sensor":         self.close_application_received,
+
         }
 
     def get_delegated_signals(self):
@@ -132,6 +135,8 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver, Sender):
                                                 log_stream_widget=self.__log_stream_widget,
                                                 working_directory=self.__working_directory,
                                                 initialization_parameters=initialization_parameters,
+                                                close_method=self.close,
+                                                close_application_signal=self.close_application_received,
                                                 connect_wavefront_sensor_method=self.connect_wavefront_sensor,
                                                 save_configuration_method=self.save_configuration,
                                                 crop_changed_method=self.crop_changed,
@@ -187,6 +192,14 @@ class _WavefrontSensorManager(IWavefrontSensorManager, Receiver, Sender):
 
     def image_files_parameters_changed(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
+
+    def close(self, initialization_parameters: ScriptData):
+        set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
+        self.__ini.push()
+        print("Wavefront Sensor Configuration saved")
+
+        if self.__plotter.is_active():
+            self.__plotter.close_context_window(context_key=SHOW_WAVEFRONT_SENSOR)
 
     # --------------------------------------------------------------------------------------
     # PRIVATE METHODS

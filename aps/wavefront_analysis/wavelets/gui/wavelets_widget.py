@@ -84,11 +84,15 @@ class WaveletsWidget(GenericWidget):
         self._process_images_WSVT       = kwargs["process_images_WSVT_method"]
         self._recrop_from_file          = kwargs["recrop_from_file_method"]
 
+        #SIGNALS
+        close_application   = kwargs["close_application_signal"]
+
         self._set_values_from_initialization_parameters()
 
         super(WaveletsWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
 
         self.crop_changed_offline.connect(self._on_crop_changed)
+        close_application.connect(self._close_application_callback)
 
     def _set_values_from_initialization_parameters(self):
         self.working_directory = self._working_directory
@@ -552,10 +556,14 @@ class WaveletsWidget(GenericWidget):
         initialization_parameters.set_parameter("use_dark",              bool(self.use_dark))
         initialization_parameters.set_parameter("use_flat",              bool(self.use_flat))
 
+    def _close_application_callback(self):
+        self._collect_initialization_parameters(raise_errors=False)
+        self._close(self._initialization_parameters)
+
     def _close_callback(self):
         if ConfirmDialog.confirmed(self, "Confirm Exit?"):
             self._collect_initialization_parameters(raise_errors=False)
-            self._close(self._initialization_parameters, self)
+            self._close(self._initialization_parameters)
 
     def _on_crop_changed(self, crop_array):
         self.crop = list_to_string(crop_array)
