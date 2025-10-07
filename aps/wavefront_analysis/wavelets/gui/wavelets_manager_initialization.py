@@ -65,8 +65,7 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
             "wavelet_cut": wa.WAVELET_CUT,
             "pyramid_level": wa.PYRAMID_LEVEL,
             "n_iterations": wa.N_ITERATIONS,
-            "template_size": wa.TEMPLATE_SIZE,
-            "window_search": wa.WINDOW_SEARCH,
+            "half_search_window": wa.HALF_SEARCH_WINDOW,
             "crop": wa.CROP,
             "down_sampling": wa.DOWN_SAMPLING,
             "rebinning": wa.REBINNING,
@@ -81,12 +80,12 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
             "WXST_dark_file_name" : wa.WXST_DARK_FILE_NAME,
             "WXST_flat_file_name" : wa.WXST_FLAT_FILE_NAME,
             "WXST_result_folder" : wa.WXST_RESULT_FOLDER,
+            "WXST_template_size": wa.WXST_TEMPLATE_SIZE,
         },
         "WSVT": {
             "WSVT_image_folder": wa.WSVT_IMAGE_FOLDER,
             "WSVT_reference_folder": wa.WSVT_REFERENCE_FOLDER,
             "WSVT_result_folder": wa.WSVT_RESULT_FOLDER,
-            "WSVT_calculation_half_window": wa.WSVT_CALCULATION_HALF_WINDOW,
             "WSVT_n_scan": wa.WSVT_N_SCAN,
         }
     }
@@ -114,37 +113,36 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     WXST_configuration              = wavelets_analyzer_configuration["WXST"]
     WSVT_configuration              = wavelets_analyzer_configuration["WSVT"]
 
-    wa.ENERGY = common_configuration["energy"]
-    wa.DISTANCE = common_configuration["distance"]
-    wa.PIXEL_SIZE = common_configuration["pixel_size"]
-    wa.SCALING_V = common_configuration["scaling_v"]
-    wa.SCALING_H = common_configuration["scaling_h"]
-    wa.USE_GPU = common_configuration["use_gpu"]
-    wa.USE_WAVELET = common_configuration["use_wavelet"]
-    wa.WAVELET_CUT = common_configuration["wavelet_cut"]
-    wa.PYRAMID_LEVEL = common_configuration["pyramid_level"]
-    wa.N_ITERATIONS = common_configuration["n_iterations"]
-    wa.TEMPLATE_SIZE = common_configuration["template_size"]
-    wa.WINDOW_SEARCH = common_configuration["window_search"]
-    wa.CROP = common_configuration["crop"]
-    wa.DOWN_SAMPLING = common_configuration["down_sampling"]
-    wa.REBINNING = common_configuration["rebinning"]
-    wa.N_CORES = common_configuration["n_cores"]
-    wa.N_GROUP = common_configuration["n_group"]
-    wa.SAVE_IMAGES = common_configuration["save_images"]
-    wa.VERBOSE = common_configuration["verbose"]
+    wa.ENERGY             = common_configuration["energy"]
+    wa.DISTANCE           = common_configuration["distance"]
+    wa.PIXEL_SIZE         = common_configuration["pixel_size"]
+    wa.SCALING_V          = common_configuration["scaling_v"]
+    wa.SCALING_H          = common_configuration["scaling_h"]
+    wa.USE_GPU            = common_configuration["use_gpu"]
+    wa.USE_WAVELET        = common_configuration["use_wavelet"]
+    wa.WAVELET_CUT        = common_configuration["wavelet_cut"]
+    wa.PYRAMID_LEVEL      = common_configuration["pyramid_level"]
+    wa.N_ITERATIONS       = common_configuration["n_iterations"]
+    wa.HALF_SEARCH_WINDOW = common_configuration["half_search_window"]
+    wa.CROP               = common_configuration["crop"]
+    wa.DOWN_SAMPLING      = common_configuration["down_sampling"]
+    wa.REBINNING          = common_configuration["rebinning"]
+    wa.N_CORES            = common_configuration["n_cores"]
+    wa.N_GROUP            = common_configuration["n_group"]
+    wa.SAVE_IMAGES        = common_configuration["save_images"]
+    wa.VERBOSE            = common_configuration["verbose"]
 
-    wa.WXST_IMAGE_FILE_NAME = WXST_configuration["WXST_image_file_name"]
+    wa.WXST_IMAGE_FILE_NAME     = WXST_configuration["WXST_image_file_name"]
     wa.WXST_REFERENCE_FILE_NAME = WXST_configuration["WXST_reference_file_name"]
-    wa.WXST_DARK_FILE_NAME = WXST_configuration["WXST_dark_file_name"] if initialization_parameters.get_parameter("use_dark") else "None"
-    wa.WXST_FLAT_FILE_NAME = WXST_configuration["WXST_flat_file_name"] if initialization_parameters.get_parameter("use_flat") else "None"
-    wa.WXST_RESULT_FOLDER = WXST_configuration["WXST_result_folder"]
+    wa.WXST_DARK_FILE_NAME      = WXST_configuration["WXST_dark_file_name"] if initialization_parameters.get_parameter("use_dark") else "None"
+    wa.WXST_FLAT_FILE_NAME      = WXST_configuration["WXST_flat_file_name"] if initialization_parameters.get_parameter("use_flat") else "None"
+    wa.WXST_RESULT_FOLDER       = WXST_configuration["WXST_result_folder"]
+    wa.WXST_TEMPLATE_SIZE       = WXST_configuration["WXST_template_size"]
 
-    wa.WSVT_IMAGE_FOLDER = WSVT_configuration["WSVT_image_folder"]
+    wa.WSVT_IMAGE_FOLDER     = WSVT_configuration["WSVT_image_folder"]
     wa.WSVT_REFERENCE_FOLDER = WSVT_configuration["WSVT_reference_folder"]
-    wa.WSVT_RESULT_FOLDER = WSVT_configuration["WSVT_result_folder"]
-    wa.WSVT_CALCULATION_HALF_WINDOW = WSVT_configuration["WSVT_calculation_half_window"]
-    wa.WSVT_N_SCAN = WSVT_configuration["WSVT_n_scan"]
+    wa.WSVT_RESULT_FOLDER    = WSVT_configuration["WSVT_result_folder"]
+    wa.WSVT_N_SCAN           = WSVT_configuration["WSVT_n_scan"]
 
     wa.store()
 

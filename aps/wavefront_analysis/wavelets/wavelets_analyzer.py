@@ -71,25 +71,24 @@ register_ini_instance(IniMode.LOCAL_JSON_FILE,
 ini_file = get_registered_ini_instance(APPLICATION_NAME)
 
 
-ENERGY        = ini_file.get_float_from_ini(  section="Common", key="Energy",        default=12398.0)
-DISTANCE      = ini_file.get_float_from_ini(  section="Common", key="Distance",      default=500e-3)
-PIXEL_SIZE    = ini_file.get_float_from_ini(  section="Common", key="Pixel-Size",    default=ws.PIXEL_SIZE)
-SCALING_H     = ini_file.get_float_from_ini(  section="Common", key="Scaling-V",     default=1.0)
-SCALING_V     = ini_file.get_float_from_ini(  section="Common", key="Scaling-H",     default=1.0)
-USE_GPU       = ini_file.get_boolean_from_ini(section="Common", key="Use-Gpu",       default=False)
-USE_WAVELET   = ini_file.get_boolean_from_ini(section="Common", key="Use-Wavelet",   default=False)
-WAVELET_CUT   = ini_file.get_int_from_ini(    section="Common", key="Wavelet-Cut",   default=2)
-PYRAMID_LEVEL = ini_file.get_int_from_ini(    section="Common", key="Pyramid-Level", default=1)
-N_ITERATIONS  = ini_file.get_int_from_ini(    section="Common", key="N-Iterations",  default=1)
-TEMPLATE_SIZE = ini_file.get_int_from_ini(    section="Common", key="Template-Size", default=21)
-WINDOW_SEARCH = ini_file.get_int_from_ini(    section="Common", key="Window-Search", default=20)
-CROP          = ini_file.get_list_from_ini(   section="Common", key="Crop",          default=[-1], type=int)
-DOWN_SAMPLING = ini_file.get_float_from_ini(  section="Common", key="Down-Sampling", default=1.0)
-REBINNING     = ini_file.get_float_from_ini(  section="Common", key="Rebinning",     default=1.0)
-N_CORES       = ini_file.get_int_from_ini(    section="Common", key="N-Cores",       default=16)
-N_GROUP       = ini_file.get_int_from_ini(    section="Common", key="N-Group",       default=1)
-SAVE_IMAGES   = ini_file.get_boolean_from_ini(section="Common", key="Save-Images",   default=False)
-VERBOSE       = ini_file.get_boolean_from_ini(section="Common", key="Verbose",       default=False)
+ENERGY             = ini_file.get_float_from_ini(  section="Common", key="Energy",             default=12398.0)
+DISTANCE           = ini_file.get_float_from_ini(  section="Common", key="Distance",           default=500e-3)
+PIXEL_SIZE         = ini_file.get_float_from_ini(  section="Common", key="Pixel-Size",         default=ws.PIXEL_SIZE)
+SCALING_H          = ini_file.get_float_from_ini(  section="Common", key="Scaling-V",          default=1.0)
+SCALING_V          = ini_file.get_float_from_ini(  section="Common", key="Scaling-H",          default=1.0)
+USE_GPU            = ini_file.get_boolean_from_ini(section="Common", key="Use-Gpu",            default=False)
+USE_WAVELET        = ini_file.get_boolean_from_ini(section="Common", key="Use-Wavelet",        default=False)
+WAVELET_CUT        = ini_file.get_int_from_ini(    section="Common", key="Wavelet-Cut",        default=2)
+PYRAMID_LEVEL      = ini_file.get_int_from_ini(    section="Common", key="Pyramid-Level",      default=1)
+N_ITERATIONS       = ini_file.get_int_from_ini(    section="Common", key="N-Iterations",       default=1)
+HALF_SEARCH_WINDOW = ini_file.get_int_from_ini(    section="Common", key="Half-Search-Window", default=20)
+CROP               = ini_file.get_list_from_ini(   section="Common", key="Crop",               default=[-1], type=int)
+DOWN_SAMPLING      = ini_file.get_float_from_ini(  section="Common", key="Down-Sampling",      default=1.0)
+REBINNING          = ini_file.get_float_from_ini(  section="Common", key="Rebinning",          default=1.0)
+N_CORES            = ini_file.get_int_from_ini(    section="Common", key="N-Cores",            default=16)
+N_GROUP            = ini_file.get_int_from_ini(    section="Common", key="N-Group",            default=1)
+SAVE_IMAGES        = ini_file.get_boolean_from_ini(section="Common", key="Save-Images",        default=False)
+VERBOSE            = ini_file.get_boolean_from_ini(section="Common", key="Verbose",            default=False)
 
 # WXST --------------------------------------------
 WXST_IMAGE_FILE_NAME     = ini_file.get_string_from_ini( section="WXST", key="Image-File-Name",     default=os.path.join(os.path.abspath(os.curdir), "sample_00001.tif"))
@@ -97,47 +96,46 @@ WXST_REFERENCE_FILE_NAME = ini_file.get_string_from_ini( section="WXST", key="Re
 WXST_DARK_FILE_NAME      = ini_file.get_string_from_ini( section="WXST", key="Dark-File-Name",      default=None)
 WXST_FLAT_FILE_NAME      = ini_file.get_string_from_ini( section="WXST", key="Flat-File-Name",      default=None)
 WXST_RESULT_FOLDER       = ini_file.get_string_from_ini( section="WXST", key="Result-Folder",       default=os.path.join(os.path.abspath(os.curdir), "output"))
+WXST_TEMPLATE_SIZE       = ini_file.get_int_from_ini(    section="WXST", key="Template-Size", default=21)
 
 # WSVT --------------------------------------------
 WSVT_IMAGE_FOLDER            = ini_file.get_string_from_ini( section="WSVT", key="Image-Folder",            default=os.path.join(os.path.abspath(os.curdir), "images"))
 WSVT_REFERENCE_FOLDER        = ini_file.get_string_from_ini( section="WSVT", key="Reference-Folder",        default=os.path.join(os.path.abspath(os.curdir), "references"))
 WSVT_RESULT_FOLDER           = ini_file.get_string_from_ini( section="WSVT", key="Result-Folder",           default=os.path.join(os.path.abspath(os.curdir), "output"))
-WSVT_CALCULATION_HALF_WINDOW = ini_file.get_int_from_ini(    section="WSVT", key="Calculation-Half-Window", default=20)
 WSVT_N_SCAN                  = ini_file.get_int_from_ini(    section="WSVT", key="N-Scan",                  default=1)
 
 
 def store():
-    ini_file.set_value_at_ini(section="Common", key="Energy",        value=ENERGY)
-    ini_file.set_value_at_ini(section="Common", key="Distance",      value=DISTANCE)
-    ini_file.set_value_at_ini(section="Common", key="Pixel-Size",    value=PIXEL_SIZE)
-    ini_file.set_value_at_ini(section="Common", key="Scaling-V",     value=SCALING_V)
-    ini_file.set_value_at_ini(section="Common", key="Scaling-H",     value=SCALING_H)
-    ini_file.set_value_at_ini(section="Common", key="Use-Gpu",       value=USE_GPU)
-    ini_file.set_value_at_ini(section="Common", key="Use-Wavelet",   value=USE_WAVELET)
-    ini_file.set_value_at_ini(section="Common", key="Wavelet-Cut",   value=WAVELET_CUT)
-    ini_file.set_value_at_ini(section="Common", key="Pyramid-Level", value=PYRAMID_LEVEL)
-    ini_file.set_value_at_ini(section="Common", key="N-Iterations",  value=N_ITERATIONS)
-    ini_file.set_value_at_ini(section="Common", key="Template-Size", value=TEMPLATE_SIZE)
-    ini_file.set_value_at_ini(section="Common", key="Window-Search", value=WINDOW_SEARCH)
-    ini_file.set_list_at_ini( section="Common", key="Crop",          values_list=CROP)
-    ini_file.set_value_at_ini(section="Common", key="Down-Sampling", value=DOWN_SAMPLING)
-    ini_file.set_value_at_ini(section="Common", key="Rebinning",     value=REBINNING)
-    ini_file.set_value_at_ini(section="Common", key="N-Cores",       value=N_CORES)
-    ini_file.set_value_at_ini(section="Common", key="N-Group",       value=N_GROUP)
-    ini_file.set_value_at_ini(section="Common", key="Save-Images",   value=SAVE_IMAGES)
-    ini_file.set_value_at_ini(section="Common", key="Verbose",       value=VERBOSE)
+    ini_file.set_value_at_ini(section="Common", key="Energy",             value=ENERGY)
+    ini_file.set_value_at_ini(section="Common", key="Distance",           value=DISTANCE)
+    ini_file.set_value_at_ini(section="Common", key="Pixel-Size",         value=PIXEL_SIZE)
+    ini_file.set_value_at_ini(section="Common", key="Scaling-V",          value=SCALING_V)
+    ini_file.set_value_at_ini(section="Common", key="Scaling-H",          value=SCALING_H)
+    ini_file.set_value_at_ini(section="Common", key="Use-Gpu",            value=USE_GPU)
+    ini_file.set_value_at_ini(section="Common", key="Use-Wavelet",        value=USE_WAVELET)
+    ini_file.set_value_at_ini(section="Common", key="Wavelet-Cut",        value=WAVELET_CUT)
+    ini_file.set_value_at_ini(section="Common", key="Pyramid-Level",      value=PYRAMID_LEVEL)
+    ini_file.set_value_at_ini(section="Common", key="N-Iterations",       value=N_ITERATIONS)
+    ini_file.set_value_at_ini(section="Common", key="Half-Search-Window", value=HALF_SEARCH_WINDOW)
+    ini_file.set_list_at_ini( section="Common", key="Crop",               values_list=CROP)
+    ini_file.set_value_at_ini(section="Common", key="Down-Sampling",      value=DOWN_SAMPLING)
+    ini_file.set_value_at_ini(section="Common", key="Rebinning",          value=REBINNING)
+    ini_file.set_value_at_ini(section="Common", key="N-Cores",            value=N_CORES)
+    ini_file.set_value_at_ini(section="Common", key="N-Group",            value=N_GROUP)
+    ini_file.set_value_at_ini(section="Common", key="Save-Images",        value=SAVE_IMAGES)
+    ini_file.set_value_at_ini(section="Common", key="Verbose",            value=VERBOSE)
 
     ini_file.set_value_at_ini(section="WXST", key="Image-File-Name",     value=WXST_IMAGE_FILE_NAME)
     ini_file.set_value_at_ini(section="WXST", key="Reference-File-Name", value=WXST_REFERENCE_FILE_NAME)
     ini_file.set_value_at_ini(section="WXST", key="Dark-File-Name",      value=WXST_DARK_FILE_NAME)
     ini_file.set_value_at_ini(section="WXST", key="Flat-File-Name",      value=WXST_FLAT_FILE_NAME)
     ini_file.set_value_at_ini(section="WXST", key="Result-Folder",       value=WXST_RESULT_FOLDER)
+    ini_file.set_value_at_ini(section="WXST", key="Template-Size",       value=WXST_TEMPLATE_SIZE)
 
-    ini_file.set_value_at_ini(section="WSVT", key="Image-Folder",            value=WSVT_IMAGE_FOLDER)
-    ini_file.set_value_at_ini(section="WSVT", key="Reference-Folder",        value=WSVT_REFERENCE_FOLDER)
-    ini_file.set_value_at_ini(section="WSVT", key="Result-Folder",           value=WSVT_RESULT_FOLDER)
-    ini_file.set_value_at_ini(section="WSVT", key="Calculation-Half-Window", value=WSVT_CALCULATION_HALF_WINDOW)
-    ini_file.set_value_at_ini(section="WSVT", key="N-Scan",                  value=WSVT_N_SCAN)
+    ini_file.set_value_at_ini(section="WSVT", key="Image-Folder",     value=WSVT_IMAGE_FOLDER)
+    ini_file.set_value_at_ini(section="WSVT", key="Reference-Folder", value=WSVT_REFERENCE_FOLDER)
+    ini_file.set_value_at_ini(section="WSVT", key="Result-Folder",    value=WSVT_RESULT_FOLDER)
+    ini_file.set_value_at_ini(section="WSVT", key="N-Scan",           value=WSVT_N_SCAN)
 
     ini_file.push()
 
@@ -181,8 +179,8 @@ def _process_image_WXST(**kwargs):
     arguments["wavelet_lv_cut"]   = WAVELET_CUT
     arguments["pyramid_level"]    = PYRAMID_LEVEL
     arguments["n_iter"]           = N_ITERATIONS
-    arguments["template_size"]    = TEMPLATE_SIZE
-    arguments["window_searching"] = WINDOW_SEARCH
+    arguments["template_size"]    = WXST_TEMPLATE_SIZE
+    arguments["cal_half_window"]  = HALF_SEARCH_WINDOW
     arguments["nCores"]           = N_CORES
     arguments["nGroup"]           = N_GROUP
     arguments["verbose"]          = VERBOSE
@@ -196,7 +194,7 @@ def _process_images_WSVT(**kwargs):
     arguments["folder_img"]      = WSVT_IMAGE_FOLDER
     arguments["folder_ref"]      = WSVT_REFERENCE_FOLDER
     arguments["folder_result"]   = WSVT_RESULT_FOLDER
-    arguments["cal_half_window"] = WSVT_CALCULATION_HALF_WINDOW
+    arguments["cal_half_window"] = HALF_SEARCH_WINDOW
     arguments["n_cores"]         = N_CORES
     arguments["n_group"]         = N_GROUP
     arguments["energy"]          = ENERGY

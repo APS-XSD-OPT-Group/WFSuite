@@ -117,7 +117,7 @@ def execute_process_image(**arguments):
     arguments["pyramid_level"]    = arguments.get("pyramid_level", 1) # pyramid level used for speckle tracking.
     arguments["n_iter"]           = arguments.get("n_iter", 1) # number of iteration for speckle tracking. 1 is good.
     arguments["template_size"]    = arguments.get("template_size", 5) # template size in the WXST
-    arguments["window_searching"] = arguments.get("window_searching", 10) # searching window of speckle tracking. Means the largest displacement can be calculated.
+    arguments["cal_half_window"]  = arguments.get("cal_half_window", 10) # searching window of speckle tracking. Means the largest displacement can be calculated.
     arguments["nCores"]           = arguments.get("nCores", 4) # number of CPU cores used for calculation.
     arguments["nGroup"]           = arguments.get("nGroup", 1) # number of groups that parallel calculation is splitted into.
 
@@ -129,30 +129,28 @@ def execute_process_image(**arguments):
     for key, value in args.__dict__.items():
         prColor('{}: {}'.format(key, value), 'cyan')
 
-    import cv2
+    import cv2 # import here prevents conflict with system openCV
 
-    File_ref = args.ref
-    File_img = args.img
-    flat = args.flat
-    dark = args.dark
-    folder_result = args.result_folder
-    N_s = args.template_size
-    cal_half_window = args.window_searching
-    # the calculation window for high order pyramid
-    N_s_extend = 4
-    n_cores = args.nCores
-    n_group = args.nGroup
-    energy = args.energy
-    wavelength = sc.value('inverse meter-electron volt relationship') / energy
-    p_x = args.p_x
-    scaling_x = args.scaling_x
-    scaling_y = args.scaling_y
-    z = args.distance
-    pyramid_level = args.pyramid_level
-    n_iter = args.n_iter
-    use_GPU = args.GPU
-    down_sample = args.down_sampling
-    use_wavelet = args.use_wavelet
+    File_ref          = args.ref
+    File_img          = args.img
+    flat              = args.flat
+    dark              = args.dark
+    folder_result     = args.result_folder
+    N_s               = args.template_size
+    cal_half_window   = args.cal_half_window
+    N_s_extend        = 4 # the calculation window for high order pyramid
+    n_cores           = args.nCores
+    n_group           = args.nGroup
+    energy            = args.energy
+    p_x               = args.p_x
+    scaling_x         = args.scaling_x
+    scaling_y         = args.scaling_y
+    z                 = args.distance
+    pyramid_level     = args.pyramid_level
+    n_iter            = args.n_iter
+    use_GPU           = args.GPU
+    down_sample       = args.down_sampling
+    use_wavelet       = args.use_wavelet
     wavelet_level_cut = args.wavelet_lv_cut
 
     ref_data = load_image(File_ref)

@@ -109,36 +109,35 @@ class WaveletsWidget(GenericWidget):
         WXST_configuration              = wavelets_analyzer_configuration["WXST"]
         WSVT_configuration              = wavelets_analyzer_configuration["WSVT"]
 
-        self.distance      = common_configuration["distance"]
-        self.energy        = common_configuration["energy"]
-        self.pixel_size    = common_configuration["pixel_size"]
-        self.scaling_v     = common_configuration["scaling_v"]
-        self.scaling_h     = common_configuration["scaling_h"]
-        self.use_gpu       = common_configuration["use_gpu"]
-        self.use_wavelet   = common_configuration["use_wavelet"]
-        self.wavelet_cut   = common_configuration["wavelet_cut"]
-        self.pyramid_level = common_configuration["pyramid_level"]
-        self.n_iterations  = common_configuration["n_iterations"]
-        self.template_size = common_configuration["template_size"]
-        self.window_search = common_configuration["window_search"]
-        self.crop          = list_to_string(common_configuration["crop"])
-        self.down_sampling = common_configuration["down_sampling"]
-        self.rebinning     = common_configuration["rebinning"]
-        self.n_cores       = common_configuration["n_cores"]
-        self.n_group       = common_configuration["n_group"]
-        self.save_images   = common_configuration["save_images"]
+        self.distance           = common_configuration["distance"]
+        self.energy             = common_configuration["energy"]
+        self.pixel_size         = common_configuration["pixel_size"]
+        self.scaling_v          = common_configuration["scaling_v"]
+        self.scaling_h          = common_configuration["scaling_h"]
+        self.use_gpu            = common_configuration["use_gpu"]
+        self.use_wavelet        = common_configuration["use_wavelet"]
+        self.wavelet_cut        = common_configuration["wavelet_cut"]
+        self.pyramid_level      = common_configuration["pyramid_level"]
+        self.n_iterations       = common_configuration["n_iterations"]
+        self.half_search_window = common_configuration["half_search_window"]
+        self.crop               = list_to_string(common_configuration["crop"])
+        self.down_sampling      = common_configuration["down_sampling"]
+        self.rebinning          = common_configuration["rebinning"]
+        self.n_cores            = common_configuration["n_cores"]
+        self.n_group            = common_configuration["n_group"]
+        self.save_images        = common_configuration["save_images"]
 
         self.WXST_image_file_name     = WXST_configuration["WXST_image_file_name"]
         self.WXST_reference_file_name = WXST_configuration["WXST_reference_file_name"]
         self.WXST_dark_file_name      = WXST_configuration["WXST_dark_file_name"]
         self.WXST_flat_file_name      = WXST_configuration["WXST_flat_file_name"]
         self.WXST_result_folder       = WXST_configuration["WXST_result_folder"]
+        self.WXST_template_size       = WXST_configuration["WXST_template_size"]
 
-        self.WSVT_image_folder            = WSVT_configuration["WSVT_image_folder"]
-        self.WSVT_reference_folder        = WSVT_configuration["WSVT_reference_folder"]
-        self.WSVT_result_folder           = WSVT_configuration["WSVT_result_folder"]
-        self.WSVT_calculation_half_window = WSVT_configuration["WSVT_calculation_half_window"]
-        self.WSVT_n_scan                  = WSVT_configuration["WSVT_n_scan"]
+        self.WSVT_image_folder     = WSVT_configuration["WSVT_image_folder"]
+        self.WSVT_reference_folder = WSVT_configuration["WSVT_reference_folder"]
+        self.WSVT_result_folder    = WSVT_configuration["WSVT_result_folder"]
+        self.WSVT_n_scan           = WSVT_configuration["WSVT_n_scan"]
 
     def get_plot_tab_name(self): return "Wavelets Data Analysis"
 
@@ -221,8 +220,8 @@ class WaveletsWidget(GenericWidget):
 
         gui.lineEdit(wa_box_1, self, "distance", "Mask-Detector Distance [m]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
 
-        if sys.platform == 'darwin' : wa_box_2 = gui.widgetBox(tab_common, "Analysis", width=self._wa_box.width()-25, height=400)
-        else:                         wa_box_2 = gui.widgetBox(tab_common, "Analysis", width=self._wa_box.width()-25, height=430)
+        if sys.platform == 'darwin' : wa_box_2 = gui.widgetBox(tab_common, "Analysis", width=self._wa_box.width()-25, height=380)
+        else:                         wa_box_2 = gui.widgetBox(tab_common, "Analysis", width=self._wa_box.width()-25, height=410)
 
         gui.lineEdit(wa_box_2, self, "pixel_size", label="Pixel Size [m]",      labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(wa_box_2, self, "scaling_v",  label="Pixel Scaling V [m]", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
@@ -233,8 +232,7 @@ class WaveletsWidget(GenericWidget):
         gui.lineEdit(wa_box_2, self, "wavelet_cut", label="Wavelet Cut", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(wa_box_2, self, "pyramid_level", label="Pyramid Level", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(wa_box_2, self, "n_iterations", label="Number of Iterations", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
-        gui.lineEdit(wa_box_2, self, "template_size", label="Template Size", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
-        gui.lineEdit(wa_box_2, self, "window_search", label="Window Search", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+        gui.lineEdit(wa_box_2, self, "half_search_window", label="Half Search Window", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
         self._crop_box = gui.widgetBox(wa_box_2, "", width=wa_box_2.width() - 20, height=30, orientation='horizontal', addSpace=False)
 
@@ -251,7 +249,7 @@ class WaveletsWidget(GenericWidget):
         gui.lineEdit(wa_box_3, self, "n_group", label="Number of Threads", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
         # WXST
-        wa_box_4 = gui.widgetBox(self._tab_wxst, "Input", width=self._wa_box.width() - 25, height=300)
+        wa_box_4 = gui.widgetBox(self._tab_wxst, "Input", width=self._wa_box.width() - 25, height=320)
 
         self._WXST_image_file_name_box = gui.widgetBox(wa_box_4, "", width=wa_box_4.width() - 20, orientation='horizontal', addSpace=False)
         self._le_WXST_image_file_name = gui.lineEdit(self._WXST_image_file_name_box, self, "WXST_image_file_name", "Sample Image At", orientation='vertical', valueType=str)
@@ -273,15 +271,19 @@ class WaveletsWidget(GenericWidget):
         self._le_WXST_dark_file_name = gui.lineEdit(self._WXST_dark_file_name_box, self, "WXST_dark_file_name", "Dark Image At", orientation='vertical', valueType=str)
         gui.button(self._WXST_dark_file_name_box, self, "...", width=30, callback=self._set_WXST_dark_file_name)
 
-        wa_box_5 = gui.widgetBox(self._tab_wxst, "Output", width=self._wa_box.width() - 25, height=80)
+        gui.separator(wa_box_4)
+
+        gui.lineEdit(wa_box_4, self, "WXST_template_size", label="Template Size", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+
+
+        wa_box_5 = gui.widgetBox(self._tab_wxst, "Output", width=self._wa_box.width() - 25, height=85)
 
         self._WXST_result_folder_box = gui.widgetBox(wa_box_5, "", width=wa_box_5.width() - 20, orientation='horizontal', addSpace=False)
         self._le_WXST_result_folder = gui.lineEdit(self._WXST_result_folder_box, self, "WXST_result_folder", "Result Directory At", orientation='vertical', valueType=str)
         gui.button(self._WXST_result_folder_box, self, "...", width=30, callback=self._set_WXST_result_folder)
 
-
         # WSVT
-        wa_box_6 = gui.widgetBox(self._tab_wsvt, "Input", width=self._wa_box.width() - 25, height=200)
+        wa_box_6 = gui.widgetBox(self._tab_wsvt, "Input", width=self._wa_box.width() - 25, height=170)
 
         self._WSVT_image_folder_box = gui.widgetBox(wa_box_6, "", width=wa_box_6.width() - 20, orientation='horizontal', addSpace=False)
         self._le_WSVT_image_folder = gui.lineEdit(self._WSVT_image_folder_box, self, "WSVT_image_folder", "Sample Images At", orientation='vertical', valueType=str)
@@ -291,10 +293,11 @@ class WaveletsWidget(GenericWidget):
         self._le_WSVT_reference_folder = gui.lineEdit(self._WSVT_reference_folder_box, self, "WSVT_reference_folder", "Reference Images At", orientation='vertical', valueType=str)
         gui.button(self._WSVT_reference_folder_box, self, "...", width=30, callback=self._set_WSVT_reference_folder)
 
-        gui.lineEdit(wa_box_6, self, "WSVT_calculation_half_window", label="Calculation Half Window", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
+        gui.separator(wa_box_6)
+
         gui.lineEdit(wa_box_6, self, "WSVT_n_scan", label="Number of Scans", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
 
-        wa_box_7 = gui.widgetBox(self._tab_wsvt, "Output", width=self._wa_box.width() - 25, height=80)
+        wa_box_7 = gui.widgetBox(self._tab_wsvt, "Output", width=self._wa_box.width() - 25, height=85)
 
         self._WSVT_result_folder_box = gui.widgetBox(wa_box_7, "", width=wa_box_7.width() - 20, orientation='horizontal', addSpace=False)
         self._le_WSVT_result_folder = gui.lineEdit(self._WSVT_result_folder_box, self, "WSVT_result_folder", "Result Directory At", orientation='vertical', valueType=str)
@@ -526,35 +529,34 @@ class WaveletsWidget(GenericWidget):
         WXST_configuration   = wavelets_analyzer_configuration["WXST"]
         WSVT_configuration   = wavelets_analyzer_configuration["WSVT"]
 
-        common_configuration["distance"]      = self.distance
-        common_configuration["energy"]        = self.energy
-        common_configuration["pixel_size"]    = self.pixel_size
-        common_configuration["scaling_v"]     = self.scaling_v
-        common_configuration["scaling_h"]     = self.scaling_h
-        common_configuration["use_gpu"]       = self.use_gpu
-        common_configuration["use_wavelet"]   = self.use_wavelet
-        common_configuration["wavelet_cut"]   = self.wavelet_cut
-        common_configuration["pyramid_level"] = self.pyramid_level
-        common_configuration["n_iterations"]  = self.n_iterations
-        common_configuration["template_size"] = self.template_size
-        common_configuration["window_search"] = self.window_search
-        common_configuration["crop"]          = string_to_list(self.crop, int)
-        common_configuration["down_sampling"] = self.down_sampling
-        common_configuration["rebinning"]     = self.rebinning
-        common_configuration["n_cores"]       = self.n_cores
-        common_configuration["n_group"]       = self.n_group
-        common_configuration["save_images"]   = self.save_images
+        common_configuration["distance"]           = self.distance
+        common_configuration["energy"]             = self.energy
+        common_configuration["pixel_size"]         = self.pixel_size
+        common_configuration["scaling_v"]          = self.scaling_v
+        common_configuration["scaling_h"]          = self.scaling_h
+        common_configuration["use_gpu"]            = self.use_gpu
+        common_configuration["use_wavelet"]        = self.use_wavelet
+        common_configuration["wavelet_cut"]        = self.wavelet_cut
+        common_configuration["pyramid_level"]      = self.pyramid_level
+        common_configuration["n_iterations"]       = self.n_iterations
+        common_configuration["half_search_window"] = self.half_search_window
+        common_configuration["crop"]               = string_to_list(self.crop, int)
+        common_configuration["down_sampling"]      = self.down_sampling
+        common_configuration["rebinning"]          = self.rebinning
+        common_configuration["n_cores"]            = self.n_cores
+        common_configuration["n_group"]            = self.n_group
+        common_configuration["save_images"]        = self.save_images
 
         WXST_configuration["WXST_image_file_name"]     = self.WXST_image_file_name
         WXST_configuration["WXST_reference_file_name"] = self.WXST_reference_file_name
         WXST_configuration["WXST_dark_file_name"]      = self.WXST_dark_file_name
         WXST_configuration["WXST_flat_file_name"]      = self.WXST_flat_file_name
         WXST_configuration["WXST_result_folder"]       = self.WXST_result_folder
+        WXST_configuration["WXST_template_size"]       = self.WXST_template_size
 
         WSVT_configuration["WSVT_image_folder"]            = self.WSVT_image_folder
         WSVT_configuration["WSVT_reference_folder"]        = self.WSVT_reference_folder
         WSVT_configuration["WSVT_result_folder"]           = self.WSVT_result_folder
-        WSVT_configuration["WSVT_calculation_half_window"] = self.WSVT_calculation_half_window
         WSVT_configuration["WSVT_n_scan"]                  = self.WSVT_n_scan
 
         # Widget ini

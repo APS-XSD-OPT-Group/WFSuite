@@ -118,51 +118,28 @@ def execute_process_images(**arguments):
 
     args = Args(arguments)
 
-    for key, value in args.__dict__.items():
-        prColor('{}: {}'.format(key, value), 'cyan')
-
-    import cv2
-
-    for key, value in args.__dict__.items():
-        prColor('{}: {}'.format(key, value), 'cyan')
+    for key, value in args.__dict__.items(): prColor('{}: {}'.format(key, value), 'cyan')
 
     # Assign arguments to variables
-    folder_img = args.folder_img
-    folder_ref = args.folder_ref
-    folder_result = args.folder_result
-    # the number of the area to calculate for each pixel, 2*cal_half_window X 2*cal_half_window
-    cal_half_window = args.cal_half_window
-    # the calculation window for high order pyramid (still hardcoded)
-    n_s_extend = 4
-    # process number for parallel
-    n_cores = args.n_cores
-    # number to reduce the each memory use
-    n_group = args.n_group
-    # energy, 10kev
-    energy = args.energy
-    wavelength = sc.value('inverse meter-electron volt relationship') / energy
-    # pixel size [m]
-    p_x = args.pixel_size
-    # distance [m]
-    z = args.distance
-    # whether to use wavelet transform or not
-    use_wavelet = args.use_wavelet
-    # wavelet level cut
+    folder_img        = args.folder_img
+    folder_ref        = args.folder_ref
+    folder_result     = args.folder_result
+    cal_half_window   = args.cal_half_window # the number of the area to calculate for each pixel, 2*cal_half_window X 2*cal_half_window
+    n_s_extend        = 4 # the calculation window for high order pyramid (still hardcoded)
+    n_cores           = args.n_cores
+    n_group           = args.n_group
+    energy            = args.energy
+    p_x               = args.pixel_size
+    z                 = args.distance
+    use_wavelet       = args.use_wavelet
     wavelet_level_cut = args.wavelet_ct
-    # pyramid level to wrap the images
-    pyramid_level = args.pyramid_level
-    # iteration number, 1 should be enough
-    n_iter = args.n_iteration
-    # scan number for calculation
-    n_scan = args.n_scan
-    # use GPU or not
-    use_GPU = args.use_GPU
-    # scaling x before phase integration
-    scaling_x = args.scaling_x
-    # scaling y before phase integration
-    scaling_y = args.scaling_y
-
-    use_estimate = False
+    pyramid_level     = args.pyramid_level
+    n_iter            = args.n_iteration
+    n_scan            = args.n_scan
+    use_GPU           = args.use_GPU
+    scaling_x         = args.scaling_x
+    scaling_y         = args.scaling_y
+    use_estimate      = False
 
     ref_data = load_images(folder_ref, '*.tif')
     img_data = load_images(folder_img, '*.tif')
