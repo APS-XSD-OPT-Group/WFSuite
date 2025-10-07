@@ -514,13 +514,13 @@ class AbsolutePhaseWidget(GenericWidget):
         exit_button.setPalette(palette)
 
         self._cb_mode = gui.comboBox(ex_box_1, self, "wavefront_sensor_mode", label="Mode",
-                                     items=["Online", "Offline"], sendSelectedValue=False, orientation="horizontal",
+                                     items=["Connected to W.S.", "Standalone"], sendSelectedValue=False, orientation="horizontal",
                                      callback=self._set_wavefront_sensor_mode)
 
         gui.lineEdit(ex_box_1, self, "plot_rebinning_factor", label="Rebinning Factor", orientation='horizontal', valueType=int)
         gui.separator(ex_box_1)
         gui.widgetLabel(ex_box_1, "For Tiff File only:")
-        self._cb_pixel_size_type = gui.comboBox(ex_box_1, self, "pixel_size_type", label="Pixel Size From", labelWidth=labels_width_1, orientation='horizontal', items=["W.S. Configuration", "Custom"], callback=self._set_pixel_size_type)
+        self._cb_pixel_size_type = gui.comboBox(ex_box_1, self, "pixel_size_type", label="Pixel Size From", labelWidth=labels_width_1, orientation='horizontal', items=["W.S.", "Custom"], callback=self._set_pixel_size_type)
         self._le_pixel_size      = gui.lineEdit(ex_box_1, self, "pixel_size_custom", label="Pixel Size [m]", orientation='horizontal', valueType=float)
 
         gui.separator(ex_box_1, 15)
