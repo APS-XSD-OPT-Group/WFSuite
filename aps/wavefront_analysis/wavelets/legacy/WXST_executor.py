@@ -62,6 +62,7 @@ from aps.wavefront_analysis.common.arguments import Args
 from aps.wavefront_analysis.common.legacy.func import prColor
 from aps.wavefront_analysis.wavelets.legacy.func import load_image, auto_crop, image_align
 from aps.wavefront_analysis.wavelets.legacy.WXST import WXST
+from aps.common.driver.beamline.generic_camera import get_image_data
 
 class WXSTResult:
     def __init__(self, displace, DPC_x, DPC_y, phase):
@@ -97,6 +98,7 @@ class WXSTResult:
             'DPC_y': self.__DPC_y,
             'phase': self.__phase
         }
+
 
 def execute_process_image(**arguments):
     arguments["img"]              = arguments.get("img", "../testdata/single-shot/sample_001.tif") # path to sample image
@@ -153,20 +155,24 @@ def execute_process_image(**arguments):
     use_wavelet       = args.use_wavelet
     wavelet_level_cut = args.wavelet_lv_cut
 
-    ref_data = load_image(File_ref)
-    img_data = load_image(File_img)
+
+    def _load_image(file_img):
+        extension = os.path.splitext(file_img.lower())[1]
+        if   extension == ".tif":  return load_image(file_img)
+        elif extension == ".hdf5":
+            image, _, _ = get_image_data(file_img)
+            return image
+
+    ref_data = _load_image(File_ref)
+    img_data = _load_image(File_img)
 
     ref_data = ref_data.astype(np.float32)
     img_data = img_data.astype(np.float32)
-    if args.dark == 'None':
-        dark = np.zeros_like(img_data, dtype=np.float32)
-    else:
-        dark = load_image(dark).astype(np.float32)
+    if args.dark == 'None': dark = np.zeros_like(img_data, dtype=np.float32)
+    else:                   dark = _load_image(dark).astype(np.float32)
 
-    if args.flat == 'None':
-        flat = np.ones_like(img_data, dtype=np.float32)
-    else:
-        flat = load_image(flat).astype(np.float32)
+    if args.flat == 'None': flat = np.ones_like(img_data, dtype=np.float32)
+    else:                   flat = _load_image(flat).astype(np.float32)
 
     zero_mask = (flat - dark) != 0
     img_data[zero_mask] = (img_data[zero_mask] - dark[zero_mask]) / (flat[zero_mask] - dark[zero_mask])

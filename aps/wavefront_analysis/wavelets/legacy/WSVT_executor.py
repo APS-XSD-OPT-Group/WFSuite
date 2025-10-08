@@ -58,6 +58,8 @@ from aps.wavefront_analysis.common.legacy.func import prColor
 from aps.wavefront_analysis.wavelets.legacy.func import load_images, auto_crop
 from aps.wavefront_analysis.wavelets.legacy.WSVT import WSVT
 
+from aps.common.driver.beamline.generic_camera import get_image_data_array
+
 class WSVTResult:
     def __init__(self, displace, DPC_x, DPC_y, phase):
         self.__displace = displace
@@ -141,8 +143,12 @@ def execute_process_images(**arguments):
     scaling_y         = args.scaling_y
     use_estimate      = False
 
-    ref_data = load_images(folder_ref, '*.tif')
-    img_data = load_images(folder_img, '*.tif')
+    def _load_images(folder):
+        try:    return get_image_data_array(folder) # no tif file -> look for hdf5
+        except: return load_images(folder, '*.tif')
+
+    ref_data = _load_images(folder_ref)
+    img_data = _load_images(folder_img)
 
     # crop image to roi
     if len(args.crop) == 4:

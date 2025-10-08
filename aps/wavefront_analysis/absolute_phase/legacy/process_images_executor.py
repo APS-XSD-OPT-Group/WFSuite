@@ -1176,7 +1176,7 @@ def execute_process_image(**arguments):
         extension = os.path.splitext(file_img.lower())[1]
         if   extension == ".tif":  return load_image(file_img)
         elif extension == ".hdf5":
-            _, _, image = get_image_data(file_img)
+            image, _, _ = get_image_data(file_img)
             return image
 
     if args.image_data is None: I_img_raw = _load_image(file_img)

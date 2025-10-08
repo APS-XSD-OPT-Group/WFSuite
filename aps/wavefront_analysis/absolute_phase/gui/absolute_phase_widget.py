@@ -363,14 +363,16 @@ class AbsolutePhaseWidget(GenericWidget):
         gui.checkBox(wa_box_5, self, "find_transfer_matrix",  "Find Transfer Matrix")
         self._le_itm = gui.lineEdit(wa_box_5, self, "image_transfer_matrix", "Image Transfer Matrix", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
-        if sys.platform == 'darwin' : wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=430)
-        else:                         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=480)
+        if sys.platform == 'darwin' : wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=450)
+        else:                         wa_box_6 = gui.widgetBox(wa_tab_2, "Reconstruction", width=self._wa_box.width()-25, height=500)
 
         gui.checkBox(wa_box_6, self, "use_flat", "Use Flat Image")
         gui.checkBox(wa_box_6, self, "use_dark", "Use Dark Image")
 
-        self.le_crop = gui.lineEdit(wa_box_6, self, "crop", "Crop (-1: auto, n: pixels around center,\n            [b, t, l, r]: coordinates in pixels)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
+        self._crop_box = gui.widgetBox(wa_box_6, "", width=wa_box_6.width() - 20, height=30, orientation='horizontal', addSpace=False)
 
+        self.le_crop = gui.lineEdit(self._crop_box, self, "crop", "Crop (-1: auto, n: pixels around center,\n            [b, t, l, r]: coordinates in pixels)",
+                                    labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
         gui.lineEdit(wa_box_6, self, "mode", label="Mode (area, lineWidth)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
         gui.lineEdit(wa_box_6, self, "line_width", label="Line Width", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
