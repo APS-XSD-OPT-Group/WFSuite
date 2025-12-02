@@ -49,22 +49,36 @@ import pathlib
 
 import numpy as np
 
+from aps.common.initializer import get_registered_ini_instance
 from aps.common.driver.beamline.generic_camera import GenericCamera, DataSource, CameraInitializationFile, \
     get_default_file_name_prefix as __gdfnp, \
     get_image_data as __gid,\
     get_image_file_path as __gifp, \
     get_file_name_prefix as __gfnp
+from aps.wavefront_analysis.driver.mask_flipper import MaskFlipper
+
 
 WAVEFRONT_SENSOR_STATUS_FILE = "wavefront_sensor_status.pkl"
 
 class WavefrontSensorInitializationFile(CameraInitializationFile):
     @classmethod
     def initialize(cls):
-        super().initialize(application_name="WAVEFRONT-SENSOR",
-                           ini_file_name=".wavefront_sensor.json")
+        ini_file = super().initialize(application_name="WAVEFRONT-SENSOR", ini_file_name=".wavefront_sensor.json")
 
-WavefrontSensorInitializationFile.initialize()
-WavefrontSensorInitializationFile.store()
+        cls.USE_FLIPPER = ini_file.get_boolean_from_ini(section="Execution", key="Use-Flipper", default=False)
+
+        return ini_file
+
+    @classmethod
+    def store(cls, ini_file=None):
+        if ini_file is None: ini_file = get_registered_ini_instance(cls.APPLICATION_NAME)
+
+        ini_file.set_value_at_ini(section="Execution", key="Use-Flipper", value=cls.USE_FLIPPER)
+
+        super().store(ini_file)
+
+
+WavefrontSensorInitializationFile.store(WavefrontSensorInitializationFile.initialize())
 
 def __getattr__(name):
     if   name == 'PIXEL_SIZE':          return WavefrontSensorInitializationFile.PIXEL_SIZE
@@ -145,8 +159,6 @@ def get_image_data(measurement_directory=None,
         else:
             raise IOError(f"File {input_file_name} not existing")
 
-
-
 def get_image_file_path(measurement_directory=None, file_name_prefix=None, image_index = 1, index_digits=None, extension="hdf5", **kwargs) -> str:
     measurement_directory = measurement_directory if not measurement_directory is None else WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY
     index_digits          = index_digits if not index_digits is None else WavefrontSensorInitializationFile.INDEX_DIGITS
@@ -176,3 +188,13 @@ class WavefrontSensor(GenericCamera):
             mocking_mode,
             configuration_file=WavefrontSensorInitializationFile
         )
+
+        if WavefrontSensorInitializationFile.USE_FLIPPER: self.__mask_flipper = MaskFlipper()
+        else:                                             self.__mask_flipper = None
+
+    def collect_single_shot_image(self, image_index=1, **kwargs):
+        if WavefrontSensorInitializationFile.USE_FLIPPER:
+            if kwargs.get("flat", False): self.__mask_flipper.set_mask_off()
+            else:                         self.__mask_flipper.set_mask_on()
+
+        super(WavefrontSensor, self).collect_single_shot_image(image_index=image_index, **kwargs)

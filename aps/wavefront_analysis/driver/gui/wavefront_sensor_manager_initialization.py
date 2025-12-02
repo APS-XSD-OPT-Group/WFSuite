@@ -85,6 +85,7 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
         "current_image_directory" : WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY,
         "data_from" : WavefrontSensorInitializationFile.DATA_FROM,
         "image_ops": WavefrontSensorInitializationFile.IMAGE_OPS,
+        "use_flipper" : WavefrontSensorInitializationFile.USE_FLIPPER,
     }
 
     plot_raw_image                   = ini.get_boolean_from_ini("Wavefront-Sensor", "Plot-Raw-Image", default=True)
@@ -93,7 +94,6 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
     return ScriptData(wavefront_sensor_configuration=wavefront_sensor_configuration,
                       plot_raw_image=plot_raw_image,
                       plot_rebinning_factor=plot_rebinning_factor)
-
 
 def set_ini_from_initialization_parameters(initialization_parameters: ScriptData, ini: IniFacade):
     # -----------------------------------------------------
@@ -130,6 +130,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     WavefrontSensorInitializationFile.CURRENT_IMAGE_DIRECTORY = wavefront_sensor_configuration["current_image_directory"]
     WavefrontSensorInitializationFile.DATA_FROM               = wavefront_sensor_configuration["data_from"]
     WavefrontSensorInitializationFile.IMAGE_OPS               = wavefront_sensor_configuration["image_ops"]
+    WavefrontSensorInitializationFile.USE_FLIPPER             = wavefront_sensor_configuration["use_flipper"]
 
     WavefrontSensorInitializationFile.store()
 
