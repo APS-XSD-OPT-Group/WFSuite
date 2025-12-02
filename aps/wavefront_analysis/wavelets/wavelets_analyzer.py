@@ -198,7 +198,7 @@ def _process_images_WSVT(**kwargs):
     arguments["n_cores"]         = N_CORES
     arguments["n_group"]         = N_GROUP
     arguments["energy"]          = ENERGY
-    arguments["pixel_size"]      = PIXEL_SIZE
+    arguments["p_x"]             = PIXEL_SIZE
     arguments["distance"]        = DISTANCE
     arguments["use_wavelet"]     = USE_WAVELET
     arguments["wavelet_ct"]      = WAVELET_CUT
