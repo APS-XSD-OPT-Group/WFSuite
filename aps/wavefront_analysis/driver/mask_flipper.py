@@ -59,8 +59,9 @@ register_ini_instance(IniMode.LOCAL_JSON_FILE,
                       verbose=False)
 ini_file = get_registered_ini_instance(APPLICATION_NAME)
 
-MASK_ON_POSITION  = ini_file.get_int_from_ini(section="Flipper", key="Mask-On-Position", default=1)
-MASK_OFF_POSITION = ini_file.get_int_from_ini(section="Flipper", key="Mask-Off-Position", default=6)
+MASK_ON_POSITION  = ini_file.get_int_from_ini(section="Flipper",   key="Mask-On-Position",  default=1)
+MASK_OFF_POSITION = ini_file.get_int_from_ini(section="Flipper",   key="Mask-Off-Position", default=6)
+TIMEOUT           = ini_file.get_float_from_ini(section="Flipper", key="Timeout",           default=2.0)
 
 MASK_POSITION_WRITE  = ini_file.get_string_from_ini(section="Epics", key="Mask-Position-Write",  default="19idXEYE:FW102:POS")
 MASK_POSITION_READ   = ini_file.get_string_from_ini(section="Epics", key="Mask-Position-Read",   default="19idXEYE:FW102:POS_RBV")
@@ -69,6 +70,7 @@ MASK_POSITIONS_READ  = ini_file.get_string_from_ini(section="Epics", key="Mask-P
 
 ini_file.set_value_at_ini(section="Flipper",   key="Mask-On-Position",  value=MASK_ON_POSITION)
 ini_file.set_value_at_ini(section="Flipper",   key="Mask-Off-Position", value=MASK_OFF_POSITION)
+ini_file.set_value_at_ini(section="Flipper",   key="Timeout",           value=TIMEOUT)
 
 ini_file.set_value_at_ini(section="Epics", key="Mask-Position-Write",  value=MASK_POSITION_WRITE )
 ini_file.set_value_at_ini(section="Epics", key="Mask-Position-Read",   value=MASK_POSITION_READ  )
@@ -86,19 +88,23 @@ class MaskFlipper():
             "mask_positions_read":  PV(MASK_POSITIONS_READ),
         }
 
+        self.__check_timeout = TIMEOUT > 0.0
+
         positions_count = self.__PV_dict["mask_positions_read"].get()
         if MASK_ON_POSITION > positions_count:  raise ValueError("Mask ON position bigger than the total number of positions")
         if MASK_OFF_POSITION > positions_count: raise ValueError("Mask OFF position bigger than the total number of positions")
 
+    def __set_mask_at_position(self, position):
+        t0 = time.time()
 
-    # TODO: ADD timeout to avoid dead lock
-    def set_mask_on(self):
-        while self.__PV_dict["mask_positions_write"].get() != MASK_ON_POSITION:
-            self.__PV_dict["mask_position_write"].put(MASK_ON_POSITION)
+        while self.__PV_dict["mask_position_read"].get() != position:
+            self.__PV_dict["mask_position_write"].put(position)
+
             time.sleep(0.1)
 
-    # TODO: ADD timeout to avoid dead lock
-    def set_mask_off(self):
-        while self.__PV_dict["mask_positions_write"].get() != MASK_OFF_POSITION:
-            self.__PV_dict["mask_position_write"].put(MASK_OFF_POSITION)
-            time.sleep(0.1)
+            if self.__check_timeout:
+                t1 = time.time()
+                if t1 - t0 > TIMEOUT:  raise RuntimeError("Timeout exceeded")
+
+    def set_mask_on(self):  self.__set_mask_at_position(MASK_ON_POSITION)
+    def set_mask_off(self): self.__set_mask_at_position(MASK_OFF_POSITION)

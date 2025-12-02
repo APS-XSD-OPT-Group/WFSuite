@@ -46,6 +46,7 @@
 # ----------------------------------------------------------------------- #
 
 from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensor, WAVEFRONT_SENSOR_STATUS_FILE
+from aps.wavefront_analysis.driver.mask_flipper import MaskFlipper
 
 def create_wavefront_sensor(measurement_directory: str = None,
                             exposure_time: int = None,
@@ -59,3 +60,5 @@ def create_wavefront_sensor(measurement_directory: str = None,
                            file_name_prefix=file_name_prefix,
                            detector_delay=detector_delay,
                            mocking_mode=mocking_mode)
+
+def create_mask_flipper(): return MaskFlipper()
