@@ -55,7 +55,7 @@ from aps.common.driver.beamline.generic_camera import GenericCamera, DataSource,
     get_image_data as __gid,\
     get_image_file_path as __gifp, \
     get_file_name_prefix as __gfnp
-from aps.wavefront_analysis.driver.factory import create_mask_flipper
+from aps.wavefront_analysis.driver.mask_flipper import MaskFlipper
 
 WAVEFRONT_SENSOR_STATUS_FILE = "wavefront_sensor_status.pkl"
 
@@ -188,7 +188,7 @@ class WavefrontSensor(GenericCamera):
             configuration_file=WavefrontSensorInitializationFile
         )
 
-        if WavefrontSensorInitializationFile.USE_FLIPPER: self.__mask_flipper = create_mask_flipper()
+        if WavefrontSensorInitializationFile.USE_FLIPPER: self.__mask_flipper = MaskFlipper()
         else:                                             self.__mask_flipper = None
 
     def collect_single_shot_image(self, image_index=1, **kwargs):
