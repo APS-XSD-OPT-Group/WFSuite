@@ -44,10 +44,20 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
+from numpy import ndarray
+import abc
+from multiprocessing import cpu_count
 
-from aps.wavefront_analysis.wavelets.facade import IWaveletsAnalyzer
-from aps.wavefront_analysis.wavelets.wavelets_analyzer import WaveletsAnalyzer
+class ProcessingMode:
+    LIVE  = 0
+    BATCH = 1
 
+MAX_THREADS = cpu_count() - 2
 
-def create_wavelets_analyzer() -> IWaveletsAnalyzer:
-    return WaveletsAnalyzer()
+class IRelativeMetrologyAnalyzer():
+    @abc.abstractmethod
+    def get_current_setup(self) -> dict: raise NotImplementedError
+    @abc.abstractmethod
+    def process_image_WXST(self, data_collection_directory: str = None, mode=ProcessingMode.LIVE, n_threads=MAX_THREADS, **kwargs) -> dict: raise NotImplementedError
+    @abc.abstractmethod
+    def process_images_WSVT(self, data_collection_directory: str = None, mode=ProcessingMode.LIVE, n_threads=MAX_THREADS, **kwargs): raise NotImplementedError

@@ -50,14 +50,14 @@ import os
 from aps.common.initializer import IniFacade
 from aps.common.scripts.script_data import ScriptData
 from aps.wavefront_analysis.driver.wavefront_sensor import WavefrontSensorInitializationFile
-from aps.wavefront_analysis.absolute_phase import wavefront_analyzer as wa
+from aps.wavefront_analysis.absolute_phase import absolute_phase_analyzer as wa
 from aps.wavefront_analysis.driver import wavefront_sensor as ws
 
 def generate_initialization_parameters_from_ini(ini: IniFacade):
     # -----------------------------------------------------
     # Wavefront Analyzer
 
-    wavefront_analyzer_configuration = {
+    absolute_phase_analyzer_configuration = {
         "data_analysis" : {
             "pattern_size" : wa.PATTERN_SIZE,
             "pattern_thickness" : wa.PATTERN_THICKNESS,
@@ -174,16 +174,16 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
                       save_images=save_images,
                       bp_calibration_mode=bp_calibration_mode,
                       bp_plot_shift=bp_plot_shift,
-                      wavefront_analyzer_configuration=wavefront_analyzer_configuration)
+                      absolute_phase_analyzer_configuration=absolute_phase_analyzer_configuration)
 
 
 def set_ini_from_initialization_parameters(initialization_parameters: ScriptData, ini: IniFacade):
     # -----------------------------------------------------
     # Wavefront Analyzer
 
-    wavefront_analyzer_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")
-    data_analysis_configuration      = wavefront_analyzer_configuration["data_analysis"]
-    back_propagation_configuration   = wavefront_analyzer_configuration["back_propagation"]
+    absolute_phase_analyzer_configuration = initialization_parameters.get_parameter("absolute_phase_analyzer_configuration")
+    data_analysis_configuration      = absolute_phase_analyzer_configuration["data_analysis"]
+    back_propagation_configuration   = absolute_phase_analyzer_configuration["back_propagation"]
 
     wa.PATTERN_SIZE = data_analysis_configuration["pattern_size"]
     wa.PATTERN_THICKNESS = data_analysis_configuration["pattern_thickness"]

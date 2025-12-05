@@ -57,15 +57,15 @@ import json
 from aps.wavefront_analysis.absolute_phase.legacy.process_images_executor import execute_process_image
 from aps.wavefront_analysis.absolute_phase.legacy.back_propagation_executor import execute_back_propagation
 
-from aps.wavefront_analysis.absolute_phase.facade import IWavefrontAnalyzer, ProcessingMode, MAX_THREADS
+from aps.wavefront_analysis.absolute_phase.facade import IAbsolutePhaseAnalyzer, ProcessingMode, MAX_THREADS
 import aps.wavefront_analysis.driver.wavefront_sensor as ws
 
 from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
 
-APPLICATION_NAME = "WAVEFRONT-ANALYSIS"
+APPLICATION_NAME = "ABSOLUTE-PHASE-ANALYSIS"
 
 register_ini_instance(IniMode.LOCAL_JSON_FILE,
-                      ini_file_name=".wavefront_analysis.json",
+                      ini_file_name=".absolute_phase_analysis.json",
                       application_name=APPLICATION_NAME,
                       verbose=False)
 ini_file = get_registered_ini_instance(APPLICATION_NAME)
@@ -252,7 +252,7 @@ def store():
 
 store()
 
-class WavefrontAnalyzer(IWavefrontAnalyzer):
+class AbsolutePhaseAnalyzer(IAbsolutePhaseAnalyzer):
     def __init__(self,
                  data_collection_directory,
                  file_name_prefix=None,

@@ -56,8 +56,8 @@ from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
 from aps.common.plot.event_dispatcher import Receiver, Sender
 
-from aps.wavefront_analysis.absolute_phase.factory import create_wavefront_analyzer
-from aps.wavefront_analysis.absolute_phase.wavefront_analyzer import ProcessingMode
+from aps.wavefront_analysis.absolute_phase.factory import create_absolute_phase_analyzer
+from aps.wavefront_analysis.absolute_phase.absolute_phase_analyzer import ProcessingMode
 
 from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_manager_initialization import generate_initialization_parameters_from_ini, set_ini_from_initialization_parameters
 from aps.wavefront_analysis.absolute_phase.gui.absolute_phase_widget import AbsolutePhaseWidget
@@ -101,7 +101,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
         self.__working_directory       = kwargs.get("working_directory")
 
         self.__wavefront_sensor  = None
-        self.__wavefront_analyzer = None
+        self.__absolute_phase_analyzer = None
 
         self.__unique_id = None
 
@@ -166,7 +166,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
             if action is None: raise ValueError("Batch Mode without specified action ( use -a<ACTION>)")
 
             if "PIS" == str(action).upper():
-                self.__check_wavefront_analyzer(initialization_parameters, batch_mode=True)
+                self.__check_absolute_phase_analyzer(initialization_parameters, batch_mode=True)
 
                 wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode", 0)
                 pixel_size_type       = initialization_parameters.get_parameter("pixel_size_type", 0)
@@ -174,10 +174,10 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
                 if wavefront_sensor_mode == 1 and pixel_size_type == 1: pixel_size = initialization_parameters.get_parameter("pixel_size_custom", ws.PIXEL_SIZE)
                 else:                                                   pixel_size = ws.PIXEL_SIZE
 
-                wavefront_analyzer_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")
-                data_analysis_configuration = wavefront_analyzer_configuration["data_analysis"]
+                absolute_phase_analyzer_configuration = initialization_parameters.get_parameter("absolute_phase_analyzer_configuration")
+                data_analysis_configuration = absolute_phase_analyzer_configuration["data_analysis"]
 
-                self.__wavefront_analyzer.process_images(mode=ProcessingMode.BATCH,
+                self.__absolute_phase_analyzer.process_images(mode=ProcessingMode.BATCH,
                                                          n_threads=data_analysis_configuration.get("n_cores"),
                                                          pixel_size=pixel_size,
                                                          use_dark=initialization_parameters.get_parameter("use_dark", False),
@@ -266,7 +266,7 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
                 self.__plotter.show_context_window(READ_IMAGE_FILE, unique_id=unique_id)
 
     def generate_mask(self, initialization_parameters: ScriptData):
-        self.__set_wavefront_analyzer_ready(initialization_parameters)
+        self.__set_absolute_phase_analyzer_ready(initialization_parameters)
 
         wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode")
         image_index_for_mask  = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
@@ -283,13 +283,13 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
             else:                    pixel_size = ws.PIXEL_SIZE
             kwargs["pixel_size"] = pixel_size
 
-        image_transfer_matrix, is_new_mask = self.__wavefront_analyzer.generate_simulated_mask(image_index_for_mask=image_index_for_mask, **kwargs)
+        image_transfer_matrix, is_new_mask = self.__absolute_phase_analyzer.generate_simulated_mask(image_index_for_mask=image_index_for_mask, **kwargs)
 
         if not is_new_mask: raise ValueError("Simulated Mask is already present in the Wavefront Image Directory")
         else:               return image_transfer_matrix
 
     def process_image(self, initialization_parameters: ScriptData):
-        self.__set_wavefront_analyzer_ready(initialization_parameters)
+        self.__set_absolute_phase_analyzer_ready(initialization_parameters)
 
         wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode")
         image_index           = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
@@ -307,10 +307,10 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
             else:                     pixel_size = ws.PIXEL_SIZE
             kwargs["pixel_size"] = pixel_size
 
-        return self.__wavefront_analyzer.process_image(image_index=image_index, **kwargs)
+        return self.__absolute_phase_analyzer.process_image(image_index=image_index, **kwargs)
 
     def back_propagate(self, initialization_parameters: ScriptData, **kwargs):
-        self.__set_wavefront_analyzer_ready(initialization_parameters)
+        self.__set_absolute_phase_analyzer_ready(initialization_parameters)
 
         wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode")
         image_index           = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
@@ -328,19 +328,19 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
             else:                     pixel_size = ws.PIXEL_SIZE
             kwargs["pixel_size"] = pixel_size
 
-        return self.__wavefront_analyzer.back_propagate_wavefront(image_index=image_index, **kwargs)
+        return self.__absolute_phase_analyzer.back_propagate_wavefront(image_index=image_index, **kwargs)
 
     # --------------------------------------------------------------------------------------
     # PRIVATE METHODS
     # --------------------------------------------------------------------------------------
 
-    def __set_wavefront_analyzer_ready(self, initialization_parameters: ScriptData):
+    def __set_absolute_phase_analyzer_ready(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)
-        self.__check_wavefront_analyzer(initialization_parameters)
+        self.__check_absolute_phase_analyzer(initialization_parameters)
         self.__ini.push()
 
-    def __check_wavefront_analyzer(self, initialization_parameters: ScriptData, batch_mode=False):
-        data_analysis_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")["data_analysis"]
+    def __check_absolute_phase_analyzer(self, initialization_parameters: ScriptData, batch_mode=False):
+        data_analysis_configuration = initialization_parameters.get_parameter("absolute_phase_analyzer_configuration")["data_analysis"]
 
         data_collection_directory   = initialization_parameters.get_parameter("image_directory" if not batch_mode else "image_directory_batch")
         simulated_mask_directory    = initialization_parameters.get_parameter("simulated_mask_directory" if not batch_mode else "simulated_mask_directory_batch")
@@ -348,15 +348,15 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
         file_name_type              = initialization_parameters.get_parameter("file_name_type")
         file_name_prefix            = initialization_parameters.get_parameter("file_name_prefix_custom") if file_name_type == 1 else None
 
-        if self.__wavefront_analyzer is None: generate = True
+        if self.__absolute_phase_analyzer is None: generate = True
         else:
-            current_setup = self.__wavefront_analyzer.get_current_setup()
+            current_setup = self.__absolute_phase_analyzer.get_current_setup()
             generate = current_setup['data_collection_directory'] != data_collection_directory or \
                        current_setup['energy'] != energy or \
                        current_setup['simulated_mask_directory'] != simulated_mask_directory or \
                        (file_name_type == 1 and current_setup['file_name_prefix'] != file_name_prefix)
 
-        if generate: self.__wavefront_analyzer = create_wavefront_analyzer(data_collection_directory=data_collection_directory,
+        if generate: self.__absolute_phase_analyzer = create_absolute_phase_analyzer(data_collection_directory=data_collection_directory,
                                                                            simulated_mask_directory=simulated_mask_directory,
                                                                            file_name_prefix=file_name_prefix,
                                                                            energy=energy)

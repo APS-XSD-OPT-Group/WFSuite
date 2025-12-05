@@ -61,7 +61,7 @@ from aps.wavefront_analysis.launcher.launcher_widget import LauncherWidget
 
 from aps.wavefront_analysis.absolute_phase.gui.main_absolute_phase import MainAbsolutePhase
 from aps.wavefront_analysis.driver.gui.main_wavefront_sensor import MainWavefrontSensor
-from aps.wavefront_analysis.wavelets.gui.main_wavelets import MainWavelets
+from aps.wavefront_analysis.relative_metrology.gui.main_relative_metrology import MainRelativeMetrology
 
 APPLICATION_NAME = "Launcher"
 
@@ -74,7 +74,7 @@ def create_launcher_manager(**kwargs): return _LauncherManager(**kwargs)
 
 class _LauncherManager(ILauncherManager, Sender):
     close_absolute_phase_sent = pyqtSignal(str)
-    close_wavelets_sent = pyqtSignal(str)
+    close_relative_metrology_sent = pyqtSignal(str)
     close_wavefront_sensor_sent = pyqtSignal(str)
 
     def __init__(self, **kwargs):
@@ -93,18 +93,18 @@ class _LauncherManager(ILauncherManager, Sender):
 
         self.__wavefront_sensor_main = MainWavefrontSensor(sys_argv=sys_argv, standalone=False, **kwargs)
         self.__absolute_phase_main   = MainAbsolutePhase(sys_argv=sys_argv, standalone=False, **kwargs)
-        self.__wavelets_main         = MainWavelets(sys_argv=sys_argv, standalone=False, **kwargs)
+        self.__relative_metrology_main         = MainRelativeMetrology(sys_argv=sys_argv, standalone=False, **kwargs)
 
         wavefront_sensor_manager  = self.__wavefront_sensor_main.run_script()
         absolute_phase_manager    = self.__absolute_phase_main.run_script()
-        wavelets_manager          = self.__wavelets_main.run_script()
+        relative_metrology_manager          = self.__relative_metrology_main.run_script()
 
         sender_signals   = absolute_phase_manager.get_delegated_signals() | \
                            wavefront_sensor_manager.get_delegated_signals() | \
                            self.get_delegated_signals()
         receiver_signals = absolute_phase_manager.get_delegate_signals() | \
                            wavefront_sensor_manager.get_delegate_signals() | \
-                           wavelets_manager.get_delegate_signals()
+                           relative_metrology_manager.get_delegate_signals()
 
         for signal_name in sender_signals.keys():
             self.__event_dispatcher.register_event_handler(sender_signal=sender_signals[signal_name],
@@ -119,7 +119,7 @@ class _LauncherManager(ILauncherManager, Sender):
     def get_delegated_signals(self):
         return {
             "close_absolute_phase": self.close_absolute_phase_sent,
-            "close_wavelets":       self.close_wavelets_sent,
+            "close_relative_metrology":       self.close_relative_metrology_sent,
             "close_wavefront_sensor" : self.close_wavefront_sensor_sent,
         }
 
@@ -139,7 +139,7 @@ class _LauncherManager(ILauncherManager, Sender):
                                                 working_directory=self.__working_directory,
                                                 initialization_parameters=initialization_parameters,
                                                 open_absolute_phase_method=self.open_absolute_phase,
-                                                open_wavelets_method=self.open_wavelets,
+                                                open_relative_metrology_method=self.open_relative_metrology,
                                                 close_method=self.close,
                                                 allows_saving=False,
                                                 **kwargs)
@@ -154,15 +154,15 @@ class _LauncherManager(ILauncherManager, Sender):
     def open_absolute_phase(self, initialization_parameters: ScriptData, **kwargs):
         self.__absolute_phase_main.activate_manager(**kwargs)
 
-    def open_wavelets(self, initialization_parameters: ScriptData, **kwargs):
-        self.__wavelets_main.activate_manager(**kwargs)
+    def open_relative_metrology(self, initialization_parameters: ScriptData, **kwargs):
+        self.__relative_metrology_main.activate_manager(**kwargs)
 
     def close(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
         self.__ini.push()
 
         self.close_absolute_phase_sent.emit("close_absolute_phase")
-        self.close_wavelets_sent.emit("close_wavelets")
+        self.close_relative_metrology_sent.emit("close_relative_metrology")
         self.close_wavefront_sensor_sent.emit("close_wavefront_sensor")
 
         if self.__plotter.is_active(): self.__plotter.get_context_container_widget(context_key=SHOW_LAUNCHER).parent().close()

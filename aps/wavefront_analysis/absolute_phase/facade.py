@@ -54,7 +54,7 @@ class ProcessingMode:
 
 MAX_THREADS = cpu_count() - 2
 
-class IWavefrontAnalyzer():
+class IAbsolutePhaseAnalyzer():
     @abc.abstractmethod
     def get_current_setup(self) -> dict: raise NotImplementedError
     @abc.abstractmethod

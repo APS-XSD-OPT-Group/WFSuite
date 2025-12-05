@@ -308,7 +308,7 @@ def Wavelet_transform(img, wavelet_method='db6', w_level=1, return_level=1):
     Wavelet_transform for the 3D image data
     
     img:                image data
-    wavelet_method:     wavelets to be used
+    wavelet_method:     relative_metrology to be used
     w_level:            wavelet level
     return_level:       returned wavelet level
 
@@ -340,7 +340,7 @@ def wavedec_func(img, y_list, wavelet_method='db6', w_level=5, return_level=4):
     Args:
         img (ndarray): image data
         y_list (list): y axis position
-        wavelet_method (str, optional): wavelets to be used. Defaults to 'db6'.
+        wavelet_method (str, optional): relative_metrology to be used. Defaults to 'db6'.
         w_level (int, optional): wavelet level. Defaults to 5.
         return_level (int, optional): wavelet level of returned data. Defaults to 4.
 
@@ -375,7 +375,7 @@ def wavelet_transform_multiprocess(img,
     Args:
         img (ndarray): image data
         n_cores (int): number of cpu cores used
-        wavelet_method (str, optional): wavelets used. Defaults to 'db6'.
+        wavelet_method (str, optional): relative_metrology used. Defaults to 'db6'.
         w_level (int, optional): wavelet level. Defaults to 1.
         return_level (int, optional): return wavelet level. Defaults to 1.
 

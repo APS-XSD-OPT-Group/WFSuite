@@ -56,30 +56,30 @@ from aps.common.logger import get_registered_logger_instance
 from aps.common.scripts.script_data import ScriptData
 from aps.common.plot.event_dispatcher import Receiver
 
-from aps.wavefront_analysis.wavelets.factory import create_wavelets_analyzer
-from aps.wavefront_analysis.wavelets.wavelets_analyzer import ProcessingMode
+from aps.wavefront_analysis.relative_metrology.factory import create_relative_metrology_analyzer
+from aps.wavefront_analysis.relative_metrology.relative_metrology_analyzer import ProcessingMode
 
-from aps.wavefront_analysis.wavelets.gui.wavelets_manager_initialization import generate_initialization_parameters_from_ini, set_ini_from_initialization_parameters
-from aps.wavefront_analysis.wavelets.gui.wavelets_widget import WaveletsWidget
+from aps.wavefront_analysis.relative_metrology.gui.relative_metrology_manager_initialization import generate_initialization_parameters_from_ini, set_ini_from_initialization_parameters
+from aps.wavefront_analysis.relative_metrology.gui.relative_metrology_widget import RelativeMetrologyWidget
 from aps.wavefront_analysis.common.gui.read_image_file_widget import PlotImageFile
 
 from aps.wavefront_analysis.driver.wavefront_sensor import get_image_data
 
-APPLICATION_NAME = "Wavelets"
+APPLICATION_NAME = "Relative-Metrology"
 
 INITIALIZATION_PARAMETERS_KEY  = APPLICATION_NAME + " Manager: Initialization"
-SHOW_WAVELETS                  = APPLICATION_NAME + " Manager: Show Manager"
+SHOW_RELATIVE_METROLOGY                  = APPLICATION_NAME + " Manager: Show Manager"
 RECROP_FROM_FILE               = APPLICATION_NAME + " Manager: Recrop"
 
-class IWaveletsManager(GenericProcessManager):
-    def activate_wavelets_manager(self, plotting_properties=PlottingProperties(), **kwargs): raise NotImplementedError()
+class IRelativeMetrologyManager(GenericProcessManager):
+    def activate_relative_metrology_manager(self, plotting_properties=PlottingProperties(), **kwargs): raise NotImplementedError()
     def process_image_WXST(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
     def process_images_WSVT(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
     def recrop_from_file(self, initialization_parameters: ScriptData, **kwargs): raise NotImplementedError()
 
-def create_wavelets_manager(**kwargs): return _WaveletsManager(**kwargs)
+def create_relative_metrology_manager(**kwargs): return _RelativeMetrologyManager(**kwargs)
 
-class _WaveletsManager(IWaveletsManager, Receiver):
+class _RelativeMetrologyManager(IRelativeMetrologyManager, Receiver):
     close_application_received = pyqtSignal()
 
     def __init__(self, **kwargs):
@@ -90,13 +90,13 @@ class _WaveletsManager(IWaveletsManager, Receiver):
         self.__log_stream_widget = kwargs.get("log_stream_widget", None)
         self.__working_directory = kwargs.get("working_directory")
 
-        self.__wavelets_analyzer = None
+        self.__relative_metrology_analyzer = None
 
         self.__unique_id = None
 
     def get_delegate_signals(self):
         return {
-            "close_wavelets": self.close_application_received
+            "close_relative_metrology": self.close_application_received
         }
 
     def reload_utils(self):
@@ -104,7 +104,7 @@ class _WaveletsManager(IWaveletsManager, Receiver):
         self.__logger  = get_registered_logger_instance(application_name=APPLICATION_NAME)
         self.__ini     = get_registered_ini_instance(application_name=APPLICATION_NAME)
 
-    def activate_wavelets_manager(self, plotting_properties=PlottingProperties(), **kwargs):
+    def activate_relative_metrology_manager(self, plotting_properties=PlottingProperties(), **kwargs):
         initialization_parameters = generate_initialization_parameters_from_ini(ini=self.__ini)
 
         if self.__plotter.is_active():
@@ -112,11 +112,11 @@ class _WaveletsManager(IWaveletsManager, Receiver):
                 add_context_label = plotting_properties.get_parameter("add_context_label", False)
                 use_unique_id     = plotting_properties.get_parameter("use_unique_id", True)
 
-                unique_id = self.__plotter.register_context_window(SHOW_WAVELETS,
-                                                                   context_window=DefaultMainWindow(title=SHOW_WAVELETS),
+                unique_id = self.__plotter.register_context_window(SHOW_RELATIVE_METROLOGY,
+                                                                   context_window=DefaultMainWindow(title=SHOW_RELATIVE_METROLOGY),
                                                                    use_unique_id=use_unique_id)
 
-                self.__plotter.push_plot_on_context(SHOW_WAVELETS, WaveletsWidget, unique_id,
+                self.__plotter.push_plot_on_context(SHOW_RELATIVE_METROLOGY, RelativeMetrologyWidget, unique_id,
                                                     log_stream_widget=self.__log_stream_widget,
                                                     working_directory=self.__working_directory,
                                                     initialization_parameters=initialization_parameters,
@@ -128,33 +128,33 @@ class _WaveletsManager(IWaveletsManager, Receiver):
                                                     allows_saving=False,
                                                     **kwargs)
 
-                self.__plotter.draw_context(SHOW_WAVELETS, add_context_label=add_context_label, unique_id=unique_id, **kwargs)
-                self.__plotter.show_context_window(SHOW_WAVELETS, unique_id)
+                self.__plotter.draw_context(SHOW_RELATIVE_METROLOGY, add_context_label=add_context_label, unique_id=unique_id, **kwargs)
+                self.__plotter.show_context_window(SHOW_RELATIVE_METROLOGY, unique_id)
 
                 self.__unique_id = unique_id
             else:
-                self.__plotter.show_context_window(SHOW_WAVELETS, self.__unique_id)
+                self.__plotter.show_context_window(SHOW_RELATIVE_METROLOGY, self.__unique_id)
         else:
             action = kwargs.get("ACTION", None)
 
             if action is None: raise ValueError("Batch Mode without specified action ( use -a<ACTION>)")
 
             if "WXST" == str(action).upper():
-                self.__check_wavelets_analyzer(initialization_parameters, batch_mode=True)
+                self.__check_relative_metrology_analyzer(initialization_parameters, batch_mode=True)
 
-                wavelets_analyzer_configuration = initialization_parameters.get_parameter("wavelets_analyzer_configuration")
-                common_configuration = wavelets_analyzer_configuration["common"]
+                relative_metrology_analyzer_configuration = initialization_parameters.get_parameter("relative_metrology_analyzer_configuration")
+                common_configuration = relative_metrology_analyzer_configuration["common"]
 
-                self.__wavelets_analyzer.process_image_WXST(mode=ProcessingMode.BATCH,
-                                                            n_threads=common_configuration.get("n_cores"))
+                self.__relative_metrology_analyzer.process_image_WXST(mode=ProcessingMode.BATCH,
+                                                                      n_threads=common_configuration.get("n_cores"))
             elif "WSVT" == str(action).upper():
-                    self.__check_wavelets_analyzer(initialization_parameters, batch_mode=True)
+                    self.__check_relative_metrology_analyzer(initialization_parameters, batch_mode=True)
 
-                    wavelets_analyzer_configuration = initialization_parameters.get_parameter("wavelets_analyzer_configuration")
-                    common_configuration = wavelets_analyzer_configuration["common"]
+                    relative_metrology_analyzer_configuration = initialization_parameters.get_parameter("relative_metrology_analyzer_configuration")
+                    common_configuration = relative_metrology_analyzer_configuration["common"]
 
-                    self.__wavelets_analyzer.process_images_WSVT(mode=ProcessingMode.BATCH,
-                                                                 n_threads=common_configuration.get("n_cores"))
+                    self.__relative_metrology_analyzer.process_images_WSVT(mode=ProcessingMode.BATCH,
+                                                                           n_threads=common_configuration.get("n_cores"))
             else:
                 raise ValueError(f"Batch Mode: action not recognized {action}")
 
@@ -163,15 +163,15 @@ class _WaveletsManager(IWaveletsManager, Receiver):
     def close(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, self.__ini)
         self.__ini.push()
-        print("Wavelets Manager Configuration saved")
+        print("Relative Metrology Manager Configuration saved")
 
         if self.__plotter.is_active():
-            self.__plotter.close_context_window(context_key=SHOW_WAVELETS, unique_id=self.__unique_id)
+            self.__plotter.close_context_window(context_key=SHOW_RELATIVE_METROLOGY, unique_id=self.__unique_id)
             self.__unique_id = None
 
     def recrop_from_file(self, initialization_parameters: ScriptData = None, **kwargs):
-        wavelets_analyzer_configuration = initialization_parameters.get_parameter("wavelets_analyzer_configuration")
-        common_configuration = wavelets_analyzer_configuration["common"]
+        relative_metrology_analyzer_configuration = initialization_parameters.get_parameter("relative_metrology_analyzer_configuration")
+        common_configuration = relative_metrology_analyzer_configuration["common"]
 
         file_name             = kwargs.get("crop_file_name")
         plot_rebinning_factor = initialization_parameters.get_parameter("plot_rebinning_factor")
@@ -196,25 +196,25 @@ class _WaveletsManager(IWaveletsManager, Receiver):
             self.__plotter.show_context_window(RECROP_FROM_FILE, unique_id=unique_id)
 
     def process_image_WXST(self, initialization_parameters: ScriptData, **kwargs):
-        self.__set_wavelets_analyzer_ready(initialization_parameters)
+        self.__set_relative_metrology_analyzer_ready(initialization_parameters)
 
-        return self.__wavelets_analyzer.process_image_WXST(**kwargs)
+        return self.__relative_metrology_analyzer.process_image_WXST(**kwargs)
 
     def process_images_WSVT(self, initialization_parameters: ScriptData, **kwargs):
-        self.__set_wavelets_analyzer_ready(initialization_parameters)
+        self.__set_relative_metrology_analyzer_ready(initialization_parameters)
 
-        return self.__wavelets_analyzer.process_images_WSVT(**kwargs)
+        return self.__relative_metrology_analyzer.process_images_WSVT(**kwargs)
 
     # --------------------------------------------------------------------------------------
     # PRIVATE METHODS
     # --------------------------------------------------------------------------------------
 
-    def __set_wavelets_analyzer_ready(self, initialization_parameters: ScriptData):
+    def __set_relative_metrology_analyzer_ready(self, initialization_parameters: ScriptData):
         set_ini_from_initialization_parameters(initialization_parameters, ini=self.__ini)
-        self.__check_wavelets_analyzer(initialization_parameters)
+        self.__check_relative_metrology_analyzer(initialization_parameters)
         self.__ini.push()
 
-    def __check_wavelets_analyzer(self, initialization_parameters: ScriptData, batch_mode=False):
-        generate = self.__wavelets_analyzer is None
+    def __check_relative_metrology_analyzer(self, initialization_parameters: ScriptData, batch_mode=False):
+        generate = self.__relative_metrology_analyzer is None
 
-        if generate: self.__wavelets_analyzer = create_wavelets_analyzer()
+        if generate: self.__relative_metrology_analyzer = create_relative_metrology_analyzer()

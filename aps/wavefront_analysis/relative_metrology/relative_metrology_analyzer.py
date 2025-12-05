@@ -46,26 +46,18 @@
 # ----------------------------------------------------------------------- #
 
 import os
-import glob
-import random
-import time
-import pathlib
-from threading import Thread
 
-import numpy as np
-import json
-
-from aps.wavefront_analysis.wavelets.legacy.WSVT_executor import execute_process_images
-from aps.wavefront_analysis.wavelets.legacy.WXST_executor import execute_process_image
-from aps.wavefront_analysis.wavelets.facade import IWaveletsAnalyzer, ProcessingMode, MAX_THREADS
+from aps.wavefront_analysis.relative_metrology.legacy.WSVT_executor import execute_process_images
+from aps.wavefront_analysis.relative_metrology.legacy.WXST_executor import execute_process_image
+from aps.wavefront_analysis.relative_metrology.facade import IRelativeMetrologyAnalyzer, ProcessingMode, MAX_THREADS
 import aps.wavefront_analysis.driver.wavefront_sensor as ws
 
 from aps.common.initializer import IniMode, register_ini_instance, get_registered_ini_instance
 
-APPLICATION_NAME = "WAVELETS-ANALYSIS"
+APPLICATION_NAME = "RELATIVE-METROLOGY"
 
 register_ini_instance(IniMode.LOCAL_JSON_FILE,
-                      ini_file_name=".wavelets_analysis.json",
+                      ini_file_name=".relative_metrology_analysis.json",
                       application_name=APPLICATION_NAME,
                       verbose=False)
 ini_file = get_registered_ini_instance(APPLICATION_NAME)
@@ -141,7 +133,7 @@ def store():
 
 store()
 
-class WaveletsAnalyzer(IWaveletsAnalyzer):
+class RelativeMetrologyAnalyzer(IRelativeMetrologyAnalyzer):
     def __init__(self):
         pass
 

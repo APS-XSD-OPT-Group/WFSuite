@@ -130,9 +130,9 @@ class AbsolutePhaseWidget(GenericWidget):
         self.bp_calibration_mode       = initialization_parameters.get_parameter("bp_calibration_mode", False)
         self.bp_plot_shift             = initialization_parameters.get_parameter("bp_plot_shift", True)
 
-        wavefront_analyzer_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")
-        data_analysis_configuration = wavefront_analyzer_configuration["data_analysis"]
-        back_propagation_configuration = wavefront_analyzer_configuration["back_propagation"]
+        absolute_phase_analyzer_configuration = initialization_parameters.get_parameter("absolute_phase_analyzer_configuration")
+        data_analysis_configuration = absolute_phase_analyzer_configuration["data_analysis"]
+        back_propagation_configuration = absolute_phase_analyzer_configuration["back_propagation"]
     
         self.pattern_size = data_analysis_configuration["pattern_size"]
         self.pattern_thickness = data_analysis_configuration["pattern_thickness"]
@@ -821,9 +821,9 @@ class AbsolutePhaseWidget(GenericWidget):
         # -----------------------------------------------------
         # Wavefront Analyzer
 
-        wavefront_analyzer_configuration = initialization_parameters.get_parameter("wavefront_analyzer_configuration")
-        data_analysis_configuration      = wavefront_analyzer_configuration["data_analysis"]
-        back_propagation_configuration   = wavefront_analyzer_configuration["back_propagation"]
+        absolute_phase_analyzer_configuration = initialization_parameters.get_parameter("absolute_phase_analyzer_configuration")
+        data_analysis_configuration      = absolute_phase_analyzer_configuration["data_analysis"]
+        back_propagation_configuration   = absolute_phase_analyzer_configuration["back_propagation"]
 
         data_analysis_configuration["pattern_size"] = self.pattern_size
         data_analysis_configuration["pattern_thickness"] = self.pattern_thickness

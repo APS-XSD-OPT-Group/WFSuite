@@ -70,7 +70,7 @@ warnings.filterwarnings("ignore")
 
 DEBUG_MODE = int(os.environ.get("DEBUG_MODE", 0)) == 1
 
-class WaveletsWidget(GenericWidget):
+class RelativeMetrologyWidget(GenericWidget):
     crop_changed_offline  = pyqtSignal(list)
 
     def __init__(self, parent, application_name=None, **kwargs):
@@ -89,7 +89,7 @@ class WaveletsWidget(GenericWidget):
 
         self._set_values_from_initialization_parameters()
 
-        super(WaveletsWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
+        super(RelativeMetrologyWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
 
         self.crop_changed_offline.connect(self._on_crop_changed)
         close_application.connect(self._close_application_callback)
@@ -104,10 +104,10 @@ class WaveletsWidget(GenericWidget):
         self.use_flat              = initialization_parameters.get_parameter("use_flat", False)
         self.use_dark              = initialization_parameters.get_parameter("use_dark", False)
 
-        wavelets_analyzer_configuration = initialization_parameters.get_parameter("wavelets_analyzer_configuration")
-        common_configuration            = wavelets_analyzer_configuration["common"]
-        WXST_configuration              = wavelets_analyzer_configuration["WXST"]
-        WSVT_configuration              = wavelets_analyzer_configuration["WSVT"]
+        relative_metrology_analyzer_configuration = initialization_parameters.get_parameter("relative_metrology_analyzer_configuration")
+        common_configuration            = relative_metrology_analyzer_configuration["common"]
+        WXST_configuration              = relative_metrology_analyzer_configuration["WXST"]
+        WSVT_configuration              = relative_metrology_analyzer_configuration["WSVT"]
 
         self.distance           = common_configuration["distance"]
         self.energy             = common_configuration["energy"]
@@ -139,7 +139,7 @@ class WaveletsWidget(GenericWidget):
         self.WSVT_result_folder    = WSVT_configuration["WSVT_result_folder"]
         self.WSVT_n_scan           = WSVT_configuration["WSVT_n_scan"]
 
-    def get_plot_tab_name(self): return "Wavelets Data Analysis"
+    def get_plot_tab_name(self): return "Relative Metrology Data Analysis"
 
     def build_widget(self, **kwargs):
         try:    widget_width = kwargs["widget_width"]
@@ -187,7 +187,7 @@ class WaveletsWidget(GenericWidget):
         self._command_box = gui.widgetBox(forms_right, "", width=command_box_width - 20, height=self.height() - 20)
 
         self._input_tab_widget = gui.tabWidget(self._input_box)
-        wa_tab     = gui.createTabPage(self._input_tab_widget, "Wavelets Analysis")
+        wa_tab     = gui.createTabPage(self._input_tab_widget, "Relative Metrology Analysis")
 
         self._command_tab_widget = gui.tabWidget(self._command_box)
         ex_tab     = gui.createTabPage(self._command_tab_widget, "Execution")
@@ -522,12 +522,12 @@ class WaveletsWidget(GenericWidget):
         self._check_fields(raise_errors)
 
         # -----------------------------------------------------
-        # Wavelets Analyzer
+        # Relative Metrology Analyzer
 
-        wavelets_analyzer_configuration = initialization_parameters.get_parameter("wavelets_analyzer_configuration")
-        common_configuration = wavelets_analyzer_configuration["common"]
-        WXST_configuration   = wavelets_analyzer_configuration["WXST"]
-        WSVT_configuration   = wavelets_analyzer_configuration["WSVT"]
+        relative_metrology_analyzer_configuration = initialization_parameters.get_parameter("relative_metrology_analyzer_configuration")
+        common_configuration = relative_metrology_analyzer_configuration["common"]
+        WXST_configuration   = relative_metrology_analyzer_configuration["WXST"]
+        WSVT_configuration   = relative_metrology_analyzer_configuration["WSVT"]
 
         common_configuration["distance"]           = self.distance
         common_configuration["energy"]             = self.energy

@@ -47,13 +47,13 @@
 
 from aps.common.initializer import IniFacade
 from aps.common.scripts.script_data import ScriptData
-from aps.wavefront_analysis.wavelets import wavelets_analyzer as wa
+from aps.wavefront_analysis.relative_metrology import relative_metrology_analyzer as wa
 
 def generate_initialization_parameters_from_ini(ini: IniFacade):
     # -----------------------------------------------------
     # Wavefront Analyzer
 
-    wavelets_analyzer_configuration = {
+    relative_metrology_analyzer_configuration = {
         "common": {
             "distance": wa.DISTANCE,
             "energy": wa.ENERGY,
@@ -101,17 +101,17 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
                       plot_rebinning_factor=plot_rebinning_factor,
                       use_flat=use_flat,
                       use_dark=use_dark,
-                      wavelets_analyzer_configuration=wavelets_analyzer_configuration)
+                      relative_metrology_analyzer_configuration=relative_metrology_analyzer_configuration)
 
 
 def set_ini_from_initialization_parameters(initialization_parameters: ScriptData, ini: IniFacade):
     # -----------------------------------------------------
     # Wavefront Analyzer
 
-    wavelets_analyzer_configuration = initialization_parameters.get_parameter("wavelets_analyzer_configuration")
-    common_configuration            = wavelets_analyzer_configuration["common"]
-    WXST_configuration              = wavelets_analyzer_configuration["WXST"]
-    WSVT_configuration              = wavelets_analyzer_configuration["WSVT"]
+    relative_metrology_analyzer_configuration = initialization_parameters.get_parameter("relative_metrology_analyzer_configuration")
+    common_configuration            = relative_metrology_analyzer_configuration["common"]
+    WXST_configuration              = relative_metrology_analyzer_configuration["WXST"]
+    WSVT_configuration              = relative_metrology_analyzer_configuration["WSVT"]
 
     wa.ENERGY             = common_configuration["energy"]
     wa.DISTANCE           = common_configuration["distance"]

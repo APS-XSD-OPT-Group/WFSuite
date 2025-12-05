@@ -53,21 +53,22 @@ from aps.common.widgets.log_stream_widget import LogStreamWidget
 from aps.common.widgets.context_widget import PlottingProperties
 from aps.common.logger import register_logger_pool_instance, register_logger_single_instance, DEFAULT_STREAM
 from aps.common.io.printout import datetime_now_str
+from aps.wavefront_analysis.relative_metrology.factory import create_relative_metrology_analyzer
 
-from aps.wavefront_analysis.wavelets.gui.wavelets_manager import APPLICATION_NAME, SHOW_WAVELETS, create_wavelets_manager
+from aps.wavefront_analysis.relative_metrology.gui.relative_metrology_manager import APPLICATION_NAME, SHOW_RELATIVE_METROLOGY, create_relative_metrology_manager
 
-class MainWavelets(GenericQTScript):
-    SCRIPT_ID = "Wavelets"
+class MainRelativeMetrology(GenericQTScript):
+    SCRIPT_ID = "Relative-Metrology"
 
     def _parse_additional_parameters(self, **kwargs):
-        __args = super(MainWavelets, self)._parse_additional_parameters(**kwargs)
+        __args = super(MainRelativeMetrology, self)._parse_additional_parameters(**kwargs)
         __args["INI_MODE"] = IniMode.LOCAL_JSON_FILE
         __args["STANDALONE"] = kwargs.get("standalone", True)
 
         return __args
 
-    def _get_script_id(self): return MainWavelets.SCRIPT_ID
-    def _get_ini_file_name(self): return ".GUI_wavelets.json"
+    def _get_script_id(self): return MainRelativeMetrology.SCRIPT_ID
+    def _get_ini_file_name(self): return ".GUI_relative_metrology.json"
     def _get_application_name(self): return APPLICATION_NAME
     def _get_script_package(self): return "aps.wavefront_analysis"
 
@@ -80,7 +81,7 @@ class MainWavelets(GenericQTScript):
         plotting_properties.set_parameter("add_context_label", False)
         plotting_properties.set_parameter("use_unique_id", True)
 
-        unique_id = self.__wavelets_manager.activate_wavelets_manager(plotting_properties=plotting_properties, **args)
+        unique_id = self.__relative_metrology_manager.activate_relative_metrology_manager(plotting_properties=plotting_properties, **args)
 
         # ==========================================================================
         # %% Final Operations
@@ -90,19 +91,19 @@ class MainWavelets(GenericQTScript):
 
         # ==========================================================================
 
-        self.__plotter.raise_context_window(context_key=SHOW_WAVELETS, unique_id=unique_id, close_button=False, stay_on_top=False)
+        self.__plotter.raise_context_window(context_key=SHOW_RELATIVE_METROLOGY, unique_id=unique_id, close_button=False, stay_on_top=False)
 
 
     def _run_script(self, **args):
         self.__plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
 
-        self.__wavelets_manager = create_wavelets_manager(log_stream_widget=self._log_stream_widget,
-                                                          working_directory=self._working_directory)
+        self.__relative_metrology_manager = create_relative_metrology_manager(log_stream_widget=self._log_stream_widget,
+                                                                              working_directory=self._working_directory)
 
 
         if not self.__plotter.is_active(): self.activate_manager(**args) # batch
 
-        return self.__wavelets_manager
+        return self.__relative_metrology_manager
 
     def _parse_additional_sys_argument(self, sys_argument, args):
         if "-m" == sys_argument[:2]:   args["LOG_POOL"] = int(sys_argument[2:])
@@ -124,7 +125,7 @@ class MainWavelets(GenericQTScript):
     def _register_logger_instance(self, logger_mode, application_name, **args):
         self._manage_working_directory(**args)
 
-        log_stream_prefix = "wavelets"
+        log_stream_prefix = "relative_metrology"
 
         if args.get("LOG_POOL") is None: args["LOG_POOL"] = 0
 
@@ -158,5 +159,5 @@ class MainWavelets(GenericQTScript):
 import os, sys
 
 if __name__=="__main__":
-    if os.getenv('OC_DEBUG', "0") == "1": MainWavelets(sys_argv=sys.argv).run_script()
-    else: MainWavelets().show_help()
+    if os.getenv('OC_DEBUG', "0") == "1": MainRelativeMetrology(sys_argv=sys.argv).run_script()
+    else: MainRelativeMetrology().show_help()
