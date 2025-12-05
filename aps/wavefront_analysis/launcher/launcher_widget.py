@@ -138,7 +138,7 @@ class LauncherWidget(GenericWidget):
 
         gui.separator(collection_box, height=separator)
 
-        button = gui.button(collection_box, None, "Wavelets", callback=self.__open_wavelets_callback, width=button_width, height=button_height)
+        button = gui.button(collection_box, None, "Relative Metrology", callback=self.__open_wavelets_callback, width=button_width, height=button_height)
         set_button(button)
 
     def __open_absolute_phase_callback(self):
