@@ -84,16 +84,16 @@ CLASSIFIERS = [
 ]
 
 INSTALL_REQUIRES = (
-)
-
-SETUP_REQUIRES = (
-    'setuptools',
-    'aps_common_libraries',
+    'aps-common-libraries>=1.0.17',
     'PyWavelets',
     'wofryImpl',
     'wofrysrw',
     'srwpy',
     'cmasher',
+)
+
+SETUP_REQUIRES = (
+    'setuptools',
 )
 
 PACKAGES = find_packages(exclude=('*.tests', '*.tests.*', 'tests.*', 'tests'))
