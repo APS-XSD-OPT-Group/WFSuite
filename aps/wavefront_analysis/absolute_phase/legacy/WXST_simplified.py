@@ -58,8 +58,8 @@ def save_figure(image_pair, path='./', p_x=1, extention='.tif'):
                 plt.xlabel('x (pixel)', fontsize=22)
                 plt.ylabel('y (pixel)', fontsize=22)
             else:
-                plt.xlabel('x ($\mu$m)', fontsize=22)
-                plt.ylabel('y ($\mu$m)', fontsize=22)
+                plt.xlabel('x ($\\mu$m)', fontsize=22)
+                plt.ylabel('y ($\\mu$m)', fontsize=22)
             cbar = plt.colorbar()
             cbar.set_label(each_pair[2], rotation=90, fontsize=20)
             plt.tight_layout()
@@ -82,7 +82,7 @@ def save_figure_1D(image_pair, path='./', p_x=1):
         if p_x == 1:
             plt.xlabel('x (pixel)', fontsize=22)
         else:
-            plt.xlabel('x ($\mu$m)', fontsize=22)
+            plt.xlabel('x ($\\mu$m)', fontsize=22)
         plt.ylabel(each_pair[2], fontsize=22)
         plt.tight_layout()
         plt.savefig(os.path.join(path, each_pair[0] + '.png'), dpi=150)

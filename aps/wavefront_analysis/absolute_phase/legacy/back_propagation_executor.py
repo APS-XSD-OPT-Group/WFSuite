@@ -635,8 +635,8 @@ def execute_back_propagation(**arguments) -> dict:
                 plt.subplot(1, 2, 1)
                 plt.pcolormesh(X, Y, intensity.T, shading='auto', norm=PowerNorm(gamma=gamma), cmap="rainbow")
                 plt.colorbar(label='Intensity')
-                plt.xlabel(f'X ($\mu$m) / tilt : {round(1e6*wf_position_x, 2)}')
-                plt.ylabel(f'Y ($\mu$m) / tilt : {round(1e6*wf_position_y, 2)}')
+                plt.xlabel(f'X ($\\mu$m) / tilt : {round(1e6*wf_position_x, 2)}')
+                plt.ylabel(f'Y ($\\mu$m) / tilt : {round(1e6*wf_position_y, 2)}')
                 plt.xlim(1e6*(wf_position_x - 3*sigma_x), 1e6*(wf_position_x + 3*sigma_x))
                 plt.ylim(1e6*(wf_position_y - 3*sigma_y), 1e6*(wf_position_y + 3*sigma_y))
 
@@ -646,7 +646,7 @@ def execute_back_propagation(**arguments) -> dict:
                 plt.xlim(1e6*(wf_position_x - 3*sigma_x), 1e6*(wf_position_x + 3*sigma_x))
                 plt.plot(1e6*(y_coordinates + wf_position_y), intensity_y)
                 plt.xlim(1e6*(wf_position_y - 3*sigma_y), 1e6*(wf_position_y + 3*sigma_y))
-                plt.xlabel('X or Y ($\mu$m)')
+                plt.xlabel('X or Y ($\\mu$m)')
                 plt.ylabel('Integrated Intensity')
                 plt.title('Integrated intensity profile')
 
@@ -988,7 +988,7 @@ def __scan_best_focus_2D(initial_wavefront,
             plt.plot(1e6*best_x_coordinate, best_intensity_x.sum(axis=1))
             plt.xlim(-3e6 * (smallest_size_x if spline_x is None else smallest_size_x_fit),
                      3e6 * (smallest_size_x if spline_x is None else smallest_size_x_fit))
-            plt.xlabel('X ($\mu$)')
+            plt.xlabel('X ($\\mu$)')
             plt.ylabel('Intensity')
             plt.title(f"Intensity profile at X waist")
 
@@ -1009,7 +1009,7 @@ def __scan_best_focus_2D(initial_wavefront,
             plt.plot(1e6*best_y_coordinate, best_intensity_y.sum(axis=0))
             plt.xlim(-3e6*(smallest_size_y if spline_y is None else smallest_size_y_fit),
                      3e6*(smallest_size_y if spline_y is None else smallest_size_y_fit))
-            plt.xlabel('Y ($\mu$)')
+            plt.xlabel('Y ($\\mu$)')
             plt.ylabel('Intensity')
             plt.title(f"Intensity profile at Y waist")
 
