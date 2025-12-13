@@ -47,8 +47,8 @@
 import numpy as np
 import sys
 
-from PyQt5.QtWidgets import QDialog, QLabel, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QSlider
-from PyQt5.QtCore import Qt
+from AnyQt.QtWidgets import QDialog, QLabel, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QSlider
+from AnyQt.QtCore import Qt
 from matplotlib import cm
 
 class ShowWaitDialog(QDialog):

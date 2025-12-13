@@ -893,7 +893,7 @@ class WXST:
 # LEGACY CODE THAT MUST NOT BE CALLED
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        import cv2  # here to avoid conflict with PyQt5
+        import cv2  # here to avoid conflict with PyQt
 
         Folder_path = '../testdata/single-shot/'
         File_ref = os.path.join(Folder_path, 'ref_001.tif')

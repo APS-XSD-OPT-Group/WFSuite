@@ -49,9 +49,9 @@ from aps.common.plot.gui import MessageDialog
 from aps.common.widgets.generic_widget import GenericWidget
 from aps.common.widgets.congruence import *
 
-from PyQt5.QtWidgets import QVBoxLayout
-from PyQt5.QtCore import QRect, Qt
-from PyQt5.QtGui import QFont, QPalette, QColor
+from AnyQt.QtWidgets import QVBoxLayout
+from AnyQt.QtCore import QRect, Qt
+from AnyQt.QtGui import QFont, QPalette, QColor
 
 import warnings
 warnings.filterwarnings("ignore")

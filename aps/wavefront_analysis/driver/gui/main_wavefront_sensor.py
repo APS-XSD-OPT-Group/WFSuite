@@ -45,13 +45,9 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
 import os
-import traceback
-
-from PyQt5.QtCore import Qt
 
 from aps.common.initializer import get_registered_ini_instance, IniMode
 from aps.common.plotter import get_registered_plotter_instance
-from aps.common.plot.qt_application import get_registered_qt_application_instance
 from aps.common.scripts.generic_qt_script import GenericQTScript
 from aps.common.widgets.log_stream_widget import LogStreamWidget
 from aps.common.logger import register_logger_pool_instance, register_logger_single_instance, DEFAULT_STREAM

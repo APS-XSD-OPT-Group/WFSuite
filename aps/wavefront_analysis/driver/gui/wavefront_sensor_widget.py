@@ -63,9 +63,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.widgets import RectangleSelector
 from cmasher import cm as cmm
 
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QScrollArea
-from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap
+from AnyQt.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QScrollArea
+from AnyQt.QtCore import QRect, Qt, pyqtSignal, QTimer
+from AnyQt.QtGui import QFont, QPalette, QColor, QPixmap
 
 from aps.common.driver.beamline.generic_camera import get_data_from_int_to_string
 from aps.wavefront_analysis.common.gui.util import ShowWaitDialog

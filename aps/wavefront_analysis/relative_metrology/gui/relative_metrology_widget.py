@@ -58,9 +58,9 @@ from aps.common.utilities import list_to_string, string_to_list
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
 
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QScrollArea, QWidget
-from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor
+from AnyQt.QtWidgets import QHBoxLayout, QVBoxLayout, QScrollArea, QWidget
+from AnyQt.QtCore import QRect, Qt, pyqtSignal, QTimer
+from AnyQt.QtGui import QFont, QPalette, QColor
 
 from aps.wavefront_analysis.common.gui.util import ShowWaitDialog, plot_3D, plot_2D
 import aps.wavefront_analysis.driver.wavefront_sensor as ws

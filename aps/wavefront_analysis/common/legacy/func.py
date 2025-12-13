@@ -299,7 +299,7 @@ def slop_tracking(img, ref, n_window=10):
             displace:       the displacement of the pixels in the images
                             [dips_H, disp_V]
     '''
-    import cv2 # here to avoid conflict with PyQt5
+    import cv2 # here to avoid conflict with PyQt
 
     # the pyramid scale, make the undersampling image
     pyramid_scal = 0.5

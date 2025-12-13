@@ -47,10 +47,10 @@
 
 import sys
 import time
-from PyQt5.QtWidgets import (
+from AnyQt.QtWidgets import (
     QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QDialog
 )
-from PyQt5.QtCore import Qt, QTimer
+from AnyQt.QtCore import Qt, QTimer
 
 
 class ProcessingDialog(QDialog):
@@ -72,7 +72,7 @@ class ProcessingDialog(QDialog):
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PyQt5 Popup Example")
+        self.setWindowTitle("PyQt Popup Example")
 
         layout = QVBoxLayout()
         self.button = QPushButton("Start Task")

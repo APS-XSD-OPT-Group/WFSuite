@@ -46,7 +46,8 @@
 # ----------------------------------------------------------------------- #
 import sys
 
-from PyQt5.QtCore import QObject, pyqtSignal
+from AnyQt.QtCore import QTimer, pyqtSignal
+from AnyQt.QtWidgets import QApplication
 
 from aps.common.scripts.generic_process_manager import GenericProcessManager
 from aps.common.widgets.context_widget import PlottingProperties, DefaultMainWindow
@@ -166,8 +167,5 @@ class _LauncherManager(ILauncherManager, Sender):
         self.close_wavefront_sensor_sent.emit("close_wavefront_sensor")
 
         if self.__plotter.is_active(): self.__plotter.get_context_container_widget(context_key=SHOW_LAUNCHER).parent().close()
-
-        from PyQt5.QtCore import QTimer
-        from PyQt5.QtWidgets import QApplication
 
         QTimer.singleShot(0, lambda: QApplication.instance().exit(0))

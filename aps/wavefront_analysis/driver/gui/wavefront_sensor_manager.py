@@ -44,7 +44,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # ----------------------------------------------------------------------- #
-from PyQt5.QtCore import pyqtSignal
+from AnyQt.QtCore import pyqtSignal
 
 from aps.common.scripts.generic_process_manager import GenericProcessManager
 from aps.common.widgets.context_widget import PlottingProperties, DefaultMainWindow

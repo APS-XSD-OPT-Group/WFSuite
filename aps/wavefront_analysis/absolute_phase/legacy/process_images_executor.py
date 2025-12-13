@@ -233,7 +233,7 @@ class pattern_search:
             input:
                     I_pattern:          pattern distribution
         '''
-        import cv2  # here to avoid conflict with PyQt5
+        import cv2  # here to avoid conflict with PyQt
 
         # calculate sigma kernel size for coherence
         sigma_h = self.source_h / self.source_distance_h * self.d_propagation
@@ -345,7 +345,7 @@ class pattern_search:
         return trans_list[num_trans]
 
     def pattern_search_coarse(self, I_img, I_pattern, img_transfer=[1, 0, 0]):
-        import cv2  # here to avoid conflict with PyQt5
+        import cv2  # here to avoid conflict with PyQt
 
         # find the matched pattern position coarsely
 
@@ -402,7 +402,7 @@ class pattern_search:
         return [x_center, y_center], corr_match, img_small, template
 
     def find_transfer_matrix(self, im1, im2):
-        import cv2  # here to avoid conflict with PyQt5
+        import cv2  # here to avoid conflict with PyQt
 
         # use opencv to find the image transformation matrix
         # Read the images to be aligned
@@ -652,7 +652,7 @@ def cv2_clipped_zoom(img, zoom_factor=0):
         result: ndarray
            numpy ndarray of the same shape of the input img zoomed by the specified factor.
     """
-    import cv2 # here to avoid conflict with PyQt5
+    import cv2 # here to avoid conflict with PyQt
 
     if zoom_factor[0] == 0:
         return img
@@ -696,7 +696,7 @@ def image_translation(img, shift):
     return image_back
 
 def speckle_tracking(ref, img, para_XST, displace_offset):
-    import cv2 # here to avoid conflict with PyQt5
+    import cv2 # here to avoid conflict with PyQt
     '''
         to get displacement
     '''

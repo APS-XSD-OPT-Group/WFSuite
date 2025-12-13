@@ -62,9 +62,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.gridspec import GridSpec
 from cmasher import cm as cmm
 
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QScrollArea, QSlider, QWidget
-from PyQt5.QtCore import QRect, Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor
+from AnyQt.QtWidgets import QHBoxLayout, QVBoxLayout, QScrollArea, QSlider, QWidget
+from AnyQt.QtCore import QRect, Qt, pyqtSignal, QTimer
+from AnyQt.QtGui import QFont, QPalette, QColor
 
 from aps.wavefront_analysis.common.gui.util import ShowWaitDialog, SliderWithButtons, plot_1D, plot_2D
 import aps.wavefront_analysis.driver.wavefront_sensor as ws
