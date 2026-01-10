@@ -180,7 +180,10 @@ class PropagatedWavefront:
                  bf_size_values_x=None,
                  bf_size_values_y=None,
                  bf_size_values_fit_x=None,
-                 bf_size_values_fit_y=None):
+                 bf_size_values_fit_y=None,
+                 wf_hex_string=None,
+                 wf_hex_string_x=None,
+                 wf_hex_string_y=None,):
             self.kind                    = kind
             self.fwhm_x                  = fwhm_x
             self.fwhm_y                  = fwhm_y
@@ -230,6 +233,10 @@ class PropagatedWavefront:
             self.bf_size_values_fit_x        = bf_size_values_fit_x
             self.bf_size_values_fit_y        = bf_size_values_fit_y
 
+            self.wf_hex_string               = wf_hex_string
+            self.wf_hex_string_x             = wf_hex_string_x
+            self.wf_hex_string_y             = wf_hex_string_y
+
     def to_hdf5(self, file_path_results):
         with h5py.File(file_path_results, 'w') as h5file:
             wf = h5file.create_group("propagated_wavefront")
@@ -244,11 +251,13 @@ class PropagatedWavefront:
             wf.attrs["wf_position_x"]        = self.wf_position_x
             wf.attrs["wf_position_y"]        = self.wf_position_y
 
+
             wf.create_dataset('x_coordinates', data=self.x_coordinates)
             wf.create_dataset('y_coordinates', data=self.y_coordinates)
 
             if self.kind == "2D":
                 wf.attrs["propagation_distance"] = self.propagation_distance
+                wf.attrs["wf_hex_string"]        = self.wf_hex_string
 
                 wf.create_dataset('intensity',              data=self.intensity)
                 wf.create_dataset('integrated_intensity_x', data=self.integrated_intensity_x)
@@ -256,6 +265,9 @@ class PropagatedWavefront:
             elif self.kind == "1D":
                 wf.attrs["propagation_distance_x"] = self.propagation_distance_x
                 wf.attrs["propagation_distance_y"] = self.propagation_distance_y
+
+                wf.attrs["wf_hex_string_x"] = self.wf_hex_string_x
+                wf.attrs["wf_hex_string_y"] = self.wf_hex_string_y
 
                 wf.create_dataset('intensity_x', data=self.intensity_x)
                 wf.create_dataset('intensity_y', data=self.intensity_y)
@@ -294,9 +306,11 @@ class PropagatedWavefront:
                     wf.create_dataset('bf_propagation_distances_y', data=self.bf_propagation_distances_y)
                     for i in range(len(self.bf_propagation_distances_x)):
                         sc = wf.create_group(f"{self.bf_propagation_distances[i]}_x")
+                        sc.create_dataset('x_coordinates', data=self.bf_x_coordinates[i])
                         sc.create_dataset('intensity_x', data=self.bf_intensities_x[i])
                     for i in range(len(self.bf_propagation_distances_y)):
                         sc = wf.create_group(f"{self.bf_propagation_distances[i]}_y")
+                        sc.create_dataset('y_coordinates', data=self.bf_y_coordinates[i])
                         sc.create_dataset('intensity_y', data=self.bf_intensities_y[i])
                 wf.create_dataset('bf_size_values_x',     data=self.bf_size_values_x)
                 wf.create_dataset('bf_size_values_y',     data=self.bf_size_values_y)
@@ -320,6 +334,7 @@ class PropagatedWavefront:
 
         if self.kind == "2D":
             out["propagation_distance"]   = self.propagation_distance
+            out["wf_hex_string"]          = self.wf_hex_string
             out["intensity"]              = self.intensity
             out["integrated_intensity_x"] = self.integrated_intensity_x
             out["integrated_intensity_y"] = self.integrated_intensity_y
@@ -327,6 +342,8 @@ class PropagatedWavefront:
         elif self.kind == "1D":
             out["propagation_distance_x"] = self.propagation_distance_x
             out["propagation_distance_y"] = self.propagation_distance_y
+            out["wf_hex_string_x"]        = self.wf_hex_string_x
+            out["wf_hex_string_y"]        = self.wf_hex_string_y
             out["intensity_x"]            = self.intensity_x
             out["intensity_y"]            = self.intensity_y
 
@@ -368,6 +385,127 @@ class PropagatedWavefront:
                 out["bf_intensities_y"]           = self.bf_intensities_y
 
         return out
+
+    @classmethod
+    def from_hdf5(cls, file_path_results):
+        pw = PropagatedWavefront()
+        
+        with h5py.File(file_path_results, 'r') as h5file:
+            wf = h5file["propagated_wavefront"]
+
+            pw.kind = wf.attrs["kind"]
+            pw.fwhm_x = wf.attrs["fwhm_x"]
+            pw.fwhm_y = wf.attrs["fwhm_y"]
+            pw.sigma_x = wf.attrs["sigma_x"]
+            pw.sigma_y = wf.attrs["sigma_y"]
+            pw.focus_z_position_x = wf.attrs["focus_z_position_x"]
+            pw.focus_z_position_y = wf.attrs["focus_z_position_y"]
+            pw.wf_position_x = wf.attrs["wf_position_x"]
+            pw.wf_position_y = wf.attrs["wf_position_y"]
+
+            pw.x_coordinates = wf['x_coordinates'][()]
+            pw.y_coordinates = wf['y_coordinates'][()]
+            
+
+            if pw.kind == "2D":
+                pw.propagation_distance   = wf.attrs["propagation_distance"]
+                pw.wf_hex_string          = wf.attrs["wf_hex_string"]
+                pw.intensity              = wf['intensity'][()]#.T ?
+                pw.integrated_intensity_x = wf['integrated_intensity_x'][()]
+                pw.integrated_intensity_y = wf['integrated_intensity_y'][()]
+                
+            elif pw.kind == "1D":
+                pw.propagation_distance_x = wf.attrs["propagation_distance_x"]
+                pw.propagation_distance_y = wf.attrs["propagation_distance_y"]
+                pw.wf_hex_string_x        = wf.attrs["wf_hex_string_x"]
+                pw.wf_hex_string_y        = wf.attrs["wf_hex_string_y"]
+                pw.intensity_x            = wf['intensity_x'][()]
+                pw.intensity_y            = wf['intensity_y'][()]
+                
+            pw.scan_best_focus = wf.attrs["scan_best_focus"]
+
+            if pw.scan_best_focus:
+                wf = h5file["best_focus_scan"]
+
+                pw.scan_best_focus_from      = wf.attrs["scan_best_focus_from"]      
+                pw.bf_propagation_distance_x = wf.attrs["bf_propagation_distance_x"] 
+                pw.bf_propagation_distance_y = wf.attrs["bf_propagation_distance_y"] 
+                
+                if pw.kind == "2D":
+                    pw.bf_x_coordinate           = wf['bf_x_coordinates'][()]
+                    pw.bf_y_coordinate           = wf['bf_y_coordinates'][()]
+                    pw.bf_intensity_x            = wf['bf_intensity_x'][()]
+                    pw.bf_intensity_y            = wf['bf_intensity_y'][()]
+                    pw.bf_integrated_intensity_x = wf['bf_integrated_intensity_x'][()]
+                    pw.bf_integrated_intensity_y = wf['bf_integrated_intensity_y'][()]
+                elif pw.kind == "1D":
+                    pw.bf_intensity_x            = wf['bf_intensity_x'][()]
+                    pw.bf_intensity_y            = wf['bf_intensity_y'][()]
+                
+                pw.bf_size_value_x = wf.attrs["bf_size_value_x"]
+                pw.bf_size_value_y = wf.attrs["bf_size_value_y"]
+                
+                if pw.kind == "2D":
+                    pw.bf_propagation_distances = wf['bf_propagation_distances'][()]
+
+                    bf_x_coordinates            = []
+                    bf_y_coordinates            = []
+                    bf_intensities              = []
+                    bf_integrated_intensities_x = []
+                    bf_integrated_intensities_y = []
+
+                    for i in range(len(pw.bf_propagation_distances)):
+                        sc = wf[f"{pw.bf_propagation_distances[i]}"]
+
+                        bf_x_coordinates.append(           sc['x_coordinates'][()])
+                        bf_y_coordinates.append(           sc['y_coordinates'][()])
+                        bf_intensities.append(             sc['intensity'][()])
+                        bf_integrated_intensities_x.append(sc['integrated_intensity_x'][()])
+                        bf_integrated_intensities_y.append(sc['integrated_intensity_y'][()])
+
+                    pw.bf_x_coordinates            = bf_x_coordinates
+                    pw.bf_y_coordinates            = bf_y_coordinates
+                    pw.bf_integrated_intensities_x = bf_integrated_intensities_x
+                    pw.bf_integrated_intensities_y = bf_integrated_intensities_y
+
+                elif pw.kind == "1D":
+                    pw.bf_propagation_distances_x = wf['bf_propagation_distances_x'][()]
+                    pw.bf_propagation_distances_y = wf['bf_propagation_distances_y'][()]
+
+                    bf_x_coordinates = []
+                    bf_y_coordinates = []
+                    bf_intensities_x = []
+                    bf_intensities_y = []
+
+                    for i in range(len(pw.bf_propagation_distances_x)):
+                        sc = wf[f"{pw.bf_propagation_distances_x[i]}"]
+                        bf_x_coordinates.append(sc['x_coordinates'][()])
+                        bf_intensities_x.append(sc['intensity_x'][()])
+
+                    for i in range(len(pw.bf_propagation_distances_y)):
+                        sc = wf[f"{pw.bf_propagation_distances_y[i]}"]
+                        bf_y_coordinates.append(sc['y_coordinates'][()])
+                        bf_intensities_y.append(sc['intensity_y'][()])
+
+                    pw.bf_x_coordinates = bf_x_coordinates
+                    pw.bf_y_coordinates = bf_y_coordinates
+                    pw.bf_intensities_x = bf_intensities_x
+                    pw.bf_intensities_y = bf_intensities_y
+
+                    for i in range(len(pw.bf_propagation_distances_x)):
+                        sc = wf.create_group(f"{pw.bf_propagation_distances[i]}_x")
+                        sc.create_dataset('intensity_x', data=pw.bf_intensities_x[i])
+                    for i in range(len(pw.bf_propagation_distances_y)):
+                        sc = wf.create_group(f"{pw.bf_propagation_distances[i]}_y")
+                        sc.create_dataset('intensity_y', data=pw.bf_intensities_y[i])
+
+                pw.bf_size_values_x = wf['bf_size_values_x'][()]
+                pw.bf_size_values_y = wf['bf_size_values_y'][()]
+                
+                if not pw.bf_size_values_fit_x is None: pw.bf_size_values_fit_x = wf['bf_size_values_fit_x'][()]
+                if not pw.bf_size_values_fit_y is None: pw.bf_size_values_fit_y = wf['bf_size_values_fit_y'][()]
+
+        return pw
 
 def execute_back_propagation(**arguments) -> dict:
     arguments["folder"]                 = arguments.get("folder", os.path.abspath(os.curdir))
@@ -559,7 +697,8 @@ def execute_back_propagation(**arguments) -> dict:
         integrated_intensity_x, \
         integrated_intensity_y, \
         x_coordinates, \
-        y_coordinates = __propagate_2D(initial_wavefront,
+        y_coordinates, \
+        wf_hex_string = __propagate_2D(initial_wavefront,
                                        fresnel_propagator,
                                        propagation_distance,
                                        args)
@@ -581,7 +720,8 @@ def execute_back_propagation(**arguments) -> dict:
                                                        intensity=intensity_wofry,
                                                        integrated_intensity_x=integrated_intensity_x,
                                                        integrated_intensity_y=integrated_intensity_y,
-                                                       scan_best_focus=False)
+                                                       scan_best_focus=False,
+                                                       wf_hex_string=wf_hex_string)
         else:
             propagated_wavefront = PropagatedWavefront(kind="2D",
                                                        fwhm_x=fwhm_x if not np.isinf(fwhm_x) else np.nan,
@@ -619,7 +759,8 @@ def execute_back_propagation(**arguments) -> dict:
                                                        bf_size_values_x=bf_size_values_x,
                                                        bf_size_values_y=bf_size_values_y,
                                                        bf_size_values_fit_x=bf_size_values_x_fit,
-                                                       bf_size_values_fit_y=bf_size_values_y_fit)
+                                                       bf_size_values_fit_y=bf_size_values_y_fit,
+                                                       wf_hex_string=wf_hex_string)
 
         if args.show_figure:
             gamma = 1
@@ -711,21 +852,21 @@ def execute_back_propagation(**arguments) -> dict:
         # Instantiate the propagator
         fresnel_propagator = FresnelZoom1D()
 
-        sigma_x, fwhm_x, intensity_x_wofry, x_coordinates = __propagate_1D(initial_wavefront_x,
-                                                                           fresnel_propagator,
-                                                                           propagation_distance_x,
-                                                                           args.magnification_x,
-                                                                           args.x_rms_range,
-                                                                           "X",
-                                                                           args.verbose)
+        sigma_x, fwhm_x, intensity_x_wofry, x_coordinates, wf_hex_string_x = __propagate_1D(initial_wavefront_x,
+                                                                                            fresnel_propagator,
+                                                                                            propagation_distance_x,
+                                                                                            args.magnification_x,
+                                                                                            args.x_rms_range,
+                                                                                            "X",
+                                                                                            args.verbose)
 
-        sigma_y, fwhm_y, intensity_y_wofry, y_coordinates = __propagate_1D(initial_wavefront_y,
-                                                                           fresnel_propagator,
-                                                                           propagation_distance_y,
-                                                                           args.magnification_y,
-                                                                           args.y_rms_range,
-                                                                           "Y",
-                                                                           args.verbose)
+        sigma_y, fwhm_y, intensity_y_wofry, y_coordinates, wf_hex_string_y = __propagate_1D(initial_wavefront_y,
+                                                                                            fresnel_propagator,
+                                                                                            propagation_distance_y,
+                                                                                            args.magnification_y,
+                                                                                            args.y_rms_range,
+                                                                                            "Y",
+                                                                                            args.verbose)
 
         if args.scan_best_focus:
             best_distance_x, best_x_coordinate, best_intensity_x, smallest_size_x, \
@@ -787,7 +928,9 @@ def execute_back_propagation(**arguments) -> dict:
                                                        y_coordinates=y_coordinates,
                                                        intensity_x=intensity_x_wofry,
                                                        intensity_y=intensity_y_wofry,
-                                                       scan_best_focus=False)
+                                                       scan_best_focus=False,
+                                                       wf_hex_string_x=wf_hex_string_x,
+                                                       wf_hex_string_y=wf_hex_string_y,)
         else:
             propagated_wavefront = PropagatedWavefront(kind="1D",
                                                        fwhm_x=fwhm_x if not np.isinf(fwhm_x) else np.nan,
@@ -823,8 +966,9 @@ def execute_back_propagation(**arguments) -> dict:
                                                        bf_size_values_x=bf_size_values_x,
                                                        bf_size_values_fit_x=bf_size_values_fit_x,
                                                        bf_size_values_y=bf_size_values_y,
-                                                       bf_size_values_fit_y=bf_size_values_fit_y)
-
+                                                       bf_size_values_fit_y=bf_size_values_fit_y,
+                                                       wf_hex_string_x=wf_hex_string_x,
+                                                       wf_hex_string_y=wf_hex_string_y)
 
         if args.show_figure:
             with lock:
@@ -908,7 +1052,7 @@ def __scan_best_focus_2D(initial_wavefront,
         integrated_intensity_x, \
         integrated_intensity_y, \
         x_coord, \
-        y_coord = __propagate_2D(initial_wavefront,
+        y_coord, _ = __propagate_2D(initial_wavefront,
                                  fresnel_propagator,
                                  distance,
                                  args)
@@ -1047,13 +1191,13 @@ def __scan_best_focus_1D(initial_wavefront,
 
     for index in range(len(propagation_distances)):
         distance = propagation_distances[index]
-        sigma, fwhm, intensity_wofry, coord = __propagate_1D(fresnel_propagator,
-                                                             initial_wavefront,
-                                                             magnification,
-                                                             distance,
-                                                             rms_range,
-                                                             direction,
-                                                             verbose)
+        sigma, fwhm, intensity_wofry, coord, _ = __propagate_1D(fresnel_propagator,
+                                                                initial_wavefront,
+                                                                magnification,
+                                                                distance,
+                                                                rms_range,
+                                                                direction,
+                                                                verbose)
         if   best_focus_from == "rms":   size = sigma
         elif best_focus_from == "fwhm":  size = fwhm
         else: raise ValueError(f"Best focus from not recognized {best_focus_from}")
@@ -1126,7 +1270,7 @@ def __propagate_1D(initial_wavefront,
 
     if verbose: print(f"{direction} direction: sigma = {sigma:.3g}, FWHM = {fwhm:.3g}")
 
-    return sigma, fwhm, intensity_wofry, coordinates
+    return sigma, fwhm, intensity_wofry, coordinates, propagated_wavefront.to_hex_tring()
 
 def __propagate_2D(initial_wavefront,
                    fresnel_propagator,
@@ -1203,6 +1347,7 @@ def __propagate_2D(initial_wavefront,
            integrated_intensity_x, \
            integrated_intensity_y, \
            x_coordinates, \
-           y_coordinates
+           y_coordinates, \
+           propagated_wavefront_wofry.to_hex_tring()
 
 

@@ -374,7 +374,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self.le_crop = gui.lineEdit(self._crop_box, self, "crop", "Crop (-1: auto, n: pixels around center,\n            [b, t, l, r]: coordinates in pixels)",
                                     labelWidth=labels_width_1, orientation='horizontal', valueType=str)
 
-        gui.lineEdit(wa_box_6, self, "mode", label="Mode (area, lineWidth)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
+        gui.lineEdit(wa_box_6, self, "mode", label="Mode (area, centralLine)", labelWidth=labels_width_1, orientation='horizontal', valueType=str)
         gui.lineEdit(wa_box_6, self, "line_width", label="Line Width", labelWidth=labels_width_1, orientation='horizontal', valueType=int)
         gui.lineEdit(wa_box_6, self, "rebinning", label="Image Rebinning Factor", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
         gui.lineEdit(wa_box_6, self, "down_sampling", label="Down Sampling", labelWidth=labels_width_1, orientation='horizontal', valueType=float)
@@ -1102,7 +1102,7 @@ class AbsolutePhaseWidget(GenericWidget):
             plot_1D(self._wf_cur_figure.figure, line_curve[0], line_curve[1], "[1/m]", p_x)
             self._wf_cur_figure_canvas.draw()
 
-        elif wavefront_data['mode'] == 'lineWidth':
+        elif wavefront_data['mode'] == 'centralLine':
             intensity     = wavefront_data['intensity']
             phase         = wavefront_data['line_phase']
             line_displace = wavefront_data['line_displace']
