@@ -50,7 +50,7 @@ try:
 except AttributeError:
     from setuptools import find_packages, setup
 
-NAME = 'aps-wavefront-analysis'
+NAME = 'wf-suite'
 
 VERSION = '0.0.1'
 ISRELEASED = False
@@ -74,7 +74,6 @@ KEYWORDS = ['dictionary',
 
 CLASSIFIERS = [
     'Development Status :: 4 - Beta',
-    'License :: OSI Approved :: BSD License',
     'Natural Language :: English',
     'Environment :: Console',
     'Environment :: Plugins',
@@ -90,10 +89,6 @@ INSTALL_REQUIRES = (
     'wofrysrw',
     'srwpy',
     'cmasher',
-)
-
-SETUP_REQUIRES = (
-    'setuptools',
 )
 
 PACKAGES = find_packages(exclude=('*.tests', '*.tests.*', 'tests.*', 'tests'))
@@ -126,7 +121,6 @@ def setup_package():
         zip_safe=False,
         include_package_data=True,
         install_requires=INSTALL_REQUIRES,
-        setup_requires=SETUP_REQUIRES,
     )
 
 if __name__ == '__main__':
