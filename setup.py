@@ -52,7 +52,7 @@ except AttributeError:
 
 NAME = 'wf-suite'
 
-VERSION = '0.0.1'
+VERSION = '1.0.0'
 ISRELEASED = False
 
 DESCRIPTION = 'APS Wavefront Analysis Tools'
@@ -83,7 +83,7 @@ CLASSIFIERS = [
 ]
 
 INSTALL_REQUIRES = (
-    'aps-common-libraries>=1.0.17',
+    'aps-common-libraries>=1.0.24',
     'PyWavelets',
     'wofryImpl',
     'wofrysrw',
@@ -95,8 +95,6 @@ PACKAGES = find_packages(exclude=('*.tests', '*.tests.*', 'tests.*', 'tests'))
 
 PACKAGE_DATA = {
 }
-
-NAMESPACE_PACAKGES = ["aps", "aps.wavefront_analysis"]
 
 def setup_package():
 
@@ -117,7 +115,6 @@ def setup_package():
         classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_data=PACKAGE_DATA,
-        namespace_packages=NAMESPACE_PACAKGES,
         zip_safe=False,
         include_package_data=True,
         install_requires=INSTALL_REQUIRES,
