@@ -73,8 +73,7 @@ class MainLauncher(GenericQTScript):
     def _run_script(self, **args):
         plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
 
-        launcher_manager = create_launcher_manager(log_stream_widget=self._log_stream_widget,
-                                                   working_directory=self._working_directory)
+        launcher_manager = create_launcher_manager(log_stream_widget=self._log_stream_widget, working_directory=self._working_directory)
 
         # ==========================================================================
         # %% Initialization parameters

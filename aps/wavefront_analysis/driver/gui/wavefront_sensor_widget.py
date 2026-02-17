@@ -82,6 +82,7 @@ class WavefrontSensorWidget(GenericWidget):
         self._log_stream_widget         = kwargs["log_stream_widget"]
         self._working_directory         = kwargs["working_directory"]
         self._initialization_parameters = kwargs["initialization_parameters"]
+        self._standalone                = kwargs.get("STANDALONE", False)
 
         # METHODS
         self._close                           = kwargs["close_method"]
@@ -321,6 +322,17 @@ class WavefrontSensorWidget(GenericWidget):
 
         gui.separator(self._ex_box)
 
+        if self._standalone:
+            ex_box_4 = gui.widgetBox(self._ex_box , "Application",       width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
+            exit_button = gui.button(ex_box_4, None, "Exit GUI", callback=self._close_callback, width=ex_box_4.width()-20, height=35)
+            font = QFont(exit_button.font())
+            font.setBold(True)
+            font.setItalic(True)
+            exit_button.setFont(font)
+            palette = QPalette(exit_button.palette())
+            palette.setColor(QPalette.ButtonText, QColor('Dark Blue'))
+            exit_button.setPalette(palette)
+
         ex_box_0 = gui.widgetBox(self._ex_box , "Wavefront Sensor",  width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
         ex_box_1 = gui.widgetBox(self._ex_box , "Online",            width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
         ex_box_2 = gui.widgetBox(self._ex_box , "Offline (no W.S.)", width=self._ex_box.width()-5, orientation='vertical', addSpace=False)
@@ -484,6 +496,11 @@ class WavefrontSensorWidget(GenericWidget):
     def _close_application_callback(self):
         self._collect_initialization_parameters(raise_errors=False)
         self._close(self._initialization_parameters)
+
+    def _close_callback(self):
+        if ConfirmDialog.confirmed(self, "Confirm Exit?"):
+            self._collect_initialization_parameters(raise_errors=False)
+            self._close(self._initialization_parameters)
 
     def _save_configuration_callback(self):
         try:

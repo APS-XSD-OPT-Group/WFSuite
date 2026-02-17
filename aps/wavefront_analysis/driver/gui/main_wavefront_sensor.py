@@ -47,6 +47,7 @@
 import os
 
 from aps.common.initializer import get_registered_ini_instance, IniMode
+from aps.common.plot.qt_application import get_registered_qt_application_instance
 from aps.common.plotter import get_registered_plotter_instance
 from aps.common.scripts.generic_qt_script import GenericQTScript
 from aps.common.widgets.log_stream_widget import LogStreamWidget
@@ -70,18 +71,16 @@ class MainWavefrontSensor(GenericQTScript):
     def _get_application_name(self): return APPLICATION_NAME
     def _get_script_package(self): return "aps.wavefront_analysis"
 
-    def _run_script(self, **args):
-        self.__plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
+    def get_manager(self):
+        return self.__wavefront_sensor_manager
 
+    def _run_script(self, **args):
+        self.__standalone               = args.get("STANDALONE", False)
+        self.__plotter                  = get_registered_plotter_instance(application_name=APPLICATION_NAME)
         self.__wavefront_sensor_manager = create_wavefront_sensor_manager(log_stream_widget=self._log_stream_widget,
                                                                           working_directory=self._working_directory)
 
-
-        if not self.__plotter.is_active(): raise ValueError("This application cann run only with a GUI")
-
-
-
-        return self.__wavefront_sensor_manager
+        if self.__standalone: self.activate_manager(**args)
 
     def activate_manager(self, **args):
         # ==========================================================================
@@ -98,11 +97,12 @@ class MainWavefrontSensor(GenericQTScript):
 
         # ==========================================================================
 
-        self.__plotter.raise_context_window(context_key=SHOW_WAVEFRONT_SENSOR, close_button=False, stay_on_top=False)
+        if self.__plotter.is_active():
+            self.__plotter.raise_context_window(context_key=SHOW_WAVEFRONT_SENSOR, close_button=False, stay_on_top=False)
+            if self.__standalone: get_registered_qt_application_instance().run_qt_application()
 
     def _parse_additional_sys_argument(self, sys_argument, args):
         if "-m" == sys_argument[:2]:   args["LOG_POOL"] = int(sys_argument[2:])
-        elif "-a" == sys_argument[:2]: args["ACTION"]   = sys_argument[2:]
 
     def _help_additional_parameters(self):
         help = "  -m<use multiple loggers>\n"

@@ -47,8 +47,8 @@
 import traceback
 
 from aps.common.initializer import get_registered_ini_instance, IniMode
-from aps.common.plotter import get_registered_plotter_instance
 from aps.common.plot.qt_application import get_registered_qt_application_instance
+from aps.common.plotter import get_registered_plotter_instance
 from aps.common.scripts.generic_qt_script import GenericQTScript
 from aps.common.widgets.log_stream_widget import LogStreamWidget
 from aps.common.widgets.context_widget import PlottingProperties
@@ -72,38 +72,35 @@ class MainAbsolutePhase(GenericQTScript):
     def _get_application_name(self): return APPLICATION_NAME
     def _get_script_package(self): return "aps.wavefront_analysis"
 
+    def get_manager(self):
+        return self.__absolute_phase_manager
+
+    def _run_script(self, **args):
+        self.__standalone             = args.get("STANDALONE", False)
+        self.__plotter                = get_registered_plotter_instance(application_name=APPLICATION_NAME)
+        self.__absolute_phase_manager = create_absolute_phase_manager(log_stream_widget=self._log_stream_widget,
+                                                                      working_directory=self._working_directory)
+
+        if self.__standalone: self.activate_manager(**args)
+
     def activate_manager(self, **args):
         # ==========================================================================
         # %% Initialization parameters
         # ==========================================================================
-
         plotting_properties = PlottingProperties()
         plotting_properties.set_parameter("add_context_label", False)
-        plotting_properties.set_parameter("use_unique_id", True)
+        plotting_properties.set_parameter("use_unique_id", True if not self.__standalone else False)
 
         unique_id = self.__absolute_phase_manager.activate_absolute_phase_manager(plotting_properties=plotting_properties, **args)
 
         # ==========================================================================
         # %% Final Operations
         # ==========================================================================
-
         get_registered_ini_instance(self._get_application_name()).push()
 
-        # ==========================================================================
-
-        self.__plotter.raise_context_window(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id, close_button=False, stay_on_top=False)
-
-
-    def _run_script(self, **args):
-        self.__plotter = get_registered_plotter_instance(application_name=APPLICATION_NAME)
-
-        self.__absolute_phase_manager = create_absolute_phase_manager(log_stream_widget=self._log_stream_widget,
-                                                                      working_directory=self._working_directory)
-
-
-        if not self.__plotter.is_active(): self.activate_manager(**args) # batch
-
-        return self.__absolute_phase_manager
+        if self.__plotter.is_active():
+            self.__plotter.raise_context_window(context_key=SHOW_ABSOLUTE_PHASE, unique_id=unique_id, close_button=False, stay_on_top=False)
+            if self.__standalone: get_registered_qt_application_instance().run_qt_application()
 
     def _parse_additional_sys_argument(self, sys_argument, args):
         if "-m" == sys_argument[:2]:   args["LOG_POOL"] = int(sys_argument[2:])
@@ -116,6 +113,9 @@ class MainAbsolutePhase(GenericQTScript):
                 "     1 on GUI and on File\n" + \
                 "     2 on stdout - Default value when p=2,3\n" + \
                 "     3 on stdout and on File\n"
+        help += "-a<action>\n>"
+        help += "   batch mode only:\n" + \
+                "     PIS: process images from a directory\n"
 
         return help
 

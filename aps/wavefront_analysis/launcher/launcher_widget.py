@@ -63,7 +63,7 @@ class LauncherWidget(GenericWidget):
         super(LauncherWidget, self).__init__(parent=parent, application_name=application_name, **kwargs)
 
         self._open_absolute_phase         = kwargs["open_absolute_phase_method"]
-        self._open_relative_metrology               = kwargs["open_relative_metrology_method"]
+        self._open_relative_metrology     = kwargs["open_relative_metrology_method"]
         self._close                       = kwargs["close_method"]
         self.__initialization_parameters  = kwargs["initialization_parameters"]
 
@@ -142,13 +142,13 @@ class LauncherWidget(GenericWidget):
         set_button(button)
 
     def __open_absolute_phase_callback(self):
-        try: self._open_absolute_phase(self.__initialization_parameters)
+        try: self._open_absolute_phase()
         except Exception as e:
             MessageDialog.message(self, title="Error", message=str(e.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise e
 
     def __open_relative_metrology_callback(self):
-        try: self._open_relative_metrology(initialization_parameters=self.__initialization_parameters)
+        try: self._open_relative_metrology()
         except Exception as e:
             MessageDialog.message(self, title="Error", message=str(e.args[0]), type="critical", width=500)
             if DEBUG_MODE: raise e

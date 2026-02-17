@@ -83,6 +83,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self._log_stream_widget             = kwargs["log_stream_widget"]
         self._working_directory             = kwargs["working_directory"]
         self._initialization_parameters     = kwargs["initialization_parameters"]
+        self._standalone                    = kwargs.get("STANDALONE", False)
 
         # METHODS
         self._close                          = kwargs["close_method"]
@@ -113,7 +114,8 @@ class AbsolutePhaseWidget(GenericWidget):
 
         initialization_parameters: ScriptData = self._initialization_parameters
 
-        self.wavefront_sensor_mode     = initialization_parameters.get_parameter("wavefront_sensor_mode", 0)
+        if self._standalone: self.wavefront_sensor_mode = 1
+        else:                self.wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode", 0)
         self.plot_rebinning_factor     = initialization_parameters.get_parameter("plot_rebinning_factor", 4)
 
         self.image_index               = initialization_parameters.get_parameter("image_index", 1)
@@ -758,6 +760,7 @@ class AbsolutePhaseWidget(GenericWidget):
             }}
         """)
 
+        if self._standalone: self._cb_mode.setEnabled(False)
 
 
     def _set_file_name_type(self):
@@ -904,7 +907,7 @@ class AbsolutePhaseWidget(GenericWidget):
 
         # Widget ini
 
-        initialization_parameters.set_parameter("wavefront_sensor_mode",    self.wavefront_sensor_mode)
+        if not self._standalone: initialization_parameters.set_parameter("wavefront_sensor_mode", self.wavefront_sensor_mode)
         initialization_parameters.set_parameter("plot_rebinning_factor",    self.plot_rebinning_factor)
 
         initialization_parameters.set_parameter("image_index",              self.image_index)

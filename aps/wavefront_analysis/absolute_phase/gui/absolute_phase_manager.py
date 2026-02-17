@@ -97,10 +97,10 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
 
         self.reload_utils()
 
-        self.__log_stream_widget       = kwargs.get("log_stream_widget", None)
-        self.__working_directory       = kwargs.get("working_directory")
+        self.__log_stream_widget  = kwargs.get("log_stream_widget", None)
+        self.__working_directory  = kwargs.get("working_directory")
 
-        self.__wavefront_sensor  = None
+        self.__wavefront_sensor        = None
         self.__absolute_phase_analyzer = None
 
         self.__unique_id = None
@@ -165,24 +165,24 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
             action = kwargs.get("ACTION", None)
             if action is None: raise ValueError("Batch Mode without specified action ( use -a<ACTION>)")
 
+            self.__check_absolute_phase_analyzer(initialization_parameters, batch_mode=True)
+
+            wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode", 0)
+            pixel_size_type       = initialization_parameters.get_parameter("pixel_size_type", 0)
+
+            if wavefront_sensor_mode == 1 and pixel_size_type == 1: pixel_size = initialization_parameters.get_parameter("pixel_size_custom", ws.PIXEL_SIZE)
+            else:                                                   pixel_size = ws.PIXEL_SIZE
+
+            absolute_phase_analyzer_configuration = initialization_parameters.get_parameter("absolute_phase_analyzer_configuration")
+            data_analysis_configuration           = absolute_phase_analyzer_configuration["data_analysis"]
+
             if "PIS" == str(action).upper():
-                self.__check_absolute_phase_analyzer(initialization_parameters, batch_mode=True)
-
-                wavefront_sensor_mode = initialization_parameters.get_parameter("wavefront_sensor_mode", 0)
-                pixel_size_type       = initialization_parameters.get_parameter("pixel_size_type", 0)
-
-                if wavefront_sensor_mode == 1 and pixel_size_type == 1: pixel_size = initialization_parameters.get_parameter("pixel_size_custom", ws.PIXEL_SIZE)
-                else:                                                   pixel_size = ws.PIXEL_SIZE
-
-                absolute_phase_analyzer_configuration = initialization_parameters.get_parameter("absolute_phase_analyzer_configuration")
-                data_analysis_configuration = absolute_phase_analyzer_configuration["data_analysis"]
-
                 self.__absolute_phase_analyzer.process_images(mode=ProcessingMode.BATCH,
-                                                         n_threads=data_analysis_configuration.get("n_cores"),
-                                                         pixel_size=pixel_size,
-                                                         use_dark=initialization_parameters.get_parameter("use_dark", False),
-                                                         use_flat=initialization_parameters.get_parameter("use_flat", False),
-                                                         save_images=initialization_parameters.get_parameter("save_result", True))
+                                                              n_threads=data_analysis_configuration.get("n_cores"),
+                                                              pixel_size=pixel_size,
+                                                              use_dark=initialization_parameters.get_parameter("use_dark", False),
+                                                              use_flat=initialization_parameters.get_parameter("use_flat", False),
+                                                              save_images=initialization_parameters.get_parameter("save_result", True))
             else:
                 raise ValueError(f"Batch Mode: action not recognized {action}")
 

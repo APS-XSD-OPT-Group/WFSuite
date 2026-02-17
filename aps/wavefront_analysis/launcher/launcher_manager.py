@@ -92,13 +92,16 @@ class _LauncherManager(ILauncherManager, Sender):
 
         sys_argv = kwargs.get("sys_argv", [])
 
-        self.__wavefront_sensor_main = MainWavefrontSensor(sys_argv=sys_argv, standalone=False, **kwargs)
-        self.__absolute_phase_main   = MainAbsolutePhase(sys_argv=sys_argv, standalone=False, **kwargs)
-        self.__relative_metrology_main         = MainRelativeMetrology(sys_argv=sys_argv, standalone=False, **kwargs)
+        self.__wavefront_sensor_main   = MainWavefrontSensor(sys_argv=sys_argv, standalone=False, **kwargs)
+        self.__absolute_phase_main     = MainAbsolutePhase(sys_argv=sys_argv, standalone=False, **kwargs)
+        self.__relative_metrology_main = MainRelativeMetrology(sys_argv=sys_argv, standalone=False, **kwargs)
+        self.__wavefront_sensor_main.run_script()
+        self.__absolute_phase_main.run_script()
+        self.__relative_metrology_main.run_script()
 
-        wavefront_sensor_manager  = self.__wavefront_sensor_main.run_script()
-        absolute_phase_manager    = self.__absolute_phase_main.run_script()
-        relative_metrology_manager          = self.__relative_metrology_main.run_script()
+        wavefront_sensor_manager   = self.__wavefront_sensor_main.get_manager()
+        absolute_phase_manager     = self.__absolute_phase_main.get_manager()
+        relative_metrology_manager = self.__relative_metrology_main.get_manager()
 
         sender_signals   = absolute_phase_manager.get_delegated_signals() | \
                            wavefront_sensor_manager.get_delegated_signals() | \
@@ -152,10 +155,10 @@ class _LauncherManager(ILauncherManager, Sender):
         else:
            raise ValueError(f"Batch Mode not possible")
 
-    def open_absolute_phase(self, initialization_parameters: ScriptData, **kwargs):
+    def open_absolute_phase(self, **kwargs):
         self.__absolute_phase_main.activate_manager(**kwargs)
 
-    def open_relative_metrology(self, initialization_parameters: ScriptData, **kwargs):
+    def open_relative_metrology(self, **kwargs):
         self.__relative_metrology_main.activate_manager(**kwargs)
 
     def close(self, initialization_parameters: ScriptData):
