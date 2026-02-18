@@ -1,7 +1,9 @@
-# #########################################################################
-# Copyright (c) 2023, UChicago Argonne, LLC. All rights reserved.         #
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# ----------------------------------------------------------------------- #
+# Copyright (c) 2024, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2023. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2024. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -41,85 +43,17 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN       #
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
-# #########################################################################
+# ----------------------------------------------------------------------- #
 
-import os
+from aps.wf_suite.absolute_phase.facade import IAbsolutePhaseAnalyzer
+from aps.wf_suite.absolute_phase.absolute_phase_analyzer import AbsolutePhaseAnalyzer
 
-try:
-    from setuptools import find_packages, setup
-except AttributeError:
-    from setuptools import find_packages, setup
 
-NAME = 'wf-suite'
-
-VERSION = '1.0.1'
-ISRELEASED = True
-
-DESCRIPTION = 'APS Wavefront Analysis Tools'
-README_FILE = os.path.join(os.path.dirname(__file__), 'README.md')
-LONG_DESCRIPTION = open(README_FILE).read()
-AUTHOR = 'Luca Rebuffi, Xianbo Shi'
-AUTHOR_EMAIL = 'lrebuffi@anl.gov'
-URL = 'https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis'
-DOWNLOAD_URL = 'https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis'
-MAINTAINER = 'XSD-OPT Group @ APS-ANL'
-MAINTAINER_EMAIL = 'lrebuffi@anl.gov'
-LICENSE = 'BSD-3'
-
-KEYWORDS = ['dictionary',
-    'glossary',
-    'synchrotron'
-    'simulation',
-]
-
-CLASSIFIERS = [
-    'Development Status :: 4 - Beta',
-    'Natural Language :: English',
-    'Environment :: Console',
-    'Environment :: Plugins',
-    'Programming Language :: Python :: 3.13',
-    'Topic :: Scientific/Engineering :: Visualization',
-    'Intended Audience :: Science/Research',
-]
-
-INSTALL_REQUIRES = (
-    'aps-common-libraries>=1.0.28',
-    'PyQt6',
-    'PyWavelets',
-    'wofryImpl',
-    'wofrysrw',
-    'srwpy',
-    'cmasher',
-)
-
-PACKAGES = find_packages(exclude=('*.tests', '*.tests.*', 'tests.*', 'tests' ))
-
-PACKAGE_DATA = {
-    "aps.wf_suite.driver.gui" : ["icons/*"],
-}
-
-def setup_package():
-    setup(
-        name=NAME,
-        version=VERSION,
-        description=DESCRIPTION,
-        long_description=LONG_DESCRIPTION,
-        long_description_content_type='text/markdown',
-        author=AUTHOR,
-        author_email=AUTHOR_EMAIL,
-        maintainer=MAINTAINER,
-        maintainer_email=MAINTAINER_EMAIL,
-        url=URL,
-        download_url=DOWNLOAD_URL,
-        license=LICENSE,
-        keywords=KEYWORDS,
-        classifiers=CLASSIFIERS,
-        packages=PACKAGES,
-        package_data=PACKAGE_DATA,
-        zip_safe=False,
-        include_package_data=True,
-        install_requires=INSTALL_REQUIRES,
-    )
-
-if __name__ == '__main__':
-    setup_package()
+def create_absolute_phase_analyzer(data_collection_directory=None,
+                                   file_name_prefix=None,
+                                   simulated_mask_directory=None,
+                                   energy=20000.0) -> IAbsolutePhaseAnalyzer:
+    return AbsolutePhaseAnalyzer(data_collection_directory=data_collection_directory,
+                                 file_name_prefix=file_name_prefix,
+                                 simulated_mask_directory=simulated_mask_directory,
+                                 energy=energy)
