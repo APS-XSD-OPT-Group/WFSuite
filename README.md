@@ -16,7 +16,7 @@ python -m pip install wf-suite
 
 Open the GUI with:
 
-python -m aps.wavefront_analysis Launcher
+python -m aps.wf_suite Launcher
 
 The launcher provides access to:
 

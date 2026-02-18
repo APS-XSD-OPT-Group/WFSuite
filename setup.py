@@ -52,7 +52,7 @@ except AttributeError:
 
 NAME = 'wf-suite'
 
-VERSION = '1.0.1'
+VERSION = '1.0.2'
 ISRELEASED = True
 
 DESCRIPTION = 'APS Wavefront Analysis Tools'
@@ -60,8 +60,8 @@ README_FILE = os.path.join(os.path.dirname(__file__), 'README.md')
 LONG_DESCRIPTION = open(README_FILE).read()
 AUTHOR = 'Luca Rebuffi, Xianbo Shi'
 AUTHOR_EMAIL = 'lrebuffi@anl.gov'
-URL = 'https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis'
-DOWNLOAD_URL = 'https://github.com/APS-XSD-OPT-Group/Wavefront-Analysis'
+URL = 'https://github.com/APS-XSD-OPT-Group/WFSuite'
+DOWNLOAD_URL = 'https://github.com/APS-XSD-OPT-Group/WFSuite'
 MAINTAINER = 'XSD-OPT Group @ APS-ANL'
 MAINTAINER_EMAIL = 'lrebuffi@anl.gov'
 LICENSE = 'BSD-3'
