@@ -77,7 +77,7 @@ CLASSIFIERS = [
     'Natural Language :: English',
     'Environment :: Console',
     'Environment :: Plugins',
-    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.13',
     'Topic :: Scientific/Engineering :: Visualization',
     'Intended Audience :: Science/Research',
 ]
@@ -107,7 +107,7 @@ def setup_package():
         version=VERSION,
         description=DESCRIPTION,
         long_description=LONG_DESCRIPTION,
-        long_description_content_type='text/x-md',
+        long_description_content_type='text/markdown',
         author=AUTHOR,
         author_email=AUTHOR_EMAIL,
         maintainer=MAINTAINER,
