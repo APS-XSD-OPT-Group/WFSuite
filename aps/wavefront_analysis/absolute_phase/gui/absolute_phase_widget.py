@@ -135,7 +135,8 @@ class AbsolutePhaseWidget(GenericWidget):
         absolute_phase_analyzer_configuration = initialization_parameters.get_parameter("absolute_phase_analyzer_configuration")
         data_analysis_configuration = absolute_phase_analyzer_configuration["data_analysis"]
         back_propagation_configuration = absolute_phase_analyzer_configuration["back_propagation"]
-    
+        
+        self.data_directory = data_analysis_configuration["data_directory"]
         self.pattern_size = data_analysis_configuration["pattern_size"]
         self.pattern_thickness = data_analysis_configuration["pattern_thickness"]
         self.pattern_transmission = data_analysis_configuration["pattern_transmission"]
@@ -301,8 +302,8 @@ class AbsolutePhaseWidget(GenericWidget):
         wa_tab_3     = gui.createTabPage(self._wa_tab_widget_2, "Propagation")
         wa_tab_4     = gui.createTabPage(self._wa_tab_widget_2, "Best Focus")
 
-        if sys.platform == 'darwin' : wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=210)
-        else:                         wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=240)
+        if sys.platform == 'darwin' : wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=240)
+        else:                         wa_box_3 = gui.widgetBox(wa_tab_1, "Files", width=self._wa_box.width()-25, height=270)
 
         self._image_directory_box = gui.widgetBox(wa_box_3, "", width=wa_box_3.width() - 20, orientation='horizontal', addSpace=False)
         self._le_image_directory = gui.lineEdit(self._image_directory_box, self, "image_directory", "Image At", orientation='horizontal', valueType=str)
@@ -321,6 +322,12 @@ class AbsolutePhaseWidget(GenericWidget):
         self._simulated_mask_directory_box = gui.widgetBox(wa_box_3, "", width=wa_box_3.width() - 20, orientation='horizontal', addSpace=False)
         self._le_simulated_mask_directory = gui.lineEdit(self._simulated_mask_directory_box, self, "simulated_mask_directory", "Sim. Mask at", orientation='horizontal', valueType=str)
         gui.button(self._simulated_mask_directory_box, self, "...", width=30, callback=self._set_simulated_mask_directory)
+
+        self._data_directory_box = gui.widgetBox(wa_box_3, "", width=wa_box_3.width() - 20, orientation='horizontal', addSpace=False)
+        self._le_data_directory = gui.lineEdit(self._data_directory_box, self, "data_directory", "Input Data at", orientation='horizontal', valueType=str)
+        gui.button(self._data_directory_box, self, "...", width=30, callback=self._set_data_directory)
+        self._le_data_directory.textChanged.connect(emit_synchronize_wavefront_sensor)
+
 
         if sys.platform == 'darwin': wa_box_1 = gui.widgetBox(wa_tab_1, "Mask", width=self._wa_box.width()-25, height=170)
         else:                        wa_box_1 = gui.widgetBox(wa_tab_1, "Mask", width=self._wa_box.width()-25, height=190)
@@ -552,7 +559,7 @@ class AbsolutePhaseWidget(GenericWidget):
         self._out_box     = gui.widgetBox(self, "", width=self.width() - main_box_width - 20, height=self.height() - 20, orientation="vertical")
         self._ws_dir_box  = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=50, orientation="horizontal")
 
-        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Configuration Directory", labelWidth=120, orientation='horizontal', valueType=str)
+        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Configuration Directory", labelWidth=160, orientation='horizontal', valueType=str)
         self.le_working_directory.setReadOnly(True)
         font = QFont(self.le_working_directory.font())
         font.setBold(True)
@@ -767,6 +774,12 @@ class AbsolutePhaseWidget(GenericWidget):
         self._le_ws_index_digits_custom.setEnabled(self.file_name_type == 1)
         self._le_ws_file_name_prefix_custom.setEnabled(self.file_name_type == 1)
 
+    def _set_data_directory(self):
+        self._le_data_directory.setText(
+            gui.selectDirectoryFromDialog(self,
+                                          previous_directory_path=self.data_directory,
+                                          start_directory=self.working_directory))
+
     def _set_image_directory(self):
         self._le_image_directory.setText(
             gui.selectDirectoryFromDialog(self,
@@ -828,6 +841,7 @@ class AbsolutePhaseWidget(GenericWidget):
         data_analysis_configuration      = absolute_phase_analyzer_configuration["data_analysis"]
         back_propagation_configuration   = absolute_phase_analyzer_configuration["back_propagation"]
 
+        data_analysis_configuration["data_directory"] = self.data_directory
         data_analysis_configuration["pattern_size"] = self.pattern_size
         data_analysis_configuration["pattern_thickness"] = self.pattern_thickness
         data_analysis_configuration["pattern_transmission"] = self.pattern_transmission

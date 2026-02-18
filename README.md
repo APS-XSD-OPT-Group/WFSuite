@@ -26,4 +26,4 @@ The launcher provides access to:
 
 · Wavefront Sensor (opens automatically)
 
-Please refer to the user manual in the home directory of this repository for details. 
+Please refer to the [user manual](User-Manual.pdf) in the home directory of this repository for details. 

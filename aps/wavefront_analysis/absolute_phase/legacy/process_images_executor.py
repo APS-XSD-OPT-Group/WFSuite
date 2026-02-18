@@ -49,7 +49,7 @@
     2022/5/11
     by Zhi Qiao
 '''
-import json
+from pathlib import Path
 import copy
 import os
 import sys
@@ -87,7 +87,7 @@ def blockPrint():
 def enablePrint():
     sys.stdout = sys.__stdout__
 
-class pattern_search:
+class PatternSearch:
     '''
         search the pattern position from the image
         find the relative movement, scales, rotation, and blurring effect for detector and coherence
@@ -95,6 +95,7 @@ class pattern_search:
 
     def __init__(self, ini_para=None) -> None:
         if ini_para is None:
+            self.data_directory = os.path.abspath(os.curdir)
             self.p_x = 0.65e-6
             self.pattern_pixel = 4.985e-6
             self.pattern_transmission = 0.613
@@ -115,6 +116,7 @@ class pattern_search:
             self.show_alignFigure = False
             self.det_array = [2160, 2560]
         else:
+            self.data_directory = ini_para["data_directory"]
             self.p_x = ini_para['p_x']
             self.pattern_pixel = ini_para['pattern_size']
             self.pattern_transmission = ini_para['pattern_T']
@@ -136,7 +138,7 @@ class pattern_search:
             self.det_array = ini_para['det_size']
 
     def get_delta(self, energy):
-        file_delta = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Au_delta.npy')
+        file_delta = os.path.join(self.data_directory, 'Au_delta.npy')
         data = np.load(file_delta)
         x_ev = data[:, 0]
         delta_line = data[:, 1]
@@ -774,15 +776,12 @@ def speckle_tracking(ref, img, para_XST, displace_offset):
                          para_XST['crop_boundary'][1]:-para_XST['crop_boundary'][1]]
 
     elif para_XST['method'] in ['SPINNet', 'SPINNetSD']:
-        if para_XST['trained_model_type'] == 'PO':
-            import aps.wavefront_analysis.spinnet.phase_only as spinnet_module
-            spinnet_folder = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__),  "trained_model"))
-        else:
-            import aps.wavefront_analysis.spinnet.phase_and_T as spinnet_module
-            spinnet_folder = os.path.abspath(os.path.join(os.path.dirname(spinnet_module.__file__),  "trained_model"))
+        if para_XST['trained_model_type'] == 'PO': subdir = "phase_only"
+        else:                                      subdir = "phase_and_T"
+        spinnet_folder = os.path.abspath(os.path.join(para_XST['spinnet_folder'], subdir, "trained_model"))
 
         trained_model = os.path.join(spinnet_folder, para_XST['trained_model_folder'], para_XST['trained_model'])
-        setting_path = os.path.join(spinnet_folder, para_XST['trained_model_folder'], para_XST['setting_path'])
+        setting_path  = os.path.join(spinnet_folder, para_XST['trained_model_folder'], para_XST['setting_path'])
 
         device = 'cuda' if para_XST['GPU'] else 'cpu'
 
@@ -1044,6 +1043,7 @@ class ProcessImageResult:
         }
 
 def execute_process_image(**arguments):
+    arguments["data_directory"]        = arguments.get("data_directory", os.path.join(os.path.abspath(os.curdir), "Data"))
     arguments["img"]                   = arguments.get("img", './images/sample_00001.tif') # path to sample image
     arguments["dark"]                  = arguments.get("dark", None) # file path to the dark image
     arguments["flat"]                  = arguments.get("flat", None) # file path to the flat image
@@ -1085,26 +1085,26 @@ def execute_process_image(**arguments):
         The dx_cali/dy_cali should be the same size as the detector array.
     """
 
-    arguments["cali_path"]        = arguments.get("cali_path", None) # if None, will not do the detector/instrumental calibration; otherwise, load the calibration data to correct the systematic error of the WFS or not
-    arguments["mode"]             = arguments.get("mode", 'area') # mode for speckle tracking. area: whole crop area; centralLine: vertical and horizontal central line with a width of parser.lineWidth;
-    arguments["lineWidth"]        = arguments.get("lineWidth", 5) # line width to calculate the speckle tracking in centralLine mode. The unit is pattern size. Means that 5 is actually 5*pattern_size, such as 25um width
-    arguments["down_sampling"]    = arguments.get("down_sampling", 1) # down-sample images to reduce memory cost and accelerate speed.
-    arguments["rebinning"]        = arguments.get("rebinning", 1) # rebin original image and size
-    arguments["crop_boundary"]    = arguments.get("crop_boundary", -1) # crop the differential phase boundary. -1 will use the searching window. 0 means no cropping
-    arguments["method"]           = arguments.get("method", 'WXST') # speckle tracking method. simple: slope-tracking, fast but less accurate; WXST: wavelet speckle tracking.
+    arguments["cali_path"]            = arguments.get("cali_path", None) # if None, will not do the detector/instrumental calibration; otherwise, load the calibration data to correct the systematic error of the WFS or not
+    arguments["mode"]                 = arguments.get("mode", 'area') # mode for speckle tracking. area: whole crop area; centralLine: vertical and horizontal central line with a width of parser.lineWidth;
+    arguments["lineWidth"]            = arguments.get("lineWidth", 5) # line width to calculate the speckle tracking in centralLine mode. The unit is pattern size. Means that 5 is actually 5*pattern_size, such as 25um width
+    arguments["down_sampling"]        = arguments.get("down_sampling", 1) # down-sample images to reduce memory cost and accelerate speed.
+    arguments["rebinning"]            = arguments.get("rebinning", 1) # rebin original image and size
+    arguments["crop_boundary"]        = arguments.get("crop_boundary", -1) # crop the differential phase boundary. -1 will use the searching window. 0 means no cropping
+    arguments["method"]               = arguments.get("method", 'WXST') # speckle tracking method. simple: slope-tracking, fast but less accurate; WXST: wavelet speckle tracking.
     arguments["trained_model_type"]   = arguments.get("trained_model_type",   "Phase-Only")
     arguments["trained_model_folder"] = arguments.get("trained_model_folder", "Result_pxShift_data_10k_T0p2_feature10_fp16_search3_longerTraining")
     arguments["trained_model"]        = arguments.get("trained_model", "training_model_002000.pt")
     arguments["setting_path"]         = arguments.get("setting_path", "setting_002000.json")
-    arguments["GPU"]              = arguments.get("GPU", False) # Use GPU or not. GPU can be 2 times faster. But multi-resolution process is disabled.
-    arguments["use_wavelet"]      = arguments.get("use_wavelet", False) # use wavelet transform or not.
-    arguments["wavelet_lv_cut"]   = arguments.get("wavelet_lv_cut", 2) # wavelet cutting level
-    arguments["pyramid_level"]    = arguments.get("pyramid_level", 1) # pyramid level used for speckle tracking.
-    arguments["n_iter"]           = arguments.get("n_iter", 1) # number of iteration for speckle tracking. 1 is good.
-    arguments["template_size"]    = arguments.get("template_size", 11) # template size in the WXST
-    arguments["window_searching"] = arguments.get("window_searching", 10) # searching window of speckle tracking. Means the largest displacement can be calculated.
-    arguments["nCores"]           = arguments.get("nCores", 1) # number of CPU cores used for calculation.
-    arguments["nGroup"]           = arguments.get("nGroup", 1) # number of groups that parallel calculation is splitted into.
+    arguments["GPU"]                  = arguments.get("GPU", False) # Use GPU or not. GPU can be 2 times faster. But multi-resolution process is disabled.
+    arguments["use_wavelet"]          = arguments.get("use_wavelet", False) # use wavelet transform or not.
+    arguments["wavelet_lv_cut"]       = arguments.get("wavelet_lv_cut", 2) # wavelet cutting level
+    arguments["pyramid_level"]        = arguments.get("pyramid_level", 1) # pyramid level used for speckle tracking.
+    arguments["n_iter"]               = arguments.get("n_iter", 1) # number of iteration for speckle tracking. 1 is good.
+    arguments["template_size"]        = arguments.get("template_size", 11) # template size in the WXST
+    arguments["window_searching"]     = arguments.get("window_searching", 10) # searching window of speckle tracking. Means the largest displacement can be calculated.
+    arguments["nCores"]               = arguments.get("nCores", 1) # number of CPU cores used for calculation.
+    arguments["nGroup"]               = arguments.get("nGroup", 1) # number of groups that parallel calculation is splitted into.
 
     arguments["verbose"]     = arguments.get("verbose", True)
     arguments["save_images"] = arguments.get("save_images", True)
@@ -1127,6 +1127,7 @@ def execute_process_image(**arguments):
     }
 
     para_simulation = {
+        'data_directory' : os.path.join(args.data_directory, "absolute_phase"),
         'p_x': args.p_x,  # detector pixel size
         'pattern_size': args.pattern_size,  # 4.985e-6,       # mask pitch size
         'pattern_T': args.pattern_T,  # mask transmission
@@ -1151,6 +1152,7 @@ def execute_process_image(**arguments):
         'down_sampling': args.down_sampling,  # down-sample to reduce calculation cost, [0~1]
         'crop_boundary': [args.window_searching + args.template_size * int(1 / args.down_sampling), args.window_searching + args.template_size * int(1 / args.down_sampling)] if args.crop_boundary == -1 else [args.crop_boundary, args.crop_boundary],  # crop boundary of dx and dy.
         'method': args.method,  # method to get displacement, simple: slope-tracking, fast,less accurate; WXST
+        'spinnet_folder' : os.path.join(args.data_directory, "spinnet"),
         'trained_model_type'   : args.trained_model_type,
         'trained_model_folder' : args.trained_model_folder,
         'trained_model' : args.trained_model,
@@ -1204,7 +1206,6 @@ def execute_process_image(**arguments):
 
         para_simulation['det_size'] = [int(I_img_raw.shape[0]), int(I_img_raw.shape[1])]
         para_simulation['p_x']      = args.p_x
-
 
     if args.dark is None:
         dark = np.zeros(I_img_raw.shape)
@@ -1291,7 +1292,7 @@ def execute_process_image(**arguments):
     center_shift   = [(crop_edge[0] + crop_edge[1]) // 2 - I_img_raw.shape[0] // 2, (crop_edge[2] + crop_edge[3]) // 2 - I_img_raw.shape[1] // 2]
 
     # to find the pattern from the reference image
-    pattern_find = pattern_search(ini_para=para_simulation)
+    pattern_find = PatternSearch(ini_para=para_simulation)
 
     # -------------------------------- do the re-calculation of source distance -------------------------------------
     if args.d_source_recal and generate_simulated_mask:
@@ -1314,7 +1315,7 @@ def execute_process_image(**arguments):
     print('change source distance to:', para_simulation['d_sv'], para_simulation['d_sh'])
 
     # to find the pattern from the reference image
-    pattern_find = pattern_search(ini_para=para_simulation)
+    pattern_find = PatternSearch(ini_para=para_simulation)
 
     if para_pattern['propagated_pattern'] is None:
         prColor('MESSAGE: pattern image,  ' + para_pattern['pattern_path'],

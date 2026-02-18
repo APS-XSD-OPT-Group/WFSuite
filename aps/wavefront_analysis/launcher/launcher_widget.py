@@ -49,9 +49,6 @@ from aps.common.plot.gui import MessageDialog
 from aps.common.widgets.generic_widget import GenericWidget
 from aps.common.widgets.congruence import *
 
-from pathlib import Path
-from aps.wavefront_analysis.common.gui.util import open_pdf
-
 from AnyQt.QtWidgets import QVBoxLayout
 from AnyQt.QtCore import QRect, Qt
 from AnyQt.QtGui import QFont, QPalette, QColor
@@ -81,7 +78,7 @@ class LauncherWidget(GenericWidget):
         try:    widget_width = kwargs["widget_width"]
         except: widget_width = 320
         try:    widget_height = kwargs["widget_height"]
-        except: widget_height = 330
+        except: widget_height = 280
 
         self.setGeometry(QRect(10,
                                10,
@@ -109,8 +106,8 @@ class LauncherWidget(GenericWidget):
         font_size        = 20
         separator        = 10
         tab_box_width    = self.width() - 23
-        close_box_height = 120
-        main_box_height  = self.height() - close_box_height + 10
+        close_box_height = 60
+        main_box_height  = self.height() - close_box_height
 
         def set_button(button, italic=False, bold=False, color=None):
             font = QFont(button.font())
@@ -125,11 +122,6 @@ class LauncherWidget(GenericWidget):
 
         main_box = gui.widgetBox(self, "", width=self.width(), height=main_box_height, orientation="vertical")
         close_box = gui.widgetBox(self, "", width=self.width(), height=close_box_height, orientation="vertical")
-
-        button = gui.button(close_box, None, "User Manual", callback=self.__open_user_manual_callback, width=button_width + 13, height=button_height)
-        set_button(button, True, False, 'Dark Blue')
-
-        gui.separator(close_box, height=separator)
 
         button = gui.button(close_box, None, "Close Application", callback=self.__close_callback, width=button_width + 13, height=button_height)
         set_button(button, True, True, 'Red')
@@ -149,7 +141,6 @@ class LauncherWidget(GenericWidget):
         button = gui.button(collection_box, None, "Relative Metrology", callback=self.__open_relative_metrology_callback, width=button_width, height=button_height)
         set_button(button)
 
-
     def __open_absolute_phase_callback(self):
         try: self._open_absolute_phase()
         except Exception as e:
@@ -165,11 +156,3 @@ class LauncherWidget(GenericWidget):
     def __close_callback(self):
         if ConfirmDialog.confirmed(self, "Confirm Exit?"):
             self._close(self.__initialization_parameters)
-
-    def __open_user_manual_callback(self):
-        tmp = Path(os.path.dirname(__import__("aps.wavefront_analysis", fromlist=[""]).__file__))
-
-        try: open_pdf(os.path.join(tmp.parents[1], 'User-Manual.pdf'))
-        except Exception as e:
-            MessageDialog.message(self, title="Error", message=str(e.args[0]), type="critical", width=500)
-            if DEBUG_MODE: raise e

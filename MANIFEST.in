@@ -5,9 +5,7 @@ include User-Manual.pdf
 
 recursive-include aps *.py
 recursive-include aps/wavefront_analysis/driver/gui/icons *.png
-recursive-include aps/wavefront_analysis/absolute_phase/legacy *.npy
-recursive-include aps/wavefront_analysis/spinnet/phase_and_T *.json *.pt
-recursive-include aps/wavefront_analysis/spinnet/phase_only *.json *.pt
+
 
 
 

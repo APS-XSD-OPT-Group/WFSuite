@@ -345,7 +345,7 @@ class RelativeMetrologyWidget(GenericWidget):
         self._out_box     = gui.widgetBox(self, "", width=self.width() - main_box_width - 20, height=self.height() - 20, orientation="vertical")
         self._ws_dir_box  = gui.widgetBox(self._out_box, "", width=self._out_box.width(), height=50, orientation="horizontal")
 
-        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Configuration Directory", labelWidth=120, orientation='horizontal', valueType=str)
+        self.le_working_directory = gui.lineEdit(self._ws_dir_box, self, "working_directory", "  Configuration Directory", labelWidth=160, orientation='horizontal', valueType=str)
         self.le_working_directory.setReadOnly(True)
         font = QFont(self.le_working_directory.font())
         font.setBold(True)

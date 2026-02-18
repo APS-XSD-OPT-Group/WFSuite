@@ -51,22 +51,6 @@ from AnyQt.QtWidgets import QDialog, QLabel, QWidget, QPushButton, QHBoxLayout, 
 from AnyQt.QtCore import Qt
 from matplotlib import cm
 
-from pathlib import Path
-import platform
-import subprocess
-import os
-
-def open_pdf(pdf_path: str):
-    path = Path(pdf_path).expanduser().resolve()
-    if not path.exists(): raise FileNotFoundError(f"File not found: {path}")
-    if path.suffix.lower() != ".pdf": raise ValueError(f"Not a PDF file: {path}")
-
-    system = platform.system()
-    if   system == "Darwin":  subprocess.run(["open", str(path)], check=True)
-    elif system == "Windows": os.startfile(str(path))     # type: ignore[attr-defined]
-    elif system == "Linux":   subprocess.run(["xdg-open", str(path)], check=True)
-    else: raise OSError(f"Unsupported OS: {system}")
-
 class ShowWaitDialog(QDialog):
     def __init__(self, title="", text="", width=500, height=80, parent=None, color_string="139, 0, 0"):
         QDialog.__init__(self, parent)

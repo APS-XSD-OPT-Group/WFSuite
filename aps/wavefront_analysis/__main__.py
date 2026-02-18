@@ -22,7 +22,7 @@ if __name__ == "__main__":
         print("* Available scripts:\n" +
               "    1) Main GUI,                   id: Launcher\n"
               "    2) Absolute Phase (batch),     id: Absolute-Phase\n"
-              "    3) Relative Metrology (batch), id: Relative-Metrology\n)"
+              "    3) Relative Metrology (batch), id: Relative-Metrology\n"
               "")
 
     if len(sys.argv) == 1 or sys.argv[1] == "--h":

@@ -59,6 +59,7 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
 
     absolute_phase_analyzer_configuration = {
         "data_analysis" : {
+            "data_directory" : wa.DATA_DIRECTORY,
             "pattern_size" : wa.PATTERN_SIZE,
             "pattern_thickness" : wa.PATTERN_THICKNESS,
             "pattern_transmission" : wa.PATTERN_TRANSMISSION,
@@ -185,6 +186,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     data_analysis_configuration      = absolute_phase_analyzer_configuration["data_analysis"]
     back_propagation_configuration   = absolute_phase_analyzer_configuration["back_propagation"]
 
+    wa.DATA_DIRECTORY = data_analysis_configuration["data_directory"]
     wa.PATTERN_SIZE = data_analysis_configuration["pattern_size"]
     wa.PATTERN_THICKNESS = data_analysis_configuration["pattern_thickness"]
     wa.PATTERN_TRANSMISSION = data_analysis_configuration["pattern_transmission"]

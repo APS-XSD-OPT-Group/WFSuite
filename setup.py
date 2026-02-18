@@ -96,9 +96,6 @@ PACKAGES = find_packages(exclude=('*.tests', '*.tests.*', 'tests.*', 'tests' ))
 
 PACKAGE_DATA = {
     "aps.wavefront_analysis.driver.gui" : ["icons/*"],
-    "aps.wavefront_analysis.absolute_phase.legacy" : ["*.npy", "mask/*.npy"],
-    "aps.wavefront_analysis.spinnet.phase_and_T" : ["trained_model/*"],
-    "aps.wavefront_analysis.spinnet.phase_only" : ["trained_model/*"],
 }
 
 def setup_package():

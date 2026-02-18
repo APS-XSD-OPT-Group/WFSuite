@@ -50,7 +50,7 @@ import random
 import time
 import pathlib
 from threading import Thread
-
+from pathlib import Path
 import numpy as np
 import json
 
@@ -69,6 +69,10 @@ register_ini_instance(IniMode.LOCAL_JSON_FILE,
                       application_name=APPLICATION_NAME,
                       verbose=False)
 ini_file = get_registered_ini_instance(APPLICATION_NAME)
+
+data_directory = os.path.join(Path(os.path.dirname(__import__("aps.wavefront_analysis", fromlist=[""]).__file__)).parents[1], "Data")
+
+DATA_DIRECTORY        = ini_file.get_string_from_ini( section="General", key="Data-Directory",    default=data_directory)
 
 PATTERN_SIZE          = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Size",         default=4.942e-6)
 PATTERN_THICKNESS     = ini_file.get_float_from_ini(  section="Mask", key="Pattern-Thickness",    default=1.5e-6)
@@ -162,6 +166,8 @@ SHOW_ALIGN_FIGURE     = ini_file.get_boolean_from_ini(section="Output", key="Sho
 CORRECT_SCALE         = ini_file.get_boolean_from_ini(section="Output", key="Correct-Scale",         default=False)
 
 def store():
+    ini_file.set_value_at_ini(section="General", key="Data-Directory", value=DATA_DIRECTORY)
+
     ini_file.set_value_at_ini(section="Mask", key="Pattern-Size",         value=PATTERN_SIZE)
     ini_file.set_value_at_ini(section="Mask", key="Pattern-Thickness",    value=PATTERN_THICKNESS)
     ini_file.set_value_at_ini(section="Mask", key="Pattern-Transmission", value=PATTERN_TRANSMISSION)
@@ -411,12 +417,14 @@ class ProcessingThread(Thread):
 from aps.wavefront_analysis.driver.wavefront_sensor import get_image_file_path
 
 def _process_image(data_collection_directory, file_name_prefix, mask_directory, energy, image_index, **kwargs):
+    data_directory = DATA_DIRECTORY
+
     index_digits    = kwargs.get("index_digits", None)
     verbose         = kwargs.get("verbose", False)
     image_file_name = kwargs.get("image_file_name", get_image_file_path(measurement_directory=data_collection_directory,
-                                                                        file_name_prefix=file_name_prefix,
-                                                                        image_index=image_index,
-                                                                        index_digits=index_digits))
+                                                                             file_name_prefix=file_name_prefix,
+                                                                             image_index=image_index,
+                                                                             index_digits=index_digits))
     image_data      = kwargs.get("image_data", None)
 
     use_flat = kwargs.get("use_flat")
@@ -428,8 +436,10 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
     result_folder  = os.path.join(os.path.dirname(image_file_name),
                                   os.path.basename(image_file_name).split(pathlib.Path(image_file_name).suffix)[0])
 
+
+
     # pattern simulation parameters
-    pattern_path          = os.path.join(os.path.dirname(__import__("aps.wavefront_analysis.absolute_phase.legacy", fromlist=[""]).__file__), 'mask', RAN_MASK)
+    pattern_path          = os.path.join(data_directory, 'absolute_phase', 'mask', RAN_MASK)
     propagated_pattern    = os.path.join(mask_directory, 'propagated_pattern.npz')
     propagated_patternDet = os.path.join(mask_directory, 'propagated_patternDet.npz')
     saving_path           = mask_directory
@@ -446,6 +456,7 @@ def _process_image(data_collection_directory, file_name_prefix, mask_directory, 
                                  dark=dark,
                                  flat=flat,
                                  result_folder=result_folder,
+                                 data_directory=data_directory,
                                  pattern_path=pattern_path,
                                  propagated_pattern=propagated_pattern,
                                  propagated_patternDet=propagated_patternDet,

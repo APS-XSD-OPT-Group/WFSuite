@@ -107,14 +107,13 @@ class MainAbsolutePhase(GenericQTScript):
         elif "-a" == sys_argument[:2]: args["ACTION"]   = sys_argument[2:]
 
     def _help_additional_parameters(self):
-        help = "  -m<use multiple loggers>\n"
+        help  = "  -m<use multiple loggers>\n"
         help += "   use multiple loggers:\n" + \
                 "     0 on GUI only - Default value\n" + \
                 "     1 on GUI and on File\n" + \
                 "     2 on stdout - Default value when p=2,3\n" + \
                 "     3 on stdout and on File\n"
-        help += "-a<action>\n>"
-        help += "   batch mode only:\n" + \
+        help += "   -a<action> (batch mode only)\n" + \
                 "     PIS: process images from a directory\n"
 
         return help
