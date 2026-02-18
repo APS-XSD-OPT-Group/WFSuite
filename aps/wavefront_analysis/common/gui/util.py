@@ -51,6 +51,22 @@ from AnyQt.QtWidgets import QDialog, QLabel, QWidget, QPushButton, QHBoxLayout, 
 from AnyQt.QtCore import Qt
 from matplotlib import cm
 
+from pathlib import Path
+import platform
+import subprocess
+import os
+
+def open_pdf(pdf_path: str):
+    path = Path(pdf_path).expanduser().resolve()
+    if not path.exists(): raise FileNotFoundError(f"File not found: {path}")
+    if path.suffix.lower() != ".pdf": raise ValueError(f"Not a PDF file: {path}")
+
+    system = platform.system()
+    if   system == "Darwin":  subprocess.run(["open", str(path)], check=True)
+    elif system == "Windows": os.startfile(str(path))     # type: ignore[attr-defined]
+    elif system == "Linux":   subprocess.run(["xdg-open", str(path)], check=True)
+    else: raise OSError(f"Unsupported OS: {system}")
+
 class ShowWaitDialog(QDialog):
     def __init__(self, title="", text="", width=500, height=80, parent=None, color_string="139, 0, 0"):
         QDialog.__init__(self, parent)
@@ -98,8 +114,8 @@ def plot_2D(fig, image, label, p_x, extent_data=None):
     im = fig.gca().imshow(image, interpolation='bilinear', extent=extent_data)
     if sys.platform == 'darwin':  fig.gca().set_position([-0.175, 0.15, 1.0, 0.8])
     else:                         fig.gca().set_position([0.1, 0.15, 0.8, 0.8])
-    fig.gca().set_xlabel('x ($\mu$m)', fontsize=22)
-    fig.gca().set_ylabel('y ($\mu$m)', fontsize=22)
+    fig.gca().set_xlabel('x ($\\mu$m)', fontsize=22)
+    fig.gca().set_ylabel('y ($\\mu$m)', fontsize=22)
     cbar = fig.colorbar(mappable=im, ax=fig.gca())
     cbar.set_label(label, rotation=90, fontsize=20)
     fig.gca().set_aspect('equal')
@@ -111,10 +127,10 @@ def plot_1D(fig, line_x, line_y, label, p_x, coords=None):
     fig.clear()
     axes = fig.subplots(nrows=1, ncols=2, sharex=False, sharey=False)
     axes[0].plot(coords[0], line_x, 'k')
-    axes[0].set_xlabel('x ($\mu$m)', fontsize=22)
+    axes[0].set_xlabel('x ($\\mu$m)', fontsize=22)
     axes[0].set_ylabel(label, fontsize=22)
     axes[1].plot(coords[1], line_y, 'k')
-    axes[1].set_xlabel('y ($\mu$m)', fontsize=22)
+    axes[1].set_xlabel('y ($\\mu$m)', fontsize=22)
     axes[1].set_ylabel(label, fontsize=22)
     fig.tight_layout()
 

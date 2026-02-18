@@ -83,7 +83,8 @@ CLASSIFIERS = [
 ]
 
 INSTALL_REQUIRES = (
-    'aps-common-libraries>=1.0.24',
+    'aps-common-libraries>=1.0.28',
+    'PyQt6',
     'PyWavelets',
     'wofryImpl',
     'wofrysrw',
@@ -91,7 +92,7 @@ INSTALL_REQUIRES = (
     'cmasher',
 )
 
-PACKAGES = find_packages(exclude=('*.tests', '*.tests.*', 'tests.*', 'tests'))
+PACKAGES = find_packages(exclude=('*.tests', '*.tests.*', 'tests.*', 'tests' ))
 
 PACKAGE_DATA = {
     "aps.wavefront_analysis.driver.gui" : ["icons/*"],
