@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wf-suite"
-version = "1.0.9"
+version = "1.0.11"
 description = "APS Wavefront Analysis Tools"
 readme = "README.md"
 license = "BSD-3-Clause"
@@ -31,14 +31,14 @@ classifiers = [
     "Intended Audience :: Science/Research",
 ]
 dependencies = [
-    "aps-common-libraries>=1.0.49",
+    "aps-common-libraries>=1.0.63",
     "PyQt6",
     "PyWavelets",
     "wofryImpl",
     "wofrysrw",
     "srwpy",
     "cmasher",
-    "torch>=2.7.0",
+    "torch==2.10.0",
 ]
 
 [project.urls]
