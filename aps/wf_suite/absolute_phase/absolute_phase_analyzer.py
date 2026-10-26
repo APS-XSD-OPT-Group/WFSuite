@@ -188,6 +188,8 @@ BEST_FOCUS_FROM         = ini_file.get_string_from_ini( section="Back-Propagatio
 BEST_FOCUS_SCAN_RANGE   = ini_file.get_list_from_ini(   section="Back-Propagation", key="2D, Best-Focus-Scan-Range",   default=[-0.001, 0.001, 0.0001], _type=float)
 BEST_FOCUS_SCAN_RANGE_V = ini_file.get_list_from_ini(   section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V", default=[-0.001, 0.001, 0.0001], _type=float)
 BEST_FOCUS_SCAN_RANGE_H = ini_file.get_list_from_ini(   section="Back-Propagation", key="1D, Best-Focus-Scan-Range-H", default=[-0.001, 0.001, 0.0001], _type=float)
+# [APERTURE SHAPE] (ADDED) 2D back-propagation aperture: "rectangular" (default), "circular", or "elliptical"
+APERTURE_SHAPE          = ini_file.get_string_from_ini( section="Back-Propagation", key="Aperture-Shape",                default="rectangular")
 
 SHOW_ALIGN_FIGURE     = ini_file.get_boolean_from_ini(section="Output", key="Show-Align-Figure",     default=False)
 CORRECT_SCALE         = ini_file.get_boolean_from_ini(section="Output", key="Correct-Scale",         default=False)
@@ -274,6 +276,8 @@ def store():
     ini_file.set_list_at_ini( section="Back-Propagation", key="2D, Best-Focus-Scan-Range",      values_list=BEST_FOCUS_SCAN_RANGE)
     ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V",    values_list=BEST_FOCUS_SCAN_RANGE_V)
     ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-H",    values_list=BEST_FOCUS_SCAN_RANGE_H)
+    # [APERTURE SHAPE] (ADDED)
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Aperture-Shape",             value=APERTURE_SHAPE)
 
     ini_file.set_value_at_ini(section="Reconstruction", key="Dark",           value=DARK)
     ini_file.set_value_at_ini(section="Reconstruction", key="Flat",           value=FLAT)
@@ -841,6 +845,7 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_d
                                     dim_y                  = kwargs.get("crop_v", CROP_V),
                                     shift_x                = kwargs.get("crop_shift_h", CROP_SHIFT_H),
                                     shift_y                = kwargs.get("crop_shift_v", CROP_SHIFT_V),
+                                    aperture_shape         = kwargs.get("aperture_shape", APERTURE_SHAPE),
                                     delta_f_x              = kwargs.get("delta_f_h", DELTA_F_H.get(METHOD, 0.0)),
                                     delta_f_y              = kwargs.get("delta_f_v", DELTA_F_V.get(METHOD, 0.0)),
                                     engine                 = kwargs.get("engine", ENGINE),
