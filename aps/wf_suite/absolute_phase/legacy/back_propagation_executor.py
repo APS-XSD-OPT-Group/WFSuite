@@ -521,6 +521,9 @@ def execute_back_propagation(**arguments) -> dict:
     arguments["dim_y"]                  = arguments.get("dim_y", 500) # crop region
     arguments["shift_x"]                = arguments.get("shift_x", 0) # crop central point
     arguments["shift_y"]                = arguments.get("shift_y", 0) # crop central point
+    # [APERTURE SHAPE] (ADDED) optional circular/elliptical aperture applied to the
+    # 2D cropped wavefront. "rectangular" (default) preserves the original behavior.
+    arguments["aperture_shape"]         = arguments.get("aperture_shape", "rectangular") # rectangular, circular, elliptical
     arguments["delta_f_x"]              = arguments.get("delta_f_x", 0.0) # Define the focal length changes in x and y directions (in meters)
     arguments["delta_f_y"]              = arguments.get("delta_f_y", 0.0)
     arguments["x_rms_range"]            = arguments.get("x_rms_range", [-2e-6, 2e-6])
@@ -635,7 +638,32 @@ def execute_back_propagation(**arguments) -> dict:
         phase     = phase[start_x:end_x, start_y:end_y]
         x_array   = x_array[start_x:end_x]
         y_array   = y_array[start_y:end_y]
-    
+
+        # [APERTURE SHAPE] (ADDED) optionally mask the cropped wavefront with a circle
+        # inscribed in the physical crop, or an ellipse using the full physical X/Y
+        # semi-axes. Rebinning and rectangular cropping already happened above, so
+        # x_array/y_array, the crop dimensions and the mask stay consistent. We mask
+        # intensity so that sqrt(intensity) -> amplitude is zero outside the aperture;
+        # the phase there is irrelevant because the complex amplitude is zero.
+        aperture_shape = args.aperture_shape.lower()
+        if aperture_shape not in ("rectangular", "circular", "elliptical"):
+            raise ValueError("aperture_shape must be rectangular, circular, or elliptical")
+
+        if aperture_shape != "rectangular":
+            x_center = 0.5 * (x_array[0] + x_array[-1])
+            y_center = 0.5 * (y_array[0] + y_array[-1])
+
+            radius_x = 0.5 * abs(x_array[-1] - x_array[0])
+            radius_y = 0.5 * abs(y_array[-1] - y_array[0])
+
+            if aperture_shape == "circular":
+                radius_x = radius_y = min(radius_x, radius_y)
+
+            XX, YY = np.meshgrid(x_array - x_center, y_array - y_center, indexing="ij")
+
+            aperture  = (XX / radius_x) ** 2 + (YY / radius_y) ** 2 <= 1.0
+            intensity = intensity * aperture
+
         # Calculate the amplitude from the square root of A
         amplitude = np.sqrt(intensity)
         # Construct the complex wavefront

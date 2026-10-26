@@ -401,6 +401,11 @@ def execute_process_images_WSVT(**arguments):
     # ===================== Step 3-5: Generate or load simulated reference stack =====================
     # Determine whether we need to generate the simulated mask and reference stack
     # Check both if path is None AND if the file actually exists on disk
+    # Cache policy: if the simulated files already exist on disk, reuse them and
+    # just run the WSVT solver -- regardless of d_source_recal. Source-distance
+    # recalculation only runs when the files must be generated from scratch
+    # (i.e. one of them is missing). To force a recalculation, delete the cached
+    # npz files so this generation path is taken again.
     generate_simulated_mask = (args.propagated_pattern is None or not os.path.exists(args.propagated_pattern) or
                                args.propagated_patternDet is None or not os.path.exists(args.propagated_patternDet))
     generate_ref_stack = args.simulated_ref_stack is None or not os.path.exists(args.simulated_ref_stack)
@@ -740,6 +745,8 @@ def execute_process_images_WSVT(**arguments):
                  sign_y=args.sign_y,
                  d_sv=para_simulation['d_sv'],
                  d_sh=para_simulation['d_sh'],
+                 d_sv_ini=para_simulation['d_sv_ini'],
+                 d_sh_ini=para_simulation['d_sh_ini'],
                  d_prop=para_simulation['d_prop'],
                  mag_x=mag_h,
                  mag_y=mag_v,
@@ -783,6 +790,25 @@ def execute_process_images_WSVT(**arguments):
             sign_detection_info['sign_x'] = args.sign_x
             sign_detection_info['sign_y'] = args.sign_y
             sign_detection_info['auto_sign'] = False  # sign is fixed by the saved stack
+
+        # [SOURCE-DISTANCE RECALCULATION FIX] (ADDED) Restore the source distances the
+        # cached reference stack was generated with. This must happen before any scan-
+        # position magnification is recomputed or reported so the loaded geometry stays
+        # self-consistent. Older caches without these keys fall back to the current values.
+        if 'd_sv' in data_content.files:
+            para_simulation['d_sv'] = float(data_content['d_sv'])
+            para_simulation['d_sh'] = float(data_content['d_sh'])
+            para_simulation['d_sv_ini'] = (float(data_content['d_sv_ini'])
+                                           if 'd_sv_ini' in data_content.files
+                                           else para_simulation['d_sv'])
+            para_simulation['d_sh_ini'] = (float(data_content['d_sh_ini'])
+                                           if 'd_sh_ini' in data_content.files
+                                           else para_simulation['d_sh'])
+            prColor('  Loaded source distance from reference stack: d_sv={}, d_sh={}'.format(
+                para_simulation['d_sv'], para_simulation['d_sh']), 'green')
+        else:
+            para_simulation['d_sv_ini'] = para_simulation.get('d_sv_ini', para_simulation['d_sv'])
+            para_simulation['d_sh_ini'] = para_simulation.get('d_sh_ini', para_simulation['d_sh'])
 
         prColor('Loaded reference stack: {} images, shape {}'.format(
             ref_stack.shape[0], ref_stack.shape[1:]), 'green')
@@ -954,6 +980,12 @@ def execute_process_images_WSVT(**arguments):
                    'avg_radius_y':   float(avg_radius_y),
                    'x_scaling':      float(x_scaling),
                    'y_scaling':      float(y_scaling),
+                   # [SOURCE-DISTANCE RECALCULATION FIX] (ADDED) provenance of the
+                   # requested (initial) and actually-used V/H source distances.
+                   'source_distance_v_initial': float(para_simulation['d_sv_ini']),
+                   'source_distance_h_initial': float(para_simulation['d_sh_ini']),
+                   'source_distance_v_used':    float(para_simulation['d_sv']),
+                   'source_distance_h_used':    float(para_simulation['d_sh']),
                    # [MASK EXPOSURE MODEL] (ADDED) chosen fabrication exposure model/bias
                    'exposure_model': (mask_exposure_info or {}).get('model'),
                    'exposure_bias':  (mask_exposure_info or {}).get('bias'),

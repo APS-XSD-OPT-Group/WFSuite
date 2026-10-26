@@ -971,49 +971,56 @@ def do_recal_d_source(I_img_raw, I_img, para_pattern, pattern_find, image_transf
     para_XST_simple['method']        = 'simple'
     para_XST_simple['down_sampling'] = 0.5
 
-    if para_pattern['propagated_pattern'] is None:
-        prColor('MESSAGE: pattern image,  ' + para_pattern['pattern_path'], 'green')
-        I_pattern = np.load(para_pattern['pattern_path']).astype(np.float32)
+    # [SOURCE-DISTANCE RECALCULATION FIX] (CHANGED) The guards
+    #     if para_pattern['propagated_pattern'] is None:  ... I_coh = ...
+    #     if para_pattern['propagated_patternDet'] is None: ... I_simu_whole = ...
+    # were removed. In WSVT (and single-shot cache) use these path arguments are
+    # non-null OUTPUT filenames even before the files exist, so the guards were
+    # never entered and I_coh / I_simu_whole stayed undefined. That broke the
+    # geometric estimate (pattern_find.d_source_est never set) and raised
+    # UnboundLocalError for simple_speckle. The recalculation must always rebuild
+    # these arrays from the supplied starting V/H distances.
+    prColor('MESSAGE: pattern image,  ' + para_pattern['pattern_path'], 'green')
+    I_pattern = np.load(para_pattern['pattern_path']).astype(np.float32)
 
-        # propagate the pattern to the detector
-        prColor('generating simulated pattern...', 'cyan')
-        # [MASK EXPOSURE MODEL] (CHANGED) the original two lines below were:
-        #     I_pattern = (1 - I_pattern)
-        #     I_coh, _, _ = pattern_find.pattern_prop(I_pattern)
-        # The source-distance recalculation now uses the SAME reference pattern
-        # (and therefore the same exposure model/bias) as the main matching path,
-        # so d_source_recal is consistent with the biased mask. With the default
-        # (exposure_model=None) this reproduces the original behavior exactly.
-        # I_pattern here is the raw mask (absorbing feature = 1, BEFORE inversion).
-        # para_pattern carries the exposure_* settings; .get(...) keeps this
-        # backward-compatible if an older para_pattern dict lacks those keys.
-        I_coh, _, _, _ = generate_reference_pattern(
-            pattern_find, I_pattern, I_measured=I_img_raw,
-            exposure_model=para_pattern.get('exposure_model'),
-            exposure_bias=para_pattern.get('exposure_bias'),
-            corner_sigma=para_pattern.get('exposure_corner_sigma', 0.25),
-            supersample=para_pattern.get('exposure_supersample', 8),
-            estimate=para_pattern.get('exposure_estimate', 'match_quality'),
-            bias_grid=para_pattern.get('exposure_bias_grid'),
-            img_transfer=image_transfer_matrix,
-            result_folder=result_folder)
+    # propagate the pattern to the detector
+    prColor('generating simulated pattern...', 'cyan')
+    # [MASK EXPOSURE MODEL] (CHANGED) the original two lines below were:
+    #     I_pattern = (1 - I_pattern)
+    #     I_coh, _, _ = pattern_find.pattern_prop(I_pattern)
+    # The source-distance recalculation now uses the SAME reference pattern
+    # (and therefore the same exposure model/bias) as the main matching path,
+    # so d_source_recal is consistent with the biased mask. With the default
+    # (exposure_model=None) this reproduces the original behavior exactly.
+    # I_pattern here is the raw mask (absorbing feature = 1, BEFORE inversion).
+    # para_pattern carries the exposure_* settings; .get(...) keeps this
+    # backward-compatible if an older para_pattern dict lacks those keys.
+    I_coh, _, _, _ = generate_reference_pattern(
+        pattern_find, I_pattern, I_measured=I_img_raw,
+        exposure_model=para_pattern.get('exposure_model'),
+        exposure_bias=para_pattern.get('exposure_bias'),
+        corner_sigma=para_pattern.get('exposure_corner_sigma', 0.25),
+        supersample=para_pattern.get('exposure_supersample', 8),
+        estimate=para_pattern.get('exposure_estimate', 'match_quality'),
+        bias_grid=para_pattern.get('exposure_bias_grid'),
+        img_transfer=image_transfer_matrix,
+        result_folder=result_folder)
 
-    if para_pattern['propagated_patternDet'] is None:
-        # use central part of the raw image to generate the simulated detector reference image
-        ##XSHI use cropped center and size to determine the central part of the image for pattern search.
-        central_halfsize = 256
-        center_shift = [(crop_edge[0] + crop_edge[1]) // 2 - I_img_raw.shape[0] // 2, (crop_edge[2] + crop_edge[3]) // 2 - I_img_raw.shape[1] // 2]
-        center_crop = lambda img: img[
-                                  max(0, min(img.shape[0], crop_edge[0] if (crop_edge[1] - crop_edge[0]) <= 2 * central_halfsize else int((crop_edge[0] + crop_edge[1]) / 2 - central_halfsize))):
-                                  max(0, min(img.shape[0], crop_edge[1] if (crop_edge[1] - crop_edge[0]) <= 2 * central_halfsize else int((crop_edge[0] + crop_edge[1]) / 2 + central_halfsize))),
-                                  max(0, min(img.shape[1], crop_edge[2] if (crop_edge[3] - crop_edge[2]) <= 2 * central_halfsize else int((crop_edge[2] + crop_edge[3]) / 2 - central_halfsize))):
-                                  max(0, min(img.shape[1], crop_edge[3] if (crop_edge[3] - crop_edge[2]) <= 2 * central_halfsize else int((crop_edge[2] + crop_edge[3]) / 2 + central_halfsize)))
-                                  ]
-        I_img_central = center_crop(I_img_raw)
+    # use central part of the raw image to generate the simulated detector reference image
+    ##XSHI use cropped center and size to determine the central part of the image for pattern search.
+    central_halfsize = 256
+    center_shift = [(crop_edge[0] + crop_edge[1]) // 2 - I_img_raw.shape[0] // 2, (crop_edge[2] + crop_edge[3]) // 2 - I_img_raw.shape[1] // 2]
+    center_crop = lambda img: img[
+                              max(0, min(img.shape[0], crop_edge[0] if (crop_edge[1] - crop_edge[0]) <= 2 * central_halfsize else int((crop_edge[0] + crop_edge[1]) / 2 - central_halfsize))):
+                              max(0, min(img.shape[0], crop_edge[1] if (crop_edge[1] - crop_edge[0]) <= 2 * central_halfsize else int((crop_edge[0] + crop_edge[1]) / 2 + central_halfsize))),
+                              max(0, min(img.shape[1], crop_edge[2] if (crop_edge[3] - crop_edge[2]) <= 2 * central_halfsize else int((crop_edge[2] + crop_edge[3]) / 2 - central_halfsize))):
+                              max(0, min(img.shape[1], crop_edge[3] if (crop_edge[3] - crop_edge[2]) <= 2 * central_halfsize else int((crop_edge[2] + crop_edge[3]) / 2 + central_halfsize)))
+                              ]
+    I_img_central = center_crop(I_img_raw)
 
-        if image_transfer_matrix is None: image_transfer_matrix = pattern_find.img_transfer_search(I_img_central, I_coh, result_folder)
+    if image_transfer_matrix is None: image_transfer_matrix = pattern_find.img_transfer_search(I_img_central, I_coh, result_folder)
 
-        I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh, image_transfer_matrix, center_shift)
+    I_simu_whole, displace_x_offset, displace_y_offset = pattern_find.pattern_search(I_img_central, I_coh, image_transfer_matrix, center_shift)
 
     if method == 'geometric':
         d_source_v, d_source_h = pattern_find.d_source_est
