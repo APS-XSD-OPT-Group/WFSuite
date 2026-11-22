@@ -173,7 +173,15 @@ def execute_process_images_WSVT(**arguments):
     arguments["n_scan"]                = arguments.get("n_scan", 51)               # number of scan positions to use
     arguments["sign_x"]                = arguments.get("sign_x", 1)                # sign convention for x: +1 or -1
     arguments["sign_y"]                = arguments.get("sign_y", 1)                # sign convention for y: +1 or -1
-    arguments["auto_sign"]             = arguments.get("auto_sign", True)           # auto-detect sign_x/sign_y from first two images
+    arguments["auto_sign"]             = arguments.get("auto_sign", True)           # auto-detect sign_x/sign_y
+    # [ROBUST SIGN DETECTION] method for auto_sign:
+    #   'max_separation' (default): per-axis, use the image pair with the largest scan
+    #       separation (within a cap, see sign_max_shift_frac) for a reliable direction.
+    #   'first_two': legacy behavior, always use images 0 and 1.
+    arguments["sign_method"]           = arguments.get("sign_method", "max_separation")
+    # Cap on the expected pair shift as a fraction of the crop size, so the cross-
+    # correlation stays reliable (avoids near-non-overlapping extreme frames).
+    arguments["sign_max_shift_frac"]   = arguments.get("sign_max_shift_frac", 0.20)
     arguments["position_units"]        = arguments.get("position_units", "mm")     # units of positions in JSON: "mm" or "m"
 
     # Optics parameters
@@ -219,6 +227,9 @@ def execute_process_images_WSVT(**arguments):
     arguments["flat"]                  = arguments.get("flat", None)
     arguments["rebinning"]             = arguments.get("rebinning", 1)
     arguments["lineWidth"]             = arguments.get("lineWidth", 5)  # line width for 1D profiles, in units of pattern_size
+    # [WSVT CENTRALLINE] (ADDED) reconstruction mode: 'area' (full 2D, default) or
+    # 'centralLine' (fast 1D: solve only two thin central strips, average over lineWidth).
+    arguments["mode"]                  = arguments.get("mode", 'area')
 
     # WSVT solver parameters
     arguments["cal_half_window"]       = arguments.get("cal_half_window", 20)
@@ -401,6 +412,11 @@ def execute_process_images_WSVT(**arguments):
     # ===================== Step 3-5: Generate or load simulated reference stack =====================
     # Determine whether we need to generate the simulated mask and reference stack
     # Check both if path is None AND if the file actually exists on disk
+    # Cache policy: if the simulated files already exist on disk, reuse them and
+    # just run the WSVT solver -- regardless of d_source_recal. Source-distance
+    # recalculation only runs when the files must be generated from scratch
+    # (i.e. one of them is missing). To force a recalculation, delete the cached
+    # npz files so this generation path is taken again.
     generate_simulated_mask = (args.propagated_pattern is None or not os.path.exists(args.propagated_pattern) or
                                args.propagated_patternDet is None or not os.path.exists(args.propagated_patternDet))
     generate_ref_stack = args.simulated_ref_stack is None or not os.path.exists(args.simulated_ref_stack)
@@ -596,58 +612,123 @@ def execute_process_images_WSVT(**arguments):
         # ===================== Step 4b (Modification 1+3): auto-detect sign convention =====================
         # Performed here (not at load time) so it uses flat/dark-corrected images and the
         # projected (magnified) expected scan shift.
+        #
+        # [ROBUST SIGN DETECTION] (CHANGED) Default method 'max_separation' determines
+        # each axis's sign independently from the image PAIR with the LARGEST scan
+        # separation in that axis (so a reliable, multi-pixel shift is measured even when
+        # consecutive scan points are sub-pixel apart). A 20% (sign_max_shift_frac) cap on
+        # the expected pair shift vs crop size keeps the cross-correlation reliable: among
+        # all pairs, the one with the largest separation whose expected shift stays under
+        # the cap is chosen. Only the first n_scan positions/images are considered. The
+        # legacy 'first_two' method (images 0 and 1) is kept as a fallback.
         if args.auto_sign and n_scan >= 2:
-            prColor('Auto-detecting sign convention from first two (flat/dark-corrected) images...', 'cyan')
             from skimage.registration import phase_cross_correlation
 
-            # Flat/dark-corrected, cropped first two frames, cleaned so that NaN/inf, dead or hot
-            # pixels do not corrupt the FFT-based shift estimate (Modification 3).
-            img0_corr = boundary_crop((img_stack[0] - dark) / (flat - dark))
-            img1_corr = boundary_crop((img_stack[1] - dark) / (flat - dark))
             bg_size = max(3, int(round(10 * para_simulation['pattern_size'] / para_simulation['p_x'])))
-            a0 = _prep_for_xcorr(img0_corr, smooth_bg=bg_size)
-            a1 = _prep_for_xcorr(img1_corr, smooth_bg=bg_size)
 
-            # Measure actual pixel shift between (cleaned) image 0 and image 1
-            try:
-                measured_shift, _, _ = phase_cross_correlation(
-                    a0, a1, upsample_factor=10, normalization=None)
-            except TypeError:
-                measured_shift, _, _ = phase_cross_correlation(
-                    a0, a1, upsample_factor=10)
+            # Cropped field size (pixels): width = X/cols, height = Y/rows.
+            crop_h_px = int(crop_edge[1] - crop_edge[0])   # Y extent (rows)
+            crop_w_px = int(crop_edge[3] - crop_edge[2])   # X extent (cols)
+            max_shift_x = args.sign_max_shift_frac * crop_w_px
+            max_shift_y = args.sign_max_shift_frac * crop_h_px
 
-            # measured_shift is [row_shift, col_shift] = [dy, dx] (image 1 relative to image 0)
-            measured_dy = float(measured_shift[0])
-            measured_dx = float(measured_shift[1])
+            # Cache for cleaned, flat/dark-corrected, cropped frames (avoid re-computing)
+            _xcorr_cache = {}
+            def _get_frame(idx):
+                if idx not in _xcorr_cache:
+                    corr = boundary_crop((img_stack[idx] - dark) / (flat - dark))
+                    _xcorr_cache[idx] = _prep_for_xcorr(corr, smooth_bg=bg_size)
+                return _xcorr_cache[idx]
 
-            # Expected shift from scan positions, projected to the detector plane (in pixels)
-            expected_dx_px = float((x_positions_m[1] - x_positions_m[0]) * mag_h / para_simulation['p_x'])
-            expected_dy_px = float((y_positions_m[1] - y_positions_m[0]) * mag_v / para_simulation['p_x'])
+            def _measured_shift(i, j):
+                # returns (dy, dx) of frame j relative to frame i, in detector pixels
+                ai = _get_frame(i)
+                aj = _get_frame(j)
+                try:
+                    ms, _, _ = phase_cross_correlation(ai, aj, upsample_factor=10, normalization=None)
+                except TypeError:
+                    ms, _, _ = phase_cross_correlation(ai, aj, upsample_factor=10)
+                return float(ms[0]), float(ms[1])
 
-            sign_detection_info['measured_dx_px'] = measured_dx
-            sign_detection_info['measured_dy_px'] = measured_dy
-            sign_detection_info['expected_dx_px'] = expected_dx_px
-            sign_detection_info['expected_dy_px'] = expected_dy_px
+            # Only consider the first n_scan positions (parameter file may have more points).
+            pos_x = np.asarray(x_positions_m[:n_scan], dtype=float)
+            pos_y = np.asarray(y_positions_m[:n_scan], dtype=float)
 
-            # Determine sign: if measured and expected have same sign (product > 0), sign = -1;
-            # if opposite (product < 0), sign = +1.
-            # Only update if the position change is significant (> 0.5 pixel)
-            if abs(expected_dx_px) > 0.5 and abs(measured_dx) > 0.5:
-                args.sign_x = -1 if (measured_dx * expected_dx_px > 0) else 1
-                prColor('  Auto sign_x = {} (measured_dx={:.2f}px, expected_dx={:.2f}px)'.format(
-                    args.sign_x, measured_dx, expected_dx_px), 'green')
+            def _select_pair(pos, mag, max_shift_px):
+                # Return (i_lo, i_hi) of the pair with the largest |pos| separation whose
+                # expected detector shift |sep*mag/p_x| stays <= max_shift_px. Falls back to
+                # the overall widest pair if none fits the cap (best effort for direction).
+                # Returns None if there is no separation at all.
+                p_x_local = para_simulation['p_x']
+                order = np.argsort(pos)                      # ascending by position
+                sorted_pos = pos[order]
+                if sorted_pos[0] == sorted_pos[-1]:
+                    return None                              # no scan range
+                max_sep_allowed = max_shift_px * p_x_local / abs(mag) if mag != 0 else np.inf
+                best = None
+                best_sep = -1.0
+                n = len(order)
+                # O(n^2) over pairs (n is small); pick the widest separation under the cap.
+                for a in range(n):
+                    for b in range(a + 1, n):
+                        sep = abs(sorted_pos[b] - sorted_pos[a])
+                        if sep <= max_sep_allowed and sep > best_sep:
+                            best_sep = sep
+                            best = (int(order[a]), int(order[b]))
+                if best is not None:
+                    return best
+                # none under the cap -> fall back to the overall widest pair
+                return (int(order[0]), int(order[-1]))
+
+            if args.sign_method == 'first_two':
+                prColor('Auto-sign method: first_two (images 0 and 1)', 'cyan')
+                pair_x = (0, 1)
+                pair_y = (0, 1)
             else:
-                prColor('  X shift too small to determine sign (measured={:.2f}px, expected={:.2f}px), using sign_x={}'.format(
-                    measured_dx, expected_dx_px, args.sign_x), 'yellow')
+                prColor('Auto-sign method: max_separation (cap {:.0f}% of crop)'.format(
+                    100 * args.sign_max_shift_frac), 'cyan')
+                pair_x = _select_pair(pos_x, mag_h, max_shift_x)
+                pair_y = _select_pair(pos_y, mag_v, max_shift_y)
 
-            if abs(expected_dy_px) > 0.5 and abs(measured_dy) > 0.5:
-                args.sign_y = -1 if (measured_dy * expected_dy_px > 0) else 1
-                prColor('  Auto sign_y = {} (measured_dy={:.2f}px, expected_dy={:.2f}px)'.format(
-                    args.sign_y, measured_dy, expected_dy_px), 'green')
+            # ---- sign_x ----
+            if pair_x is not None and pair_x[0] != pair_x[1]:
+                ix_lo, ix_hi = pair_x
+                _, measured_dx = _measured_shift(ix_lo, ix_hi)
+                expected_dx_px = float((pos_x[ix_hi] - pos_x[ix_lo]) * mag_h / para_simulation['p_x'])
+                sign_detection_info['measured_dx_px'] = measured_dx
+                sign_detection_info['expected_dx_px'] = expected_dx_px
+                sign_detection_info['sign_x_pair'] = [ix_lo, ix_hi]
+                prColor('  sign_x pair: images {} and {} (expected_dx={:.2f}px)'.format(ix_lo, ix_hi, expected_dx_px), 'cyan')
+                if abs(expected_dx_px) > 0.5 and abs(measured_dx) > 0.5:
+                    args.sign_x = -1 if (measured_dx * expected_dx_px > 0) else 1
+                    prColor('  Auto sign_x = {} (measured_dx={:.2f}px, expected_dx={:.2f}px)'.format(
+                        args.sign_x, measured_dx, expected_dx_px), 'green')
+                else:
+                    prColor('  X shift too small to determine sign (measured={:.2f}px, expected={:.2f}px), using sign_x={}'.format(
+                        measured_dx, expected_dx_px, args.sign_x), 'yellow')
             else:
-                prColor('  Y shift too small to determine sign (measured={:.2f}px, expected={:.2f}px), using sign_y={}'.format(
-                    measured_dy, expected_dy_px, args.sign_y), 'yellow')
+                prColor('  No X scan range, using sign_x={}'.format(args.sign_x), 'yellow')
 
+            # ---- sign_y ----
+            if pair_y is not None and pair_y[0] != pair_y[1]:
+                iy_lo, iy_hi = pair_y
+                measured_dy, _ = _measured_shift(iy_lo, iy_hi)
+                expected_dy_px = float((pos_y[iy_hi] - pos_y[iy_lo]) * mag_v / para_simulation['p_x'])
+                sign_detection_info['measured_dy_px'] = measured_dy
+                sign_detection_info['expected_dy_px'] = expected_dy_px
+                sign_detection_info['sign_y_pair'] = [iy_lo, iy_hi]
+                prColor('  sign_y pair: images {} and {} (expected_dy={:.2f}px)'.format(iy_lo, iy_hi, expected_dy_px), 'cyan')
+                if abs(expected_dy_px) > 0.5 and abs(measured_dy) > 0.5:
+                    args.sign_y = -1 if (measured_dy * expected_dy_px > 0) else 1
+                    prColor('  Auto sign_y = {} (measured_dy={:.2f}px, expected_dy={:.2f}px)'.format(
+                        args.sign_y, measured_dy, expected_dy_px), 'green')
+                else:
+                    prColor('  Y shift too small to determine sign (measured={:.2f}px, expected={:.2f}px), using sign_y={}'.format(
+                        measured_dy, expected_dy_px, args.sign_y), 'yellow')
+            else:
+                prColor('  No Y scan range, using sign_y={}'.format(args.sign_y), 'yellow')
+
+            sign_detection_info['sign_method'] = args.sign_method
             sign_detection_info['sign_x'] = args.sign_x
             sign_detection_info['sign_y'] = args.sign_y
         elif args.auto_sign:
@@ -740,6 +821,8 @@ def execute_process_images_WSVT(**arguments):
                  sign_y=args.sign_y,
                  d_sv=para_simulation['d_sv'],
                  d_sh=para_simulation['d_sh'],
+                 d_sv_ini=para_simulation['d_sv_ini'],
+                 d_sh_ini=para_simulation['d_sh_ini'],
                  d_prop=para_simulation['d_prop'],
                  mag_x=mag_h,
                  mag_y=mag_v,
@@ -784,6 +867,25 @@ def execute_process_images_WSVT(**arguments):
             sign_detection_info['sign_y'] = args.sign_y
             sign_detection_info['auto_sign'] = False  # sign is fixed by the saved stack
 
+        # [SOURCE-DISTANCE RECALCULATION FIX] (ADDED) Restore the source distances the
+        # cached reference stack was generated with. This must happen before any scan-
+        # position magnification is recomputed or reported so the loaded geometry stays
+        # self-consistent. Older caches without these keys fall back to the current values.
+        if 'd_sv' in data_content.files:
+            para_simulation['d_sv'] = float(data_content['d_sv'])
+            para_simulation['d_sh'] = float(data_content['d_sh'])
+            para_simulation['d_sv_ini'] = (float(data_content['d_sv_ini'])
+                                           if 'd_sv_ini' in data_content.files
+                                           else para_simulation['d_sv'])
+            para_simulation['d_sh_ini'] = (float(data_content['d_sh_ini'])
+                                           if 'd_sh_ini' in data_content.files
+                                           else para_simulation['d_sh'])
+            prColor('  Loaded source distance from reference stack: d_sv={}, d_sh={}'.format(
+                para_simulation['d_sv'], para_simulation['d_sh']), 'green')
+        else:
+            para_simulation['d_sv_ini'] = para_simulation.get('d_sv_ini', para_simulation['d_sv'])
+            para_simulation['d_sh_ini'] = para_simulation.get('d_sh_ini', para_simulation['d_sh'])
+
         prColor('Loaded reference stack: {} images, shape {}'.format(
             ref_stack.shape[0], ref_stack.shape[1:]), 'green')
 
@@ -792,48 +894,54 @@ def execute_process_images_WSVT(**arguments):
         if os.path.exists(ref_json_src) and saving_path != result_folder:
             shutil.copy(ref_json_src, os.path.join(result_folder, 'reference.json'))
 
-    M_image = img_stack_cropped.shape[1]
-
-    # ===================== Step 6: Run WSVT solver =====================
-    prColor('Running WSVT solver with {} scan positions...'.format(n_scan), 'green')
-
     n_s_extend = 4  # hardcoded as in relative_metrology WSVT_executor
 
-    WSVT_solver = WSVT(img_stack_cropped,
-                       ref_stack,
-                       M_image=M_image,
-                       N_s_extend=n_s_extend,
-                       cal_half_window=args.cal_half_window,
-                       n_cores=args.n_cores,
-                       n_group=args.n_group,
-                       energy=args.energy,
-                       p_x=args.p_x,
-                       z=args.d_prop,
-                       wavelet_level_cut=args.wavelet_lv_cut,
-                       pyramid_level=args.pyramid_level,
-                       n_iter=args.n_iter,
-                       use_estimate=False,
-                       use_wavelet=args.use_wavelet,
-                       use_GPU=args.use_GPU,
-                       scaling_x=args.scaling_x,
-                       scaling_y=args.scaling_y,
-                       crop=args.crop)
+    def _run_wsvt(img_stk, ref_stk):
+        # Build and run a WSVT solver on the given measured/reference sub-stacks and
+        # return [displace_y, displace_x]. Shared by area and centralLine modes.
+        # [SKIP RAW WSVT DUMP] result_path=None: see note below -- it only controls
+        # WSVT.run()'s own redundant dump; the computation runs regardless.
+        solver = WSVT(img_stk,
+                      ref_stk,
+                      M_image=img_stk.shape[1],
+                      N_s_extend=n_s_extend,
+                      cal_half_window=args.cal_half_window,
+                      n_cores=args.n_cores,
+                      n_group=args.n_group,
+                      energy=args.energy,
+                      p_x=args.p_x,
+                      z=args.d_prop,
+                      wavelet_level_cut=args.wavelet_lv_cut,
+                      pyramid_level=args.pyramid_level,
+                      n_iter=args.n_iter,
+                      use_estimate=False,
+                      use_wavelet=args.use_wavelet,
+                      use_GPU=args.use_GPU,
+                      scaling_x=args.scaling_x,
+                      scaling_y=args.scaling_y,
+                      crop=args.crop)
+        # result_path only controls WSVT.run()'s internal WSVT_result.hdf5/.json dump
+        # (raw, pre-correction). This executor saves its own corrected results below,
+        # so that dump is redundant here; None skips it. The solver still computes
+        # (self.solver()/self.solver_cuda() run unconditionally).
+        solver.run(result_path=None)
+        return solver.displace  # [displace_y, displace_x]
 
-    # [SKIP RAW WSVT DUMP] (CHANGED) was: WSVT_solver.run(result_path=result_folder)
-    # result_path only controls WSVT.run()'s own internal save block (writes
-    # WSVT_result.hdf5/.json with the solver's raw, pre-executor-correction
-    # displace/DPC/phase/transmission) -- it has no effect on the computation
-    # itself (self.solver()/self.solver_cuda() run first, unconditionally).
-    # This executor already saves its own final, corrected result set below
-    # (single_shot_1.hdf5 via save_data), so the raw WSVT_result dump is
-    # redundant here. Passing None skips it; relative_metrology's own
-    # WSVT_executor.py calls .run(result_path=...) independently and is
-    # unaffected by this change.
-    WSVT_solver.run(result_path=None)
+    hw = args.cal_half_window
+    c_w = sc.value('inverse meter-electron volt relationship') / args.energy
+    flat_cropped = boundary_crop(flat)
 
-    # ===================== Step 7: Extract and post-process results =====================
-    # Following the same post-processing as execute_process_image (area mode)
-    displace = WSVT_solver.displace  # [displace_y, displace_x]
+    if args.mode == 'centralLine':
+        return _process_centralLine(args, _run_wsvt, img_stack_cropped, ref_stack,
+                                    displace_x_offset, displace_y_offset,
+                                    boundary_crop, flat_cropped, para_simulation,
+                                    c_w, hw, result_folder, sign_detection_info,
+                                    mask_exposure_info, n_scan)
+
+    # ===================== Step 6: Run WSVT solver (area mode) =====================
+    prColor('Running WSVT solver (area mode) with {} scan positions...'.format(n_scan), 'green')
+
+    displace = _run_wsvt(img_stack_cropped, ref_stack)  # [displace_y, displace_x]
     displace_y = displace[0]
     displace_x = displace[1]
 
@@ -954,6 +1062,12 @@ def execute_process_images_WSVT(**arguments):
                    'avg_radius_y':   float(avg_radius_y),
                    'x_scaling':      float(x_scaling),
                    'y_scaling':      float(y_scaling),
+                   # [SOURCE-DISTANCE RECALCULATION FIX] (ADDED) provenance of the
+                   # requested (initial) and actually-used V/H source distances.
+                   'source_distance_v_initial': float(para_simulation['d_sv_ini']),
+                   'source_distance_h_initial': float(para_simulation['d_sh_ini']),
+                   'source_distance_v_used':    float(para_simulation['d_sv']),
+                   'source_distance_h_used':    float(para_simulation['d_sh']),
                    # [MASK EXPOSURE MODEL] (ADDED) chosen fabrication exposure model/bias
                    'exposure_model': (mask_exposure_info or {}).get('model'),
                    'exposure_bias':  (mask_exposure_info or {}).get('bias'),
@@ -1003,5 +1117,158 @@ def execute_process_images_WSVT(**arguments):
                         'd_prop':     float(para_simulation['d_prop'])})
 
     result = ProcessImageResult('area', intensity, phase, line_phase, line_displace, line_curve_filter)
+
+    return result.to_dict()
+
+
+# ============================================================================
+# [WSVT CENTRALLINE] (ADDED) fast 1D reconstruction.
+# ----------------------------------------------------------------------------
+# Instead of solving the full 2D area, solve only two thin central strips:
+#   - a VERTICAL strip (full height, block_width columns) -> displace_y
+#   - a HORIZONTAL strip (block_width rows, full width)   -> displace_x
+# with block_width = linewidth_px + 2*cal_half_window. The WSVT solver always
+# trims cal_half_window from each output edge (WSVT.py), so the strip output is
+# exactly linewidth_px across the width direction; the 1D profile is the average
+# over that width. This mirrors the WXST centralLine behavior (pad by the search
+# footprint, trim it after tracking, average over the requested line width) and
+# is much faster than the area solve for narrow line widths.
+# Output matches the WXST centralLine result exactly (intensity holds [int_x,
+# int_y], 2D phase is None).
+# ============================================================================
+def _process_centralLine(args, run_wsvt, img_stack_cropped, ref_stack,
+                         displace_x_offset, displace_y_offset,
+                         boundary_crop, flat_cropped, para_simulation,
+                         c_w, hw, result_folder, sign_detection_info,
+                         mask_exposure_info, n_scan):
+    H, W = img_stack_cropped.shape[1], img_stack_cropped.shape[2]
+
+    # averaging width in pixels (>= 1), plus cal_half_window padding on each side
+    linewidth_px = max(1, int(args.lineWidth * args.pattern_size / args.p_x))
+    block_width  = linewidth_px + 2 * hw
+    block_width  = int(min(block_width, H, W))
+    if block_width < 2 * hw + 1:
+        block_width = 2 * hw + 1
+    if block_width > H or block_width > W:
+        prColor('WARNING: centralLine block_width ({}) exceeds crop ({}x{}); clamped.'.format(
+            block_width, H, W), 'red')
+        block_width = int(min(block_width, H, W))
+
+    cx = W // 2
+    cy = H // 2
+    vx0 = int(cx - block_width // 2); vx1 = vx0 + block_width   # vertical strip columns
+    hy0 = int(cy - block_width // 2); hy1 = hy0 + block_width   # horizontal strip rows
+
+    # ---- Vertical strip -> displace_y ----
+    prColor('Running WSVT solver (centralLine, vertical strip) ...', 'green')
+    img_v = img_stack_cropped[:, :, vx0:vx1]
+    ref_v = ref_stack[:, :, vx0:vx1]
+    displace_v = run_wsvt(img_v, ref_v)
+    displace_y = displace_v[0]
+
+    # ---- Horizontal strip -> displace_x ----
+    prColor('Running WSVT solver (centralLine, horizontal strip) ...', 'green')
+    img_h = img_stack_cropped[:, hy0:hy1, :]
+    ref_h = ref_stack[:, hy0:hy1, :]
+    displace_h = run_wsvt(img_h, ref_h)
+    displace_x = displace_h[1]
+
+    prColor('WSVT centralLine processing complete.', 'green')
+
+    # ---- Add back the geometric reference displacement offset (strip-sliced + hw trim) ----
+    dy_off = displace_y_offset[:, vx0:vx1][hw:-hw, hw:-hw]
+    dx_off = displace_x_offset[hy0:hy1, :][hw:-hw, hw:-hw]
+    dy_off = dy_off - np.mean(dy_off)
+    dx_off = dx_off - np.mean(dx_off)
+    displace_y += dy_off
+    displace_x += dx_off
+
+    # ---- Detector calibration (same mechanism as area mode) ----
+    if args.cali_path is not None:
+        prColor('load calibration data from file: {}'.format(args.cali_path), 'green')
+        dy_cali = boundary_crop(read_h5(args.cali_path, 'dy'))[:, vx0:vx1][hw:-hw, hw:-hw]
+        dx_cali = boundary_crop(read_h5(args.cali_path, 'dx'))[hy0:hy1, :][hw:-hw, hw:-hw]
+        displace_y -= dy_cali
+        displace_x -= dx_cali
+
+    # ---- Average over the line width to 1D profiles ----
+    line_displace = [np.mean(displace_y, axis=1), np.mean(displace_x, axis=0)]
+    line_displace = [line_displace[0] - np.mean(line_displace[0]),
+                     line_displace[1] - np.mean(line_displace[1])]
+
+    line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'],
+                  np.gradient(line_displace[1]) / para_simulation['d_prop']]
+
+    # Move the phase to the detector plane (same scaling as WXST centralLine)
+    x_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[1]))
+    y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
+    line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
+                  np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
+    avg_source_d_x = 1 / np.mean(line_curve[1])
+    avg_source_d_y = 1 / np.mean(line_curve[0])
+
+    line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
+                line_displace[1] * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling]
+    line_phase = [np.cumsum(line_dpc[0]) * para_simulation['p_x'] * 2 * np.pi / c_w,
+                  np.cumsum(line_dpc[1]) * para_simulation['p_x'] * 2 * np.pi / c_w]
+
+    line_curve_filter = [snd.gaussian_filter(line_curve[0], 21),
+                         snd.gaussian_filter(line_curve[1], 21)]
+
+    # ---- Intensity line profiles from flat (same as WXST centralLine) ----
+    linewidth_tosum = linewidth_px
+    fc = flat_cropped
+    intensity_x = fc[(fc.shape[0] - linewidth_tosum) // 2: (fc.shape[0] + linewidth_tosum) // 2,
+                     (fc.shape[1] - line_phase[1].shape[0]) // 2: (fc.shape[1] + line_phase[1].shape[0]) // 2]
+    intensity_y = fc[(fc.shape[0] - line_phase[0].shape[0]) // 2: (fc.shape[0] + line_phase[0].shape[0]) // 2,
+                     (fc.shape[1] - linewidth_tosum) // 2: (fc.shape[1] + linewidth_tosum) // 2]
+    int_x = np.sum(intensity_x, axis=0)
+    int_y = np.sum(intensity_y, axis=1)
+
+    prColor('mean source distance: {}y    {}x'.format(avg_source_d_y, avg_source_d_x), 'cyan')
+
+    # ---- Save (same keys/format as WXST centralLine) ----
+    if args.save_images:
+        with lock:
+            matplotlib.use('Agg')
+            save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
+                                       ['line_phase_x', line_phase[1], '[rad]'],
+                                       ['line_displace_y', line_displace[0], '[px]'],
+                                       ['line_phase_y', line_phase[0], '[rad]'],
+                                       ['line_curve_y', line_curve_filter[0], '[1/m]'],
+                                       ['line_curve_x', line_curve_filter[1], '[1/m]']],
+                           path=result_folder, p_x=para_simulation['p_x'])
+
+    write_json(result_path=result_folder,
+               file_name='result',
+               data_dict={'avg_source_d_x': float(avg_source_d_x),
+                          'avg_source_d_y': float(avg_source_d_y),
+                          'x_scaling':      float(x_scaling),
+                          'y_scaling':      float(y_scaling),
+                          'source_distance_v_initial': float(para_simulation['d_sv_ini']),
+                          'source_distance_h_initial': float(para_simulation['d_sh_ini']),
+                          'source_distance_v_used':    float(para_simulation['d_sv']),
+                          'source_distance_h_used':    float(para_simulation['d_sh']),
+                          'exposure_model': (mask_exposure_info or {}).get('model'),
+                          'exposure_bias':  (mask_exposure_info or {}).get('bias'),
+                          'sign_detection': sign_detection_info})
+
+    save_data(data={'int_y': int_y,
+                    'line_phase_y': line_phase[0],
+                    'line_displace_y': line_displace[0],
+                    'line_curve_y': line_curve_filter[0],
+                    'int_x': int_x,
+                    'line_phase_x': line_phase[1],
+                    'line_displace_x': line_displace[1],
+                    'line_curve_x': line_curve_filter[1]},
+              path_folder=result_folder,
+              metadata={'p_x':        float(para_simulation['p_x']),
+                        'x_scaling':  float(x_scaling),
+                        'y_scaling':  float(y_scaling),
+                        'energy':     float(args.energy),
+                        'wavelength': float(c_w),
+                        'd_prop':     float(para_simulation['d_prop'])})
+
+    result = ProcessImageResult('centralLine', [int_x, int_y], None, line_phase, line_displace, line_curve_filter)
 
     return result.to_dict()

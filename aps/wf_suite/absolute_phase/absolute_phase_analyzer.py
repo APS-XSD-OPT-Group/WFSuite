@@ -188,6 +188,8 @@ BEST_FOCUS_FROM         = ini_file.get_string_from_ini( section="Back-Propagatio
 BEST_FOCUS_SCAN_RANGE   = ini_file.get_list_from_ini(   section="Back-Propagation", key="2D, Best-Focus-Scan-Range",   default=[-0.001, 0.001, 0.0001], _type=float)
 BEST_FOCUS_SCAN_RANGE_V = ini_file.get_list_from_ini(   section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V", default=[-0.001, 0.001, 0.0001], _type=float)
 BEST_FOCUS_SCAN_RANGE_H = ini_file.get_list_from_ini(   section="Back-Propagation", key="1D, Best-Focus-Scan-Range-H", default=[-0.001, 0.001, 0.0001], _type=float)
+# [APERTURE SHAPE] (ADDED) 2D back-propagation aperture: "rectangular" (default), "circular", or "elliptical"
+APERTURE_SHAPE          = ini_file.get_string_from_ini( section="Back-Propagation", key="Aperture-Shape",                default="rectangular")
 
 SHOW_ALIGN_FIGURE     = ini_file.get_boolean_from_ini(section="Output", key="Show-Align-Figure",     default=False)
 CORRECT_SCALE         = ini_file.get_boolean_from_ini(section="Output", key="Correct-Scale",         default=False)
@@ -198,6 +200,9 @@ WSVT_N_SCAN              = ini_file.get_int_from_ini(    section="WSVT", key="N-
 WSVT_AUTO_SIGN           = ini_file.get_boolean_from_ini(section="WSVT", key="Auto-Sign",           default=True)
 WSVT_SIGN_X              = ini_file.get_int_from_ini(    section="WSVT", key="Sign-X",              default=1)
 WSVT_SIGN_Y              = ini_file.get_int_from_ini(    section="WSVT", key="Sign-Y",              default=1)
+# [ROBUST SIGN DETECTION] method for auto-sign: 'max_separation' (default) or 'first_two'
+WSVT_SIGN_METHOD         = ini_file.get_string_from_ini( section="WSVT", key="Sign-Method",         default="max_separation")
+WSVT_SIGN_MAX_SHIFT_FRAC = ini_file.get_float_from_ini(  section="WSVT", key="Sign-Max-Shift-Frac", default=0.20)
 WSVT_POSITION_UNITS      = ini_file.get_string_from_ini( section="WSVT", key="Position-Units",      default="mm")
 
 def store():
@@ -274,6 +279,8 @@ def store():
     ini_file.set_list_at_ini( section="Back-Propagation", key="2D, Best-Focus-Scan-Range",      values_list=BEST_FOCUS_SCAN_RANGE)
     ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-V",    values_list=BEST_FOCUS_SCAN_RANGE_V)
     ini_file.set_list_at_ini( section="Back-Propagation", key="1D, Best-Focus-Scan-Range-H",    values_list=BEST_FOCUS_SCAN_RANGE_H)
+    # [APERTURE SHAPE] (ADDED)
+    ini_file.set_value_at_ini(section="Back-Propagation", key="Aperture-Shape",             value=APERTURE_SHAPE)
 
     ini_file.set_value_at_ini(section="Reconstruction", key="Dark",           value=DARK)
     ini_file.set_value_at_ini(section="Reconstruction", key="Flat",           value=FLAT)
@@ -305,6 +312,8 @@ def store():
     ini_file.set_value_at_ini(section="WSVT", key="Auto-Sign",           value=WSVT_AUTO_SIGN)
     ini_file.set_value_at_ini(section="WSVT", key="Sign-X",              value=WSVT_SIGN_X)
     ini_file.set_value_at_ini(section="WSVT", key="Sign-Y",              value=WSVT_SIGN_Y)
+    ini_file.set_value_at_ini(section="WSVT", key="Sign-Method",         value=WSVT_SIGN_METHOD)
+    ini_file.set_value_at_ini(section="WSVT", key="Sign-Max-Shift-Frac", value=WSVT_SIGN_MAX_SHIFT_FRAC)
     ini_file.set_value_at_ini(section="WSVT", key="Position-Units",      value=WSVT_POSITION_UNITS)
 
     ini_file.push()
@@ -612,11 +621,13 @@ def _process_images_WSVT(data_collection_directory, file_name_prefix, mask_direc
     flat           = None if (FLAT is None or not use_flat) else os.path.join(data_collection_directory, FLAT)
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
 
-    # Use the first image's name as the result folder (same convention as WXST)
-    # so that the GUI and back-propagation can find the results
+    # Name the result folder after the image index (same convention as WXST and
+    # back-propagation) so Process Image (WSVT) and Back-Propagate use the same
+    # measurement_<index> folder. Defaults to 1 for backward compatibility.
+    image_index = kwargs.get("image_index", 1)
     image_file_name = get_image_file_path(measurement_directory=data_collection_directory,
                                           file_name_prefix=file_name_prefix,
-                                          image_index=1,
+                                          image_index=image_index,
                                           index_digits=index_digits)
     result_folder  = os.path.join(os.path.dirname(image_file_name),
                                   os.path.basename(image_file_name).split(pathlib.Path(image_file_name).suffix)[0])
@@ -649,6 +660,9 @@ def _process_images_WSVT(data_collection_directory, file_name_prefix, mask_direc
             sign_x=kwargs.get("sign_x", WSVT_SIGN_X),
             sign_y=kwargs.get("sign_y", WSVT_SIGN_Y),
             auto_sign=kwargs.get("auto_sign", WSVT_AUTO_SIGN),
+            # [ROBUST SIGN DETECTION] forward method + cap (default max_separation / 20%)
+            sign_method=kwargs.get("sign_method", WSVT_SIGN_METHOD),
+            sign_max_shift_frac=kwargs.get("sign_max_shift_frac", WSVT_SIGN_MAX_SHIFT_FRAC),
             position_units=kwargs.get("position_units", WSVT_POSITION_UNITS),
             p_x=kwargs.get("pixel_size", ws.PIXEL_SIZE),
             det_res=kwargs.get("detector_resolution", ws.DETECTOR_RESOLUTION),
@@ -677,13 +691,19 @@ def _process_images_WSVT(data_collection_directory, file_name_prefix, mask_direc
             propagator=kwargs.get("propagator", PROPAGATOR),
             # [DETECTOR CALIBRATION] (ADDED) forward ini/kwargs to the WSVT executor.
             cali_path=kwargs.get("calibration_path", CALIBRATION_PATH),
-            img_transfer_matrix=kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
-            find_transferMatrix=False,
+            # For WSVT, "Process Image" IS the mask-generation step ("Generate Mask"
+            # is disabled), so honor the GUI "Find Transfer Matrix" setting here --
+            # same pattern as _generate_simulated_mask for WXST. When enabled, pass
+            # img_transfer_matrix=None so the executor runs img_transfer_search.
+            img_transfer_matrix=None if FIND_TRANSFER_MATRIX else kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
+            find_transferMatrix=FIND_TRANSFER_MATRIX,
             crop=kwargs.get("crop", CROP),
             dark=dark,
             flat=flat,
             rebinning=kwargs.get("rebinning", REBINNING),
             lineWidth=kwargs.get("line_width", LINE_WIDTH),
+            # [WSVT CENTRALLINE] (ADDED) forward reconstruction mode (area/centralLine)
+            mode=kwargs.get("mode", MODE),
             cal_half_window=kwargs.get("window_search", WINDOW_SEARCH),
             n_cores=kwargs.get("n_cores", N_CORES),
             n_group=kwargs.get("n_group", N_GROUP),
@@ -841,6 +861,7 @@ def _backpropagate_wavefront(data_collection_directory, file_name_prefix, mask_d
                                     dim_y                  = kwargs.get("crop_v", CROP_V),
                                     shift_x                = kwargs.get("crop_shift_h", CROP_SHIFT_H),
                                     shift_y                = kwargs.get("crop_shift_v", CROP_SHIFT_V),
+                                    aperture_shape         = kwargs.get("aperture_shape", APERTURE_SHAPE),
                                     delta_f_x              = kwargs.get("delta_f_h", DELTA_F_H.get(METHOD, 0.0)),
                                     delta_f_y              = kwargs.get("delta_f_v", DELTA_F_V.get(METHOD, 0.0)),
                                     engine                 = kwargs.get("engine", ENGINE),

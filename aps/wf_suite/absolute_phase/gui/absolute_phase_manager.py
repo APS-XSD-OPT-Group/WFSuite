@@ -333,11 +333,18 @@ class _AbsolutePhaseManager(IAbsolutePhaseManager, Receiver, Sender):
         else:
             pixel_size = ws.PIXEL_SIZE
 
+        # The result folder is named after the image index (same convention as the
+        # single-shot path and back-propagation). Online mode uses index 1; offline
+        # mode uses the GUI Image Index, so Process Image (WSVT) and Back-Propagate
+        # operate on the same measurement_<index> folder.
+        image_index = 1 if wavefront_sensor_mode == 0 else initialization_parameters.get_parameter("image_index")
+
         kwargs = {
             "use_dark": initialization_parameters.get_parameter("use_dark", False),
             "use_flat": initialization_parameters.get_parameter("use_flat", False),
             "save_images": initialization_parameters.get_parameter("save_images", True),
             "pixel_size": pixel_size,
+            "image_index": image_index,
         }
 
         # Forward index_digits for offline mode (same as process_image)

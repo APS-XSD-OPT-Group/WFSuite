@@ -123,6 +123,7 @@ def generate_initialization_parameters_from_ini(ini: IniFacade):
             "sigma_phase" : wa.SIGMA_PHASE,
             "filter_intensity" : wa.FILTER_INTENSITY,
             "filter_phase" : wa.FILTER_PHASE,
+            "aperture_shape" : wa.APERTURE_SHAPE,
             "crop_v" : wa.CROP_V,
             "crop_h" : wa.CROP_H,
             "crop_shift_v" : wa.CROP_SHIFT_V,
@@ -267,6 +268,7 @@ def set_ini_from_initialization_parameters(initialization_parameters: ScriptData
     wa.SMOOTH_PHASE = back_propagation_configuration["smooth_phase"]
     wa.FILTER_PHASE = back_propagation_configuration["filter_phase"]
     wa.SIGMA_PHASE = back_propagation_configuration["sigma_phase"]
+    wa.APERTURE_SHAPE = back_propagation_configuration["aperture_shape"]
     wa.CROP_V = back_propagation_configuration["crop_v"]
     wa.CROP_H = back_propagation_configuration["crop_h"]
     wa.CROP_SHIFT_V = back_propagation_configuration["crop_shift_v"]
