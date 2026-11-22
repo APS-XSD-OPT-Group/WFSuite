@@ -219,6 +219,9 @@ def execute_process_images_WSVT(**arguments):
     arguments["flat"]                  = arguments.get("flat", None)
     arguments["rebinning"]             = arguments.get("rebinning", 1)
     arguments["lineWidth"]             = arguments.get("lineWidth", 5)  # line width for 1D profiles, in units of pattern_size
+    # [WSVT CENTRALLINE] (ADDED) reconstruction mode: 'area' (full 2D, default) or
+    # 'centralLine' (fast 1D: solve only two thin central strips, average over lineWidth).
+    arguments["mode"]                  = arguments.get("mode", 'area')
 
     # WSVT solver parameters
     arguments["cal_half_window"]       = arguments.get("cal_half_window", 20)
@@ -818,48 +821,54 @@ def execute_process_images_WSVT(**arguments):
         if os.path.exists(ref_json_src) and saving_path != result_folder:
             shutil.copy(ref_json_src, os.path.join(result_folder, 'reference.json'))
 
-    M_image = img_stack_cropped.shape[1]
-
-    # ===================== Step 6: Run WSVT solver =====================
-    prColor('Running WSVT solver with {} scan positions...'.format(n_scan), 'green')
-
     n_s_extend = 4  # hardcoded as in relative_metrology WSVT_executor
 
-    WSVT_solver = WSVT(img_stack_cropped,
-                       ref_stack,
-                       M_image=M_image,
-                       N_s_extend=n_s_extend,
-                       cal_half_window=args.cal_half_window,
-                       n_cores=args.n_cores,
-                       n_group=args.n_group,
-                       energy=args.energy,
-                       p_x=args.p_x,
-                       z=args.d_prop,
-                       wavelet_level_cut=args.wavelet_lv_cut,
-                       pyramid_level=args.pyramid_level,
-                       n_iter=args.n_iter,
-                       use_estimate=False,
-                       use_wavelet=args.use_wavelet,
-                       use_GPU=args.use_GPU,
-                       scaling_x=args.scaling_x,
-                       scaling_y=args.scaling_y,
-                       crop=args.crop)
+    def _run_wsvt(img_stk, ref_stk):
+        # Build and run a WSVT solver on the given measured/reference sub-stacks and
+        # return [displace_y, displace_x]. Shared by area and centralLine modes.
+        # [SKIP RAW WSVT DUMP] result_path=None: see note below -- it only controls
+        # WSVT.run()'s own redundant dump; the computation runs regardless.
+        solver = WSVT(img_stk,
+                      ref_stk,
+                      M_image=img_stk.shape[1],
+                      N_s_extend=n_s_extend,
+                      cal_half_window=args.cal_half_window,
+                      n_cores=args.n_cores,
+                      n_group=args.n_group,
+                      energy=args.energy,
+                      p_x=args.p_x,
+                      z=args.d_prop,
+                      wavelet_level_cut=args.wavelet_lv_cut,
+                      pyramid_level=args.pyramid_level,
+                      n_iter=args.n_iter,
+                      use_estimate=False,
+                      use_wavelet=args.use_wavelet,
+                      use_GPU=args.use_GPU,
+                      scaling_x=args.scaling_x,
+                      scaling_y=args.scaling_y,
+                      crop=args.crop)
+        # result_path only controls WSVT.run()'s internal WSVT_result.hdf5/.json dump
+        # (raw, pre-correction). This executor saves its own corrected results below,
+        # so that dump is redundant here; None skips it. The solver still computes
+        # (self.solver()/self.solver_cuda() run unconditionally).
+        solver.run(result_path=None)
+        return solver.displace  # [displace_y, displace_x]
 
-    # [SKIP RAW WSVT DUMP] (CHANGED) was: WSVT_solver.run(result_path=result_folder)
-    # result_path only controls WSVT.run()'s own internal save block (writes
-    # WSVT_result.hdf5/.json with the solver's raw, pre-executor-correction
-    # displace/DPC/phase/transmission) -- it has no effect on the computation
-    # itself (self.solver()/self.solver_cuda() run first, unconditionally).
-    # This executor already saves its own final, corrected result set below
-    # (single_shot_1.hdf5 via save_data), so the raw WSVT_result dump is
-    # redundant here. Passing None skips it; relative_metrology's own
-    # WSVT_executor.py calls .run(result_path=...) independently and is
-    # unaffected by this change.
-    WSVT_solver.run(result_path=None)
+    hw = args.cal_half_window
+    c_w = sc.value('inverse meter-electron volt relationship') / args.energy
+    flat_cropped = boundary_crop(flat)
 
-    # ===================== Step 7: Extract and post-process results =====================
-    # Following the same post-processing as execute_process_image (area mode)
-    displace = WSVT_solver.displace  # [displace_y, displace_x]
+    if args.mode == 'centralLine':
+        return _process_centralLine(args, _run_wsvt, img_stack_cropped, ref_stack,
+                                    displace_x_offset, displace_y_offset,
+                                    boundary_crop, flat_cropped, para_simulation,
+                                    c_w, hw, result_folder, sign_detection_info,
+                                    mask_exposure_info, n_scan)
+
+    # ===================== Step 6: Run WSVT solver (area mode) =====================
+    prColor('Running WSVT solver (area mode) with {} scan positions...'.format(n_scan), 'green')
+
+    displace = _run_wsvt(img_stack_cropped, ref_stack)  # [displace_y, displace_x]
     displace_y = displace[0]
     displace_x = displace[1]
 
@@ -1035,5 +1044,158 @@ def execute_process_images_WSVT(**arguments):
                         'd_prop':     float(para_simulation['d_prop'])})
 
     result = ProcessImageResult('area', intensity, phase, line_phase, line_displace, line_curve_filter)
+
+    return result.to_dict()
+
+
+# ============================================================================
+# [WSVT CENTRALLINE] (ADDED) fast 1D reconstruction.
+# ----------------------------------------------------------------------------
+# Instead of solving the full 2D area, solve only two thin central strips:
+#   - a VERTICAL strip (full height, block_width columns) -> displace_y
+#   - a HORIZONTAL strip (block_width rows, full width)   -> displace_x
+# with block_width = linewidth_px + 2*cal_half_window. The WSVT solver always
+# trims cal_half_window from each output edge (WSVT.py), so the strip output is
+# exactly linewidth_px across the width direction; the 1D profile is the average
+# over that width. This mirrors the WXST centralLine behavior (pad by the search
+# footprint, trim it after tracking, average over the requested line width) and
+# is much faster than the area solve for narrow line widths.
+# Output matches the WXST centralLine result exactly (intensity holds [int_x,
+# int_y], 2D phase is None).
+# ============================================================================
+def _process_centralLine(args, run_wsvt, img_stack_cropped, ref_stack,
+                         displace_x_offset, displace_y_offset,
+                         boundary_crop, flat_cropped, para_simulation,
+                         c_w, hw, result_folder, sign_detection_info,
+                         mask_exposure_info, n_scan):
+    H, W = img_stack_cropped.shape[1], img_stack_cropped.shape[2]
+
+    # averaging width in pixels (>= 1), plus cal_half_window padding on each side
+    linewidth_px = max(1, int(args.lineWidth * args.pattern_size / args.p_x))
+    block_width  = linewidth_px + 2 * hw
+    block_width  = int(min(block_width, H, W))
+    if block_width < 2 * hw + 1:
+        block_width = 2 * hw + 1
+    if block_width > H or block_width > W:
+        prColor('WARNING: centralLine block_width ({}) exceeds crop ({}x{}); clamped.'.format(
+            block_width, H, W), 'red')
+        block_width = int(min(block_width, H, W))
+
+    cx = W // 2
+    cy = H // 2
+    vx0 = int(cx - block_width // 2); vx1 = vx0 + block_width   # vertical strip columns
+    hy0 = int(cy - block_width // 2); hy1 = hy0 + block_width   # horizontal strip rows
+
+    # ---- Vertical strip -> displace_y ----
+    prColor('Running WSVT solver (centralLine, vertical strip) ...', 'green')
+    img_v = img_stack_cropped[:, :, vx0:vx1]
+    ref_v = ref_stack[:, :, vx0:vx1]
+    displace_v = run_wsvt(img_v, ref_v)
+    displace_y = displace_v[0]
+
+    # ---- Horizontal strip -> displace_x ----
+    prColor('Running WSVT solver (centralLine, horizontal strip) ...', 'green')
+    img_h = img_stack_cropped[:, hy0:hy1, :]
+    ref_h = ref_stack[:, hy0:hy1, :]
+    displace_h = run_wsvt(img_h, ref_h)
+    displace_x = displace_h[1]
+
+    prColor('WSVT centralLine processing complete.', 'green')
+
+    # ---- Add back the geometric reference displacement offset (strip-sliced + hw trim) ----
+    dy_off = displace_y_offset[:, vx0:vx1][hw:-hw, hw:-hw]
+    dx_off = displace_x_offset[hy0:hy1, :][hw:-hw, hw:-hw]
+    dy_off = dy_off - np.mean(dy_off)
+    dx_off = dx_off - np.mean(dx_off)
+    displace_y += dy_off
+    displace_x += dx_off
+
+    # ---- Detector calibration (same mechanism as area mode) ----
+    if args.cali_path is not None:
+        prColor('load calibration data from file: {}'.format(args.cali_path), 'green')
+        dy_cali = boundary_crop(read_h5(args.cali_path, 'dy'))[:, vx0:vx1][hw:-hw, hw:-hw]
+        dx_cali = boundary_crop(read_h5(args.cali_path, 'dx'))[hy0:hy1, :][hw:-hw, hw:-hw]
+        displace_y -= dy_cali
+        displace_x -= dx_cali
+
+    # ---- Average over the line width to 1D profiles ----
+    line_displace = [np.mean(displace_y, axis=1), np.mean(displace_x, axis=0)]
+    line_displace = [line_displace[0] - np.mean(line_displace[0]),
+                     line_displace[1] - np.mean(line_displace[1])]
+
+    line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'],
+                  np.gradient(line_displace[1]) / para_simulation['d_prop']]
+
+    # Move the phase to the detector plane (same scaling as WXST centralLine)
+    x_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[1]))
+    y_scaling = 1 / (1 + para_simulation['d_prop'] * np.mean(line_curve[0]))
+    line_curve = [np.gradient(line_displace[0]) / para_simulation['d_prop'] * y_scaling,
+                  np.gradient(line_displace[1]) / para_simulation['d_prop'] * x_scaling]
+    avg_source_d_x = 1 / np.mean(line_curve[1])
+    avg_source_d_y = 1 / np.mean(line_curve[0])
+
+    line_dpc = [line_displace[0] * para_simulation['p_x'] / para_simulation['d_prop'] * y_scaling,
+                line_displace[1] * para_simulation['p_x'] / para_simulation['d_prop'] * x_scaling]
+    line_phase = [np.cumsum(line_dpc[0]) * para_simulation['p_x'] * 2 * np.pi / c_w,
+                  np.cumsum(line_dpc[1]) * para_simulation['p_x'] * 2 * np.pi / c_w]
+
+    line_curve_filter = [snd.gaussian_filter(line_curve[0], 21),
+                         snd.gaussian_filter(line_curve[1], 21)]
+
+    # ---- Intensity line profiles from flat (same as WXST centralLine) ----
+    linewidth_tosum = linewidth_px
+    fc = flat_cropped
+    intensity_x = fc[(fc.shape[0] - linewidth_tosum) // 2: (fc.shape[0] + linewidth_tosum) // 2,
+                     (fc.shape[1] - line_phase[1].shape[0]) // 2: (fc.shape[1] + line_phase[1].shape[0]) // 2]
+    intensity_y = fc[(fc.shape[0] - line_phase[0].shape[0]) // 2: (fc.shape[0] + line_phase[0].shape[0]) // 2,
+                     (fc.shape[1] - linewidth_tosum) // 2: (fc.shape[1] + linewidth_tosum) // 2]
+    int_x = np.sum(intensity_x, axis=0)
+    int_y = np.sum(intensity_y, axis=1)
+
+    prColor('mean source distance: {}y    {}x'.format(avg_source_d_y, avg_source_d_x), 'cyan')
+
+    # ---- Save (same keys/format as WXST centralLine) ----
+    if args.save_images:
+        with lock:
+            matplotlib.use('Agg')
+            save_figure_1D(image_pair=[['line_displace_x', line_displace[1], '[px]'],
+                                       ['line_phase_x', line_phase[1], '[rad]'],
+                                       ['line_displace_y', line_displace[0], '[px]'],
+                                       ['line_phase_y', line_phase[0], '[rad]'],
+                                       ['line_curve_y', line_curve_filter[0], '[1/m]'],
+                                       ['line_curve_x', line_curve_filter[1], '[1/m]']],
+                           path=result_folder, p_x=para_simulation['p_x'])
+
+    write_json(result_path=result_folder,
+               file_name='result',
+               data_dict={'avg_source_d_x': float(avg_source_d_x),
+                          'avg_source_d_y': float(avg_source_d_y),
+                          'x_scaling':      float(x_scaling),
+                          'y_scaling':      float(y_scaling),
+                          'source_distance_v_initial': float(para_simulation['d_sv_ini']),
+                          'source_distance_h_initial': float(para_simulation['d_sh_ini']),
+                          'source_distance_v_used':    float(para_simulation['d_sv']),
+                          'source_distance_h_used':    float(para_simulation['d_sh']),
+                          'exposure_model': (mask_exposure_info or {}).get('model'),
+                          'exposure_bias':  (mask_exposure_info or {}).get('bias'),
+                          'sign_detection': sign_detection_info})
+
+    save_data(data={'int_y': int_y,
+                    'line_phase_y': line_phase[0],
+                    'line_displace_y': line_displace[0],
+                    'line_curve_y': line_curve_filter[0],
+                    'int_x': int_x,
+                    'line_phase_x': line_phase[1],
+                    'line_displace_x': line_displace[1],
+                    'line_curve_x': line_curve_filter[1]},
+              path_folder=result_folder,
+              metadata={'p_x':        float(para_simulation['p_x']),
+                        'x_scaling':  float(x_scaling),
+                        'y_scaling':  float(y_scaling),
+                        'energy':     float(args.energy),
+                        'wavelength': float(c_w),
+                        'd_prop':     float(para_simulation['d_prop'])})
+
+    result = ProcessImageResult('centralLine', [int_x, int_y], None, line_phase, line_displace, line_curve_filter)
 
     return result.to_dict()

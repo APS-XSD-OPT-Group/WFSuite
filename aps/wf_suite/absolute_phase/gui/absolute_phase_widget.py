@@ -1186,9 +1186,11 @@ class AbsolutePhaseWidget(GenericWidget):
                 self._manage_back_propagate_result(propagated_wavefront_data)
 
             except ValueError as error:
+                traceback.print_exc()
                 MessageDialog.message(self, title="Input Error", message=str(error.args[0]), type="critical", width=500)
                 if DEBUG_MODE: raise error
             except Exception as exception:
+                traceback.print_exc()
                 MessageDialog.message(self, title="Unexpected Exception", message=str(exception.args[0]), type="critical", width=700)
                 if DEBUG_MODE: raise exception
             finally:

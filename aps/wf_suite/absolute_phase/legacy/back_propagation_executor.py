@@ -304,12 +304,16 @@ class PropagatedWavefront:
                 elif self.kind == "1D":
                     wf.create_dataset('bf_propagation_distances_x', data=self.bf_propagation_distances_x)
                     wf.create_dataset('bf_propagation_distances_y', data=self.bf_propagation_distances_y)
+                    # [BUGFIX] use the per-axis distance arrays for the group names.
+                    # self.bf_propagation_distances is the 2D-only attribute and is
+                    # None in 1D mode, which previously raised
+                    # "'NoneType' object is not subscriptable" here.
                     for i in range(len(self.bf_propagation_distances_x)):
-                        sc = wf.create_group(f"{self.bf_propagation_distances[i]}_x")
+                        sc = wf.create_group(f"{self.bf_propagation_distances_x[i]}_x")
                         sc.create_dataset('x_coordinates', data=self.bf_x_coordinates[i])
                         sc.create_dataset('intensity_x', data=self.bf_intensities_x[i])
                     for i in range(len(self.bf_propagation_distances_y)):
-                        sc = wf.create_group(f"{self.bf_propagation_distances[i]}_y")
+                        sc = wf.create_group(f"{self.bf_propagation_distances_y[i]}_y")
                         sc.create_dataset('y_coordinates', data=self.bf_y_coordinates[i])
                         sc.create_dataset('intensity_y', data=self.bf_intensities_y[i])
                 wf.create_dataset('bf_size_values_x',     data=self.bf_size_values_x)
@@ -1219,10 +1223,10 @@ def __scan_best_focus_1D(initial_wavefront,
 
     for index in range(len(propagation_distances)):
         distance = propagation_distances[index]
-        sigma, fwhm, intensity_wofry, coord, _ = __propagate_1D(fresnel_propagator,
-                                                                initial_wavefront,
-                                                                magnification,
+        sigma, fwhm, intensity_wofry, coord, _ = __propagate_1D(initial_wavefront,
+                                                                fresnel_propagator,
                                                                 distance,
+                                                                magnification,
                                                                 rms_range,
                                                                 direction,
                                                                 verbose)

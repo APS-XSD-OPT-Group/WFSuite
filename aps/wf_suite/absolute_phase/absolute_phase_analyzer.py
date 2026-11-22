@@ -692,6 +692,8 @@ def _process_images_WSVT(data_collection_directory, file_name_prefix, mask_direc
             flat=flat,
             rebinning=kwargs.get("rebinning", REBINNING),
             lineWidth=kwargs.get("line_width", LINE_WIDTH),
+            # [WSVT CENTRALLINE] (ADDED) forward reconstruction mode (area/centralLine)
+            mode=kwargs.get("mode", MODE),
             cal_half_window=kwargs.get("window_search", WINDOW_SEARCH),
             n_cores=kwargs.get("n_cores", N_CORES),
             n_group=kwargs.get("n_group", N_GROUP),
