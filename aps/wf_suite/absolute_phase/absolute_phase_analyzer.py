@@ -200,6 +200,9 @@ WSVT_N_SCAN              = ini_file.get_int_from_ini(    section="WSVT", key="N-
 WSVT_AUTO_SIGN           = ini_file.get_boolean_from_ini(section="WSVT", key="Auto-Sign",           default=True)
 WSVT_SIGN_X              = ini_file.get_int_from_ini(    section="WSVT", key="Sign-X",              default=1)
 WSVT_SIGN_Y              = ini_file.get_int_from_ini(    section="WSVT", key="Sign-Y",              default=1)
+# [ROBUST SIGN DETECTION] method for auto-sign: 'max_separation' (default) or 'first_two'
+WSVT_SIGN_METHOD         = ini_file.get_string_from_ini( section="WSVT", key="Sign-Method",         default="max_separation")
+WSVT_SIGN_MAX_SHIFT_FRAC = ini_file.get_float_from_ini(  section="WSVT", key="Sign-Max-Shift-Frac", default=0.20)
 WSVT_POSITION_UNITS      = ini_file.get_string_from_ini( section="WSVT", key="Position-Units",      default="mm")
 
 def store():
@@ -309,6 +312,8 @@ def store():
     ini_file.set_value_at_ini(section="WSVT", key="Auto-Sign",           value=WSVT_AUTO_SIGN)
     ini_file.set_value_at_ini(section="WSVT", key="Sign-X",              value=WSVT_SIGN_X)
     ini_file.set_value_at_ini(section="WSVT", key="Sign-Y",              value=WSVT_SIGN_Y)
+    ini_file.set_value_at_ini(section="WSVT", key="Sign-Method",         value=WSVT_SIGN_METHOD)
+    ini_file.set_value_at_ini(section="WSVT", key="Sign-Max-Shift-Frac", value=WSVT_SIGN_MAX_SHIFT_FRAC)
     ini_file.set_value_at_ini(section="WSVT", key="Position-Units",      value=WSVT_POSITION_UNITS)
 
     ini_file.push()
@@ -616,11 +621,13 @@ def _process_images_WSVT(data_collection_directory, file_name_prefix, mask_direc
     flat           = None if (FLAT is None or not use_flat) else os.path.join(data_collection_directory, FLAT)
     mask_directory = os.path.join(data_collection_directory, "simulated_mask") if mask_directory is None else mask_directory
 
-    # Use the first image's name as the result folder (same convention as WXST)
-    # so that the GUI and back-propagation can find the results
+    # Name the result folder after the image index (same convention as WXST and
+    # back-propagation) so Process Image (WSVT) and Back-Propagate use the same
+    # measurement_<index> folder. Defaults to 1 for backward compatibility.
+    image_index = kwargs.get("image_index", 1)
     image_file_name = get_image_file_path(measurement_directory=data_collection_directory,
                                           file_name_prefix=file_name_prefix,
-                                          image_index=1,
+                                          image_index=image_index,
                                           index_digits=index_digits)
     result_folder  = os.path.join(os.path.dirname(image_file_name),
                                   os.path.basename(image_file_name).split(pathlib.Path(image_file_name).suffix)[0])
@@ -653,6 +660,9 @@ def _process_images_WSVT(data_collection_directory, file_name_prefix, mask_direc
             sign_x=kwargs.get("sign_x", WSVT_SIGN_X),
             sign_y=kwargs.get("sign_y", WSVT_SIGN_Y),
             auto_sign=kwargs.get("auto_sign", WSVT_AUTO_SIGN),
+            # [ROBUST SIGN DETECTION] forward method + cap (default max_separation / 20%)
+            sign_method=kwargs.get("sign_method", WSVT_SIGN_METHOD),
+            sign_max_shift_frac=kwargs.get("sign_max_shift_frac", WSVT_SIGN_MAX_SHIFT_FRAC),
             position_units=kwargs.get("position_units", WSVT_POSITION_UNITS),
             p_x=kwargs.get("pixel_size", ws.PIXEL_SIZE),
             det_res=kwargs.get("detector_resolution", ws.DETECTOR_RESOLUTION),
