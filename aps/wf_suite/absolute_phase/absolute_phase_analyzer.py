@@ -681,8 +681,12 @@ def _process_images_WSVT(data_collection_directory, file_name_prefix, mask_direc
             propagator=kwargs.get("propagator", PROPAGATOR),
             # [DETECTOR CALIBRATION] (ADDED) forward ini/kwargs to the WSVT executor.
             cali_path=kwargs.get("calibration_path", CALIBRATION_PATH),
-            img_transfer_matrix=kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
-            find_transferMatrix=False,
+            # For WSVT, "Process Image" IS the mask-generation step ("Generate Mask"
+            # is disabled), so honor the GUI "Find Transfer Matrix" setting here --
+            # same pattern as _generate_simulated_mask for WXST. When enabled, pass
+            # img_transfer_matrix=None so the executor runs img_transfer_search.
+            img_transfer_matrix=None if FIND_TRANSFER_MATRIX else kwargs.get("image_transfer_matrix", IMAGE_TRANSFER_MATRIX),
+            find_transferMatrix=FIND_TRANSFER_MATRIX,
             crop=kwargs.get("crop", CROP),
             dark=dark,
             flat=flat,

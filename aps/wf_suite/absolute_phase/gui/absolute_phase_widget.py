@@ -1028,7 +1028,12 @@ class AbsolutePhaseWidget(GenericWidget):
 
         # Widget ini
 
-        if not self._standalone: initialization_parameters.set_parameter("wavefront_sensor_mode", self.wavefront_sensor_mode)
+        # In standalone mode the widget forces wavefront_sensor_mode = 1 (offline) and
+        # disables the Mode selector. It must still be written to the ScriptData so the
+        # manager's offline-only logic (custom pixel size, index digits, image index)
+        # sees mode == 1; otherwise it reads a stale/default 0 and ignores, e.g., the
+        # custom pixel size.
+        initialization_parameters.set_parameter("wavefront_sensor_mode", self.wavefront_sensor_mode)
         initialization_parameters.set_parameter("plot_rebinning_factor",    self.plot_rebinning_factor)
 
         initialization_parameters.set_parameter("image_index",              self.image_index)
